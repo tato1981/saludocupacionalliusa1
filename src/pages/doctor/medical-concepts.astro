@@ -175,7 +175,7 @@ if (!user || user.role !== 'doctor') {
   let allConcepts: any[] = [];
   let filteredConcepts: any[] = [];
   let currentPage = 1;
-  const itemsPerPage = 20;
+  const itemsPerPage = 20; // Mostrar 20 certificados por página
 
   // Función helper para mostrar alertas usando SweetAlert2 global
   function showAlert(type: 'success' | 'error' | 'warning' | 'info', title: string, message?: string) {
