@@ -1,12 +1,23 @@
 import type { APIRoute } from 'astro';
 import { db } from '../../../../lib/database';
-import { hasRole, hashPassword } from '../../../../lib/auth';
+import { hasRole, hashPassword, requireAuth } from '../../../../lib/auth';
 import { MigrationService } from '../../../../lib/migration-service';
 import { R2StorageService } from '@/lib/r2-storage-service';
 
-export const POST: APIRoute = async ({ request, locals }) => {
+export const POST: APIRoute = async ({ request, locals, cookies }) => {
   try {
-    const user = locals.user;
+    let user = locals.user;
+    
+    // Fallback: Si locals no tiene el usuario, intentar obtenerlo de las cookies
+    if (!user) {
+      console.log('⚠️ Doctor Update: No user in locals, trying cookies...');
+      const authUser = requireAuth(cookies);
+      if (authUser) {
+        user = authUser;
+        console.log('✅ Doctor Update: User recovered from cookies:', user.email);
+      }
+    }
+
     if (!user) {
       console.error('❌ Doctor Update: No authenticated user found in locals');
       return new Response(JSON.stringify({ success: false, message: 'No autenticado' }), {

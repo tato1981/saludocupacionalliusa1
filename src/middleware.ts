@@ -146,6 +146,26 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
           if (!r2Response.ok) {
             console.error(`❌ File not found in R2: ${r2Url}`);
+            
+            // Fallback para firmas: devolver un placeholder en lugar de 404
+            if (key.includes('signature')) {
+              console.log('⚠️ Serving placeholder for missing signature');
+              const placeholderSvg = `
+                <svg width="300" height="100" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="100%" height="100%" fill="#f0f0f0"/>
+                  <text x="50%" y="50%" font-family="Arial" font-size="14" fill="#888" text-anchor="middle" dy=".3em">Firma no disponible</text>
+                  <text x="50%" y="70%" font-family="Arial" font-size="10" fill="#aaa" text-anchor="middle" dy=".3em">(Archivo no encontrado)</text>
+                </svg>
+              `;
+              return new Response(placeholderSvg, {
+                status: 200,
+                headers: {
+                  'Content-Type': 'image/svg+xml',
+                  'Cache-Control': 'no-cache'
+                }
+              });
+            }
+
             return new Response('File not found in R2', { status: 404 });
           }
 

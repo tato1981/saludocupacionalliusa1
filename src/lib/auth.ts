@@ -73,17 +73,19 @@ export function requireAuth(cookies: any): AuthUser | null {
 // Verificar si el usuario tiene el rol requerido
 export function hasRole(user: AuthUser | null, requiredRole: string): boolean {
   if (!user) return false;
-  if (user.role === 'superadmin' || user.role === 'admin') return true;
-  return user.role === requiredRole;
+  const userRole = user.role.toLowerCase();
+  if (userRole === 'superadmin' || userRole === 'admin') return true;
+  return userRole === requiredRole.toLowerCase();
 }
 
 // Verificar si el usuario es admin o superadmin (tienen los mismos privilegios)
 export function isAdmin(user: AuthUser | null): boolean {
   if (!user) return false;
-  return user.role === 'superadmin' || user.role === 'admin';
+  const userRole = user.role.toLowerCase();
+  return userRole === 'superadmin' || userRole === 'admin';
 }
 
 export function isSuperAdmin(user: AuthUser | null): boolean {
   if (!user) return false;
-  return user.role === 'superadmin';
+  return user.role.toLowerCase() === 'superadmin';
 }
