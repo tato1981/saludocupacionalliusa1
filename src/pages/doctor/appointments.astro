@@ -191,9 +191,12 @@ if (!user || user.role !== 'doctor') {
         <!-- Paginación -->
         <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <span class="text-sm text-gray-700" id="resultsCount">Mostrando 0 resultados</span>
-          <div class="flex space-x-2 justify-center sm:justify-end">
-            <button id="prevBtn" class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Anterior</button>
-            <button id="nextBtn" class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Siguiente</button>
+          <div class="flex items-center justify-center sm:justify-end space-x-1 flex-wrap gap-1" id="paginationContainer">
+            <button id="prevBtn" class="px-2 sm:px-3 py-1 border border-gray-300 rounded-md text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled>Anterior</button>
+            <div id="pageNumbers" class="flex items-center space-x-1 mx-1 sm:mx-2">
+              <!-- Los números de página se generan dinámicamente -->
+            </div>
+            <button id="nextBtn" class="px-2 sm:px-3 py-1 border border-gray-300 rounded-md text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled>Siguiente</button>
           </div>
         </div>
       </div>
@@ -400,6 +403,57 @@ if (!user || user.role !== 'doctor') {
     `).join('');
   }
 
+  // Renderizar números de página
+  function renderPageNumbers(totalPages: number) {
+    const pageNumbersContainer = document.getElementById('pageNumbers')!;
+    pageNumbersContainer.innerHTML = '';
+
+    if (totalPages <= 1) return;
+
+    const createPageButton = (pageNum: number, isActive: boolean = false) => {
+      const button = document.createElement('button');
+      button.textContent = pageNum.toString();
+      button.className = `px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded-md transition-colors ${
+        isActive
+          ? 'bg-blue-600 text-white'
+          : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+      }`;
+      button.onclick = () => {
+        currentPage = pageNum;
+        renderAppointments(filteredAppointments);
+        // Scroll hacia arriba de la tabla
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+      return button;
+    };
+
+    const createDots = () => {
+      const dots = document.createElement('span');
+      dots.textContent = '...';
+      dots.className = 'px-1 sm:px-2 text-gray-500 text-xs sm:text-sm';
+      return dots;
+    };
+
+    // Lógica para mostrar 1, 2, 3, ..., última página
+    if (totalPages <= 5) {
+      // Si hay 5 o menos páginas, mostrar todas
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbersContainer.appendChild(createPageButton(i, i === currentPage));
+      }
+    } else {
+      // Mostrar las primeras 3 páginas
+      for (let i = 1; i <= 3; i++) {
+        pageNumbersContainer.appendChild(createPageButton(i, i === currentPage));
+      }
+
+      // Mostrar puntos suspensivos
+      pageNumbersContainer.appendChild(createDots());
+
+      // Mostrar la última página
+      pageNumbersContainer.appendChild(createPageButton(totalPages, totalPages === currentPage));
+    }
+  }
+
   // Renderizar tabla de citas
   function renderAppointments(appointments: any[]) {
     const tableBody = document.getElementById('appointmentsTableBody')!;
@@ -430,6 +484,7 @@ if (!user || user.role !== 'doctor') {
       `;
       prevBtn.disabled = true;
       nextBtn.disabled = true;
+      document.getElementById('pageNumbers')!.innerHTML = '';
       return;
     }
 
@@ -438,6 +493,9 @@ if (!user || user.role !== 'doctor') {
     // Actualizar botones
     prevBtn.disabled = currentPage === 1;
     nextBtn.disabled = currentPage === totalPages;
+
+    // Renderizar números de página
+    renderPageNumbers(totalPages);
 
     tableBody.innerHTML = paginatedItems.map(appointment => {
       const status = appointment.status.toLowerCase();
@@ -753,6 +811,8 @@ if (!user || user.role !== 'doctor') {
     if (currentPage > 1) {
       currentPage--;
       renderAppointments(filteredAppointments);
+      // Scroll hacia arriba de la tabla
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   });
 
@@ -761,6 +821,8 @@ if (!user || user.role !== 'doctor') {
     if (currentPage < totalPages) {
       currentPage++;
       renderAppointments(filteredAppointments);
+      // Scroll hacia arriba de la tabla
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   });
 
