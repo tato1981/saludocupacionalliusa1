@@ -296,13 +296,13 @@ if (!user || user.role !== 'doctor') {
   async function loadAppointments() {
     const loadingState = document.getElementById('loadingState')!;
     const tableBody = document.getElementById('appointmentsTableBody')!;
-    
+
     loadingState.classList.remove('hidden');
-    
+
     try {
       const response = await fetch('/api/doctor/appointments');
       const data = await response.json();
-      
+
       if (data.success) {
         allAppointments = data.data;
         filteredAppointments = [...allAppointments];
@@ -774,7 +774,7 @@ if (!user || user.role !== 'doctor') {
 
       if (updateResult && updateResult.success) {
         showAlert('success', '¡Estado actualizado!', `La cita ahora está "${statusTexts[newStatus]}"`);
-        
+
         if (newStatus === 'completada') {
           setTimeout(async () => {
             const certResult = await (window as any).showSweetConfirm(
@@ -783,7 +783,7 @@ if (!user || user.role !== 'doctor') {
               'Sí, emitir ahora',
               'Después'
             );
-            
+
             if (certResult.isConfirmed) {
               (window as any).openIssueModal(appointmentId);
             }
@@ -919,7 +919,7 @@ if (!user || user.role !== 'doctor') {
           if (result.success) {
               await showAlert('success', 'Certificado emitido exitosamente', 'Se abrirá el PDF a continuación.');
               (window as any).closeModal();
-              
+
               // Abrir PDF en nueva pestaña inmediatamente
               if (result.data && result.data.verification_url) {
                    const code = result.data.verification_url.split('code=')[1];
@@ -927,7 +927,7 @@ if (!user || user.role !== 'doctor') {
                       window.open(`/api/certificates/download?code=${code}`, '_blank');
                    }
               }
-              
+
               loadAppointments(); // Recargar lista para actualizar estado
           } else {
               showAlert('error', 'Error', result.message);
