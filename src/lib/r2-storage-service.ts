@@ -93,12 +93,12 @@ class R2Storage {
       await this.client!.send(command);
 
       const publicUrl = `${this.publicUrl}/${key}`;
-      console.log(`✅ R2 Upload: ${key} -> ${publicUrl}`);
+      console.log(`✅ R2 Upload Success: ${key} -> ${publicUrl}`);
 
       return publicUrl;
     } catch (error: any) {
       console.error('❌ R2 Upload Error:', error);
-      throw new Error(`Error al subir archivo a R2: ${error.message}`);
+      throw error; // Re-throw to be handled by caller
     }
   }
 

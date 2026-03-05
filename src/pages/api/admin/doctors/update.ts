@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { db } from '../../../../lib/database';
 import { hasRole, hashPassword, requireAuth } from '../../../../lib/auth';
 import { MigrationService } from '../../../../lib/migration-service';
-import { R2StorageService } from '@/lib/r2-storage-service';
+import { R2StorageService } from '../../../../lib/r2-storage-service';
 
 export const POST: APIRoute = async ({ request, locals, cookies }) => {
   try {
