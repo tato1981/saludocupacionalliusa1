@@ -80,6 +80,8 @@ class R2Storage {
    * @returns URL pública del archivo subido
    */
   async uploadFile(buffer: Buffer, key: string, contentType: string): Promise<string> {
+    console.log(`📤 R2 Upload Starting: key=${key}, contentType=${contentType}, bufferSize=${buffer.length}`);
+
     this.checkConfiguration();
 
     try {
@@ -90,14 +92,20 @@ class R2Storage {
         ContentType: contentType,
       });
 
+      console.log(`   🔄 Enviando comando a R2...`);
       await this.client!.send(command);
 
       const publicUrl = `${this.publicUrl}/${key}`;
-      console.log(`✅ R2 Upload Success: ${key} -> ${publicUrl}`);
+      console.log(`   ✅ R2 Upload Success: ${key} -> ${publicUrl}`);
 
       return publicUrl;
     } catch (error: any) {
-      console.error('❌ R2 Upload Error:', error);
+      console.error(`   ❌ R2 Upload Error for key="${key}":`, {
+        message: error.message,
+        code: error.code,
+        name: error.name,
+        statusCode: error.$metadata?.httpStatusCode
+      });
       throw error; // Re-throw to be handled by caller
     }
   }

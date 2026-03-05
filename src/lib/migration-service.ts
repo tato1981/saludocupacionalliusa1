@@ -184,6 +184,43 @@ export class MigrationService {
     }
   }
 
+  // Agregar columna certificate_date a work_certificates si no existe
+  static async addCertificateDateColumn(): Promise<boolean> {
+    try {
+      // Verificar si la tabla existe primero
+      const [tableRows] = await db.execute(`
+        SELECT COUNT(*) as count 
+        FROM INFORMATION_SCHEMA.TABLES 
+        WHERE TABLE_SCHEMA = DATABASE() 
+          AND TABLE_NAME = 'work_certificates'
+      `);
+      
+      if ((tableRows as any[])[0].count === 0) {
+        return false; // La tabla no existe, se creará con createWorkCertificatesTable
+      }
+
+      const exists = await this.columnExists('work_certificates', 'certificate_date');
+      
+      if (exists) {
+        return true;
+      }
+
+      console.log('🔄 Agregando columna certificate_date a work_certificates...');
+      await db.execute(`
+        ALTER TABLE work_certificates 
+        ADD COLUMN certificate_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP 
+        AFTER appointment_id
+      `);
+      console.log('✅ Columna certificate_date agregada exitosamente');
+      
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Error agregando columna certificate_date:', error);
+      return false;
+    }
+  }
+
   // Ejecutar todas las migraciones necesarias
   static async runMigrations(): Promise<void> {
     try {
@@ -191,6 +228,8 @@ export class MigrationService {
       await this.addPhotoPathColumn();
       // Migración 2: Crear tabla de certificados de aptitud
       await this.createWorkCertificatesTable();
+      // Migración 2.1: Asegurar que exista certificate_date (para tablas existentes)
+      await this.addCertificateDateColumn();
       // Migración 3: Crear tablas de empresas y contactos + patients.company_id
       await this.createCompaniesTables();
       // Migración 4: Actualizar tabla companies con campos adicionales

@@ -307,12 +307,16 @@ export class CertificateService {
       // Generar código de verificación único
       const verificationCode = generateCode(32);
 
+      // Usar fecha de inicio de vigencia como fecha de certificado si existe, sino usar fecha actual
+      // Si params.validityStart viene en formato YYYY-MM-DD, MySQL lo aceptará correctamente en columna DATETIME
+      const certificateDate = params.validityStart ? params.validityStart : dayjs().format('YYYY-MM-DD HH:mm:ss');
+
       // Insertar registro de certificado
       const [result] = await db.execute(
         `INSERT INTO work_certificates (
           patient_id, doctor_id, appointment_id, aptitude_status, restrictions, recommendations,
-          validity_start, validity_end, verification_code
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          validity_start, validity_end, verification_code, certificate_date
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           params.patientId,
           params.doctorId,
@@ -322,7 +326,8 @@ export class CertificateService {
           params.recommendations || null,
           params.validityStart || null,
           params.validityEnd || null,
-          verificationCode
+          verificationCode,
+          certificateDate
         ]
       );
 
@@ -461,18 +466,17 @@ export class CertificateService {
         doc.fillColor('#000000');
       }
 
-      // Fecha del examen y Tipo de cita en una sola fila
+      // Fecha de emisión y Tipo de cita en una sola fila (2 columnas)
       const appointmentInfoY = doc.y;
-      const halfWidth = pageWidth / 2;
+      const colWidth = pageWidth / 2;
 
-      // Fecha del examen (si existe)
-      if (appointmentInfo?.appointment_date) {
-        doc.rect(50, appointmentInfoY, halfWidth - 5, 28).fill('#fffbeb').stroke('#fbbf24');
-        doc.fillColor('#92400e');
-        doc.font('Helvetica-Bold').fontSize(6).text(cleanText('FECHA DEL EXAMEN'), 60, appointmentInfoY + 6);
-        doc.fillColor('#000000');
-        doc.font('Helvetica').fontSize(7).text(cleanText(dayjs(appointmentInfo.appointment_date).format('DD/MM/YYYY HH:mm')), 60, appointmentInfoY + 16);
-      }
+      // Fecha de emisión
+      const emissionX = 50;
+      doc.rect(emissionX, appointmentInfoY, colWidth - 5, 28).fill('#f0fdf4').stroke('#86efac');
+      doc.fillColor('#166534');
+      doc.font('Helvetica-Bold').fontSize(6).text(cleanText('FECHA DE EMISIÓN'), emissionX + 10, appointmentInfoY + 6);
+      doc.fillColor('#000000');
+      doc.font('Helvetica').fontSize(7).text(cleanText(dayjs(certificateDate).format('DD/MM/YYYY')), emissionX + 10, appointmentInfoY + 16);
 
       // Tipo de cita (si existe)
       if (appointmentInfo?.appointment_type) {
@@ -488,12 +492,12 @@ export class CertificateService {
         };
         const appointmentTypeText = appointmentTypeMap[appointmentInfo.appointment_type] || appointmentInfo.appointment_type;
 
-        const typeBoxX = 50 + halfWidth + 5;
-        doc.rect(typeBoxX, appointmentInfoY, halfWidth - 5, 28).fill('#dbeafe').stroke('#3b82f6');
+        const typeBoxX = 50 + colWidth;
+        doc.rect(typeBoxX, appointmentInfoY, colWidth - 5, 28).fill('#dbeafe').stroke('#3b82f6');
         doc.fillColor('#1e3a8a');
         doc.font('Helvetica-Bold').fontSize(6).text(cleanText('TIPO DE CITA'), typeBoxX + 10, appointmentInfoY + 6);
         doc.fillColor('#000000');
-        doc.font('Helvetica').fontSize(7).text(cleanText(appointmentTypeText), typeBoxX + 10, appointmentInfoY + 16, { width: halfWidth - 25 });
+        doc.font('Helvetica').fontSize(7).text(cleanText(appointmentTypeText), typeBoxX + 10, appointmentInfoY + 16, { width: colWidth - 25 });
       }
 
       doc.y = appointmentInfoY + 35;
@@ -929,18 +933,18 @@ export class CertificateService {
         doc.fillColor('#000000');
       }
 
-      // Fecha del examen y Tipo de cita en una sola fila
+      // Fecha de emisión y Tipo de cita en una sola fila (2 columnas)
       const appointmentInfoY = doc.y;
-      const halfWidth = pageWidth / 2;
+      const colWidth = pageWidth / 2;
 
-      // Fecha del examen (si existe)
-      if (record.appointment_date) {
-        doc.rect(50, appointmentInfoY, halfWidth - 5, 28).fill('#fffbeb').stroke('#fbbf24');
-        doc.fillColor('#92400e');
-        doc.font('Helvetica-Bold').fontSize(6).text(cleanText('FECHA DEL EXAMEN'), 60, appointmentInfoY + 6);
-        doc.fillColor('#000000');
-        doc.font('Helvetica').fontSize(7).text(cleanText(dayjs(record.appointment_date).format('DD/MM/YYYY HH:mm')), 60, appointmentInfoY + 16);
-      }
+      // Fecha de emisión
+      const certificateDate = record.certificate_date || record.created_at || new Date();
+      const emissionX = 50;
+      doc.rect(emissionX, appointmentInfoY, colWidth - 5, 28).fill('#f0fdf4').stroke('#86efac');
+      doc.fillColor('#166534');
+      doc.font('Helvetica-Bold').fontSize(6).text(cleanText('FECHA DE EMISIÓN'), emissionX + 10, appointmentInfoY + 6);
+      doc.fillColor('#000000');
+      doc.font('Helvetica').fontSize(7).text(cleanText(dayjs(certificateDate).format('DD/MM/YYYY')), emissionX + 10, appointmentInfoY + 16);
 
       // Tipo de cita (si existe)
       if (record.appointment_type) {
@@ -956,12 +960,12 @@ export class CertificateService {
         };
         const appointmentTypeText = appointmentTypeMap[record.appointment_type] || record.appointment_type;
 
-        const typeBoxX = 50 + halfWidth + 5;
-        doc.rect(typeBoxX, appointmentInfoY, halfWidth - 5, 28).fill('#dbeafe').stroke('#3b82f6');
+        const typeBoxX = 50 + colWidth;
+        doc.rect(typeBoxX, appointmentInfoY, colWidth - 5, 28).fill('#dbeafe').stroke('#3b82f6');
         doc.fillColor('#1e3a8a');
         doc.font('Helvetica-Bold').fontSize(6).text(cleanText('TIPO DE CITA'), typeBoxX + 10, appointmentInfoY + 6);
         doc.fillColor('#000000');
-        doc.font('Helvetica').fontSize(7).text(cleanText(appointmentTypeText), typeBoxX + 10, appointmentInfoY + 16, { width: halfWidth - 25 });
+        doc.font('Helvetica').fontSize(7).text(cleanText(appointmentTypeText), typeBoxX + 10, appointmentInfoY + 16, { width: colWidth - 25 });
       }
 
       doc.y = appointmentInfoY + 35;
