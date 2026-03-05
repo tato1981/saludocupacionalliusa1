@@ -2,6 +2,8 @@
 import { db } from './database.js';
 import type { Patient, Appointment, MedicalRecord } from '../types/index.js';
 import { R2StorageService } from './r2-storage-service.js';
+import fs from 'fs';
+import path from 'path';
 
 export class PatientService {
   
@@ -362,15 +364,68 @@ export class PatientService {
       const extension = tempUrl.split('.').pop() || (type === 'photo' ? 'webp' : 'png');
       const timestamp = Date.now();
       const destinationKey = `patients/${patientId}/${type}_${timestamp}.${extension}`;
+      let newUrl: string = tempUrl;
 
-      // Copiar archivo
-      const newUrl = await R2StorageService.copyFile(tempUrl, destinationKey);
+      // Detectar si es un archivo local (empieza con /uploads/)
+      if (tempUrl.startsWith('/uploads/')) {
+        console.log('📂 Detectado archivo local, buscando en disco...');
+        
+        const decodedPath = decodeURIComponent(tempUrl);
+        // Intentar ubicar el archivo en varias rutas posibles
+        const possiblePaths = [
+          path.join(process.cwd(), decodedPath), 
+          path.join(process.cwd(), 'public', decodedPath),
+          path.join(process.cwd(), 'dist', 'client', decodedPath)
+        ];
 
-      // Eliminar archivo temporal
-      try {
-        await R2StorageService.deleteFile(tempUrl);
-      } catch (e) {
-        console.warn(`⚠️ No se pudo eliminar archivo temp ${tempUrl}:`, e);
+        let fileBuffer: Buffer | null = null;
+        let foundPath: string | null = null;
+
+        for (const p of possiblePaths) {
+          if (fs.existsSync(p)) {
+            try {
+              fileBuffer = fs.readFileSync(p);
+              foundPath = p;
+              console.log(`✅ Archivo encontrado en: ${p}`);
+              break;
+            } catch (e) {
+              console.warn(`⚠️ Error leyendo archivo en ${p}:`, e);
+            }
+          }
+        }
+
+        if (fileBuffer && foundPath) {
+          // Subir a R2 como archivo nuevo
+          const mimeType = type === 'photo' ? 'image/webp' : 'image/png';
+          newUrl = await R2StorageService.uploadFile(fileBuffer, destinationKey, mimeType);
+          
+          // Eliminar archivo local
+          try {
+            fs.unlinkSync(foundPath);
+            console.log(`🗑️ Archivo local eliminado: ${foundPath}`);
+          } catch (e) {
+            console.warn(`⚠️ No se pudo eliminar archivo local ${foundPath}:`, e);
+          }
+        } else {
+          console.error(`❌ No se encontró el archivo local: ${tempUrl}`);
+          // Intentar fallback a R2 copy si no se encuentra localmente
+          try {
+             newUrl = await R2StorageService.copyFile(tempUrl, destinationKey);
+          } catch (copyError) {
+             console.error(`❌ Falló fallback copyFile de R2:`, copyError);
+             return tempUrl;
+          }
+        }
+      } else {
+        // Caso normal: Archivo ya en R2
+        newUrl = await R2StorageService.copyFile(tempUrl, destinationKey);
+
+        // Eliminar archivo temporal
+        try {
+          await R2StorageService.deleteFile(tempUrl);
+        } catch (e) {
+          console.warn(`⚠️ No se pudo eliminar archivo temp ${tempUrl}:`, e);
+        }
       }
 
       // Si es foto, mover también versión certificado
@@ -379,6 +434,8 @@ export class PatientService {
         const destCertKey = destinationKey.replace('.webp', '_cert.webp');
 
         try {
+          // Si el archivo principal era local, este copyFile fallará si la versión _cert no está en R2
+          // TODO: Implementar subida de _cert local si es necesario
           await R2StorageService.copyFile(tempCertUrl, destCertKey);
           await R2StorageService.deleteFile(tempCertUrl);
           console.log('✅ Versión certificado movida exitosamente');
