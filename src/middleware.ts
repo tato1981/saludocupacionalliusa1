@@ -122,23 +122,28 @@ export const onRequest = defineMiddleware(async (context, next) => {
             if (match) {
               const [_, id, timestamp, ext] = match;
               
-              // Intentar ruta de doctores (formato actual)
-              const doctorKey = `doctors/${id}/signature_${timestamp}.${ext}`;
-              const doctorUrl = `${fullBaseUrl}/${doctorKey}`;
-              console.log(`🔄 Reintentando R2 con ruta de doctor: ${doctorUrl}`);
-              const doctorResponse = await fetch(doctorUrl);
-              
-              if (doctorResponse.ok) {
-                r2Response = doctorResponse;
-              } else {
-                // Intentar ruta de pacientes
-                const patientKey = `patients/${id}/signature_${timestamp}.${ext}`;
-                const patientUrl = `${fullBaseUrl}/${patientKey}`;
-                console.log(`🔄 Reintentando R2 con ruta de paciente: ${patientUrl}`);
-                const patientResponse = await fetch(patientUrl);
+              // Lista de rutas alternativas para probar
+              const alternatePaths = [
+                // 1. Ruta estándar Doctores: doctors/{ID}/signature_{TIMESTAMP}.{ext}
+                `doctors/${id}/signature_${timestamp}.${ext}`,
+                // 2. Ruta Doctores conservando nombre original: doctors/{ID}/signature_{ID}_{TIMESTAMP}.{ext}
+                `doctors/${id}/signature_${id}_${timestamp}.${ext}`,
+                 // 3. Ruta estándar Pacientes: patients/{ID}/signature_{TIMESTAMP}.{ext}
+                `patients/${id}/signature_${timestamp}.${ext}`,
+                // 4. Ruta Pacientes conservando nombre original: patients/{ID}/signature_{ID}_{TIMESTAMP}.{ext}
+                `patients/${id}/signature_${id}_${timestamp}.${ext}`
+              ];
+
+              for (const altKey of alternatePaths) {
+                const altUrl = `${fullBaseUrl}/${altKey}`;
+                console.log(`🔄 Reintentando R2 con ruta alternativa: ${altUrl}`);
+                const altResponse = await fetch(altUrl);
                 
-                if (patientResponse.ok) {
-                  r2Response = patientResponse;
+                if (altResponse.ok) {
+                  r2Response = altResponse;
+                  break; // Encontrado, salir del bucle
+                } else {
+                  console.log(`   ❌ Falló ruta alternativa: ${altKey} (Status: ${altResponse.status})`);
                 }
               }
             }
