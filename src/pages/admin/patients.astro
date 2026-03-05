@@ -287,7 +287,12 @@ if (!hasRole(user, 'staff')) {
 
             <div id="currentPhotoContainer" class="mb-4 hidden text-center">
               <p class="text-xs text-gray-500 mb-2">Foto Actual:</p>
-              <img id="currentPhotoPreview" src="" alt="Foto actual" class="mx-auto h-32 w-32 rounded-full object-cover border-2 border-gray-200 shadow-sm" />
+              <img id="currentPhotoPreview" src="" alt="Foto actual" class="mx-auto h-32 w-32 rounded-full object-cover border-2 border-gray-200 shadow-sm" 
+                   onerror="this.style.display='none'; document.getElementById('photoErrorMsg').classList.remove('hidden');"
+                   onload="this.style.display='block'; document.getElementById('photoErrorMsg').classList.add('hidden');" />
+              <div id="photoErrorMsg" class="hidden text-red-500 text-xs font-bold mt-2">
+                Foto no encontrada. Por favor tomar nueva foto.
+              </div>
             </div>
 
             <div class="bg-gray-50 p-4 rounded-lg">
@@ -307,7 +312,12 @@ if (!hasRole(user, 'staff')) {
 
             <div id="currentSignatureContainer" class="mb-4 hidden text-center">
               <p class="text-xs text-gray-500 mb-2">Firma Actual:</p>
-              <img id="currentSignaturePreview" src="" alt="Firma actual" class="mx-auto h-24 w-auto border-2 border-gray-200 shadow-sm rounded" style="max-width: 300px;" />
+              <img id="currentSignaturePreview" src="" alt="Firma actual" class="mx-auto h-24 w-auto border-2 border-gray-200 shadow-sm rounded" style="max-width: 300px;" 
+                   onerror="this.style.display='none'; document.getElementById('signatureErrorMsg').classList.remove('hidden');"
+                   onload="this.style.display='block'; document.getElementById('signatureErrorMsg').classList.add('hidden');" />
+              <div id="signatureErrorMsg" class="hidden text-red-500 text-xs font-bold mt-2">
+                Firma no encontrada. Por favor firmar nuevamente.
+              </div>
               <p class="text-xs text-blue-600 mt-2">Si captura una nueva firma, reemplazará la actual</p>
             </div>
 
@@ -839,6 +849,31 @@ if (!hasRole(user, 'staff')) {
     }
   }
 
+  // Función para subir la firma al servidor
+  async function uploadSignature(signatureBlob: Blob) {
+    try {
+      const formData = new FormData();
+      formData.append('signature', signatureBlob, 'patient-signature.png');
+      formData.append('patientId', 'temp_' + Date.now());
+
+      const response = await fetch('/api/admin/patients/upload-signature', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        capturedSignaturePath = result.data.path;
+        showAlert('success', 'Firma Subida', 'La firma se ha preparado correctamente', 2000);
+      } else {
+        showAlert('error', 'Error al Subir Firma', result.message);
+      }
+    } catch (error) {
+      showAlert('error', 'Error de Conexión', 'No se pudo subir la firma');
+    }
+  }
+
   // Formulario de paciente
   patientForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -854,6 +889,20 @@ if (!hasRole(user, 'staff')) {
         }
       } catch (error) {
         showAlert('error', 'Error', 'Error al procesar la foto. Intente capturarla nuevamente.');
+        return;
+      }
+    }
+
+    // Verificar si hay firma pendiente de subir
+    if (capturedSignatureBlob && !capturedSignaturePath) {
+      showAlert('info', 'Procesando...', 'Subiendo firma, por favor espere');
+      try {
+        await uploadSignature(capturedSignatureBlob);
+        if (!capturedSignaturePath) {
+          throw new Error('No se pudo obtener la ruta de la firma');
+        }
+      } catch (error) {
+        showAlert('error', 'Error', 'Error al procesar la firma. Intente capturarla nuevamente.');
         return;
       }
     }
