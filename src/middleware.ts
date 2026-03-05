@@ -112,9 +112,40 @@ export const onRequest = defineMiddleware(async (context, next) => {
           const r2Url = `${fullBaseUrl}/${key}`;
 
           // Fetch desde R2 y servir a través del servidor (proxy)
-          const r2Response = await fetch(r2Url);
+          let r2Response = await fetch(r2Url);
+
+          // Si falla y parece ser una firma con formato antiguo/incorrecto
+          // Formato observado: uploads/signatures/signature_{ID}_{TIMESTAMP}.png
+          // Intentar buscar en: doctors/{ID}/signature_{TIMESTAMP}.png
+          if (!r2Response.ok && key.includes('signatures/signature_')) {
+            const match = key.match(/signatures\/signature_(\d+)_(\d+)\.(.+)$/);
+            if (match) {
+              const [_, id, timestamp, ext] = match;
+              
+              // Intentar ruta de doctores (formato actual)
+              const doctorKey = `doctors/${id}/signature_${timestamp}.${ext}`;
+              const doctorUrl = `${fullBaseUrl}/${doctorKey}`;
+              console.log(`🔄 Reintentando R2 con ruta de doctor: ${doctorUrl}`);
+              const doctorResponse = await fetch(doctorUrl);
+              
+              if (doctorResponse.ok) {
+                r2Response = doctorResponse;
+              } else {
+                // Intentar ruta de pacientes
+                const patientKey = `patients/${id}/signature_${timestamp}.${ext}`;
+                const patientUrl = `${fullBaseUrl}/${patientKey}`;
+                console.log(`🔄 Reintentando R2 con ruta de paciente: ${patientUrl}`);
+                const patientResponse = await fetch(patientUrl);
+                
+                if (patientResponse.ok) {
+                  r2Response = patientResponse;
+                }
+              }
+            }
+          }
 
           if (!r2Response.ok) {
+            console.error(`❌ File not found in R2: ${r2Url}`);
             return new Response('File not found in R2', { status: 404 });
           }
 

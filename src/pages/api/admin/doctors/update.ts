@@ -24,7 +24,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const id = formData.get('id') as string;
 
     // Log para diagnóstico
-    console.log(`🔍 Doctor Update: User ${user.email} (${user.role}) attempting to update doctor ID ${id}`);
+    console.log(`🔍 Doctor Update: User ${user.email} (role: ${user.role}, id: ${user.id}) attempting to update doctor ID ${id}`);
 
     // Verificar permisos: Admin/Superadmin o el mismo doctor
     const isAdmin = hasRole(user, 'admin');
@@ -37,7 +37,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       console.error(`❌ Doctor Update: User ${user.email} (role: ${user.role}, id: ${user.id}) is NOT authorized to update doctor ${id}`);
       return new Response(JSON.stringify({
         success: false,
-        message: `No autorizado. Tu rol: ${user.role}, Tu ID: ${user.id}, Doctor a editar: ${id}`
+        message: `No autorizado. Tu rol: ${user.role}, Tu ID: ${user.id}, Doctor a editar: ${id}, isAdmin: ${isAdmin}, isSameDoctor: ${isSameDoctor}`
       }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' }
