@@ -44,6 +44,9 @@ export class MailService {
     });
   }
 
+  /**
+   * Envía un email con reintentos automáticos para errores temporales
+   */
   static async sendMail(opts: {
     to: string[];
     subject: string;
@@ -81,22 +84,44 @@ export class MailService {
       }))
     };
 
-    try {
-      if (!this.transporter) {
-        throw new Error("Transporter not initialized");
+    // Reintentos con backoff exponencial para errores temporales
+    const maxRetries = 3;
+    const baseDelay = 2000; // 2 segundos
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        if (!this.transporter) {
+          throw new Error("Transporter not initialized");
+        }
+
+        console.log(`📧 Intento ${attempt}/${maxRetries}: Enviando correo a ${to.join(', ')}`);
+        const info = await this.transporter.sendMail(mailOptions);
+        console.log('✅ Email enviado correctamente:', info.messageId);
+        return info;
+      } catch (error: any) {
+        const isTemporaryError =
+          error.code === 'EAUTH' && error.response?.includes('454') || // Try again later
+          error.code === 'ETIMEDOUT' ||
+          error.code === 'ECONNRESET' ||
+          error.response?.includes('temporarily');
+
+        console.error(`❌ Error en intento ${attempt}/${maxRetries}:`, {
+          message: error.message,
+          code: error.code,
+          response: error.response,
+        });
+
+        // Si es el último intento o no es un error temporal, lanzar el error
+        if (attempt === maxRetries || !isTemporaryError) {
+          console.error('🚫 Error final al enviar email (sin más reintentos)');
+          throw error;
+        }
+
+        // Calcular delay con backoff exponencial: 2s, 4s, 8s
+        const delay = baseDelay * Math.pow(2, attempt - 1);
+        console.log(`⏳ Reintentando en ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-      
-      console.log(`Intentando enviar correo a: ${to.join(', ')}`);
-      const info = await this.transporter.sendMail(mailOptions);
-      console.log('Email enviado correctamente:', info.messageId);
-      return info;
-    } catch (error: any) {
-      console.error('Error enviando email:', {
-        message: error.message,
-        code: error.code,
-        response: error.response,
-      });
-      throw error;
     }
   }
 

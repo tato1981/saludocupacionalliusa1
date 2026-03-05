@@ -2,9 +2,7 @@ import { defineMiddleware } from 'astro:middleware';
 import { verifyToken } from './lib/auth';
 import fs from 'fs';
 import path from 'path';
-import dotenv from 'dotenv';
-
-dotenv.config();
+// dotenv no es necesario aquí - Astro ya carga las variables de entorno automáticamente
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { request } = context;
