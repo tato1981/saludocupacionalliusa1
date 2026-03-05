@@ -355,7 +355,7 @@ export class PatientService {
   }
 
   // Mover archivo temporal a ubicación permanente
-  static async moveTempFileToPermanent(tempUrl: string, patientId: number, type: 'photo' | 'signature'): Promise<string> {
+  static async moveTempFileToPermanent(tempUrl: string, patientId: number, type: 'photo' | 'signature'): Promise<string | null> {
     if (!tempUrl || !tempUrl.includes('temp_')) return tempUrl;
 
     try {
@@ -398,7 +398,7 @@ export class PatientService {
           // Subir a R2 como archivo nuevo
           const mimeType = type === 'photo' ? 'image/webp' : 'image/png';
           newUrl = await R2StorageService.uploadFile(fileBuffer, destinationKey, mimeType);
-          
+
           // Eliminar archivo local
           try {
             fs.unlinkSync(foundPath);
@@ -407,14 +407,12 @@ export class PatientService {
             console.warn(`⚠️ No se pudo eliminar archivo local ${foundPath}:`, e);
           }
         } else {
-          console.error(`❌ No se encontró el archivo local: ${tempUrl}`);
-          // Intentar fallback a R2 copy si no se encuentra localmente
-          try {
-             newUrl = await R2StorageService.copyFile(tempUrl, destinationKey);
-          } catch (copyError) {
-             console.error(`❌ Falló fallback copyFile de R2:`, copyError);
-             return tempUrl;
-          }
+          console.error(`❌ No se encontró el archivo local en disco: ${tempUrl}`);
+          console.warn(`⚠️ El archivo temporal no existe, se eliminará la referencia`);
+          // No intentar fallback a R2 para archivos locales que no existen
+          // Los archivos /uploads/ no deberían estar en R2 a menos que ya hayan sido migrados
+          // Retornar null para que la base de datos no guarde una referencia rota
+          return null;
         }
       } else {
         // Caso normal: Archivo ya en R2
