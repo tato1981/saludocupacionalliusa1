@@ -9,7 +9,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const user = locals.user;
     if (!user) {
       console.error('❌ Doctor Update: No authenticated user found in locals');
-      return new Response(JSON.stringify({ success: false, error: 'No autenticado' }), {
+      return new Response(JSON.stringify({ success: false, message: 'No autenticado' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -23,15 +23,28 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     const id = formData.get('id') as string;
 
+    // Log para diagnóstico
+    console.log(`🔍 Doctor Update: User ${user.email} (${user.role}) attempting to update doctor ID ${id}`);
+
     // Verificar permisos: Admin/Superadmin o el mismo doctor
-    const isAuthorized = hasRole(user, 'admin') || (user.role === 'doctor' && String(user.id) === String(id));
-    
+    const isAdmin = hasRole(user, 'admin');
+    const isSameDoctor = user.role === 'doctor' && String(user.id) === String(id);
+    const isAuthorized = isAdmin || isSameDoctor;
+
+    console.log(`🔍 Authorization check: isAdmin=${isAdmin}, isSameDoctor=${isSameDoctor}, isAuthorized=${isAuthorized}`);
+
     if (!isAuthorized) {
-      return new Response(JSON.stringify({ success: false, error: 'No autorizado' }), {
+      console.error(`❌ Doctor Update: User ${user.email} (role: ${user.role}, id: ${user.id}) is NOT authorized to update doctor ${id}`);
+      return new Response(JSON.stringify({
+        success: false,
+        message: `No autorizado. Tu rol: ${user.role}, Tu ID: ${user.id}, Doctor a editar: ${id}`
+      }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' }
       });
     }
+
+    console.log(`✅ Doctor Update: Authorization granted for ${user.email}`);
     const name = formData.get('name') as string;
     const email = formData.get('email') as string;
     const document_number = formData.get('document_number') as string;
