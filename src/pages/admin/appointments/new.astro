@@ -1,0 +1,527 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { requireAuth, hasRole } from '../../../lib/auth';
+
+const user = requireAuth(Astro.cookies);
+if (!hasRole(user, 'staff')) {
+  return Astro.redirect('/auth/login');
+}
+---
+
+<Layout title="Agendar Cita - Panel Admin">
+  <div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white shadow">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center py-4">
+          <div class="flex items-center space-x-4">
+            <a href="/admin/patients" class="text-gray-500 hover:text-gray-700">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+              </svg>
+            </a>
+            <h1 class="text-2xl font-bold text-gray-900">Agendar Cita</h1>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div class="bg-white rounded-lg shadow p-6">
+        <form id="appointmentForm" class="space-y-6">
+          <!-- Selección de paciente -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Buscar Paciente *</label>
+            <div class="relative">
+              <input 
+                type="text" 
+                id="patientSearch"
+                placeholder="Escriba el nombre o documento del paciente..."
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                autocomplete="off"
+              />
+              <div id="patientResults" class="hidden absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-60 overflow-y-auto shadow-lg">
+                <!-- Resultados de búsqueda -->
+              </div>
+            </div>
+            <input type="hidden" name="patientId" id="selectedPatientId" required>
+            <div id="selectedPatient" class="hidden mt-2 p-3 bg-blue-50 rounded-lg">
+              <div class="flex justify-between items-center">
+                <div>
+                  <div class="font-medium text-blue-900" id="selectedPatientName"></div>
+                  <div class="text-sm text-blue-700" id="selectedPatientDocument"></div>
+                </div>
+                <button type="button" id="clearPatient" class="text-blue-600 hover:text-blue-800">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Información de la cita -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de la Cita *</label>
+              <input 
+                type="date" 
+                name="appointmentDate" 
+                required 
+                min={new Date().toISOString().split('T')[0]}
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Hora de la Cita *</label>
+              <select name="appointmentTime" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="">Seleccionar hora...</option>
+                <option value="07:00">07:00 AM</option>
+                <option value="07:30">07:30 AM</option>
+                <option value="08:00">08:00 AM</option>
+                <option value="08:30">08:30 AM</option>
+                <option value="09:00">09:00 AM</option>
+                <option value="09:30">09:30 AM</option>
+                <option value="10:00">10:00 AM</option>
+                <option value="10:30">10:30 AM</option>
+                <option value="11:00">11:00 AM</option>
+                <option value="11:30">11:30 AM</option>
+                <option value="12:00">12:00 PM</option>
+                <option value="12:30">12:30 PM</option>
+                <option value="13:00">01:00 PM</option>
+                <option value="13:30">01:30 PM</option>
+                <option value="14:00">02:00 PM</option>
+                <option value="14:30">02:30 PM</option>
+                <option value="15:00">03:00 PM</option>
+                <option value="15:30">03:30 PM</option>
+                <option value="16:00">04:00 PM</option>
+                <option value="16:30">04:30 PM</option>
+                <option value="17:00">05:00 PM</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Cita *</label>
+              <select name="appointmentType" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="">Seleccionar tipo...</option>
+                <option value="examen_periodico">Examen Médico Periódico</option>
+                <option value="examen_ingreso">Examen de Ingreso</option>
+                <option value="examen_egreso">Examen de Egreso</option>
+                <option value="examen_reintegro">Examen de Reintegro</option>
+                <option value="consulta_general">Consulta General</option>
+                <option value="consulta_especializada">Consulta Especializada</option>
+                <option value="seguimiento">Seguimiento</option>
+                <option value="urgencias">Urgencias</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Doctor Asignado *</label>
+              <select name="doctorId" id="doctorSelect" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="">Cargando doctores...</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Duración (minutos)</label>
+              <select name="durationMinutes" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="30">30 minutos</option>
+                <option value="45">45 minutos</option>
+                <option value="60">60 minutos</option>
+                <option value="90">90 minutos</option>
+              </select>
+            </div>
+            <div>
+              <!-- Campo vacío para mantener el grid balanceado -->
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Motivo de la Cita</label>
+            <textarea 
+              name="reason" 
+              rows="3" 
+              placeholder="Describa el motivo de la cita..."
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            ></textarea>
+          </div>
+
+          <!-- Botones de acción -->
+          <div class="flex justify-end space-x-3 pt-4">
+            <a 
+              href="/admin/patients"
+              class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Cancelar
+            </a>
+            <button 
+              type="submit" 
+              class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <span id="submitText">Agendar Cita</span>
+              <svg id="submitLoader" class="hidden animate-spin -mr-1 ml-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import Swal from 'sweetalert2';
+
+  let searchTimeout: NodeJS.Timeout;
+  let currentPatients: any[] = [];
+
+  // Elementos del DOM
+  const patientSearch = document.getElementById('patientSearch') as HTMLInputElement;
+  const patientResults = document.getElementById('patientResults')!;
+  const selectedPatientId = document.getElementById('selectedPatientId') as HTMLInputElement;
+  const selectedPatient = document.getElementById('selectedPatient')!;
+  const selectedPatientName = document.getElementById('selectedPatientName')!;
+  const selectedPatientDocument = document.getElementById('selectedPatientDocument')!;
+  const clearPatient = document.getElementById('clearPatient')!;
+  const appointmentForm = document.getElementById('appointmentForm') as HTMLFormElement;
+
+  // Búsqueda de pacientes
+  patientSearch.addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    const query = patientSearch.value.trim();
+    
+    if (query.length < 2) {
+      patientResults.classList.add('hidden');
+      return;
+    }
+
+    searchTimeout = setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/admin/patients/search?q=${encodeURIComponent(query)}`);
+        const data = await response.json();
+        
+        if (data.success) {
+          currentPatients = data.data;
+          renderPatientResults(currentPatients);
+        }
+      } catch (error) {
+        // Silently fail
+      }
+    }, 300);
+  });
+
+  // Renderizar resultados de búsqueda
+  function renderPatientResults(patients: any[]) {
+    if (patients.length === 0) {
+      patientResults.innerHTML = '<div class="p-3 text-gray-500">No se encontraron pacientes</div>';
+      patientResults.classList.remove('hidden');
+      return;
+    }
+
+    patientResults.innerHTML = patients.map(patient => `
+      <div class="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-200 last:border-b-0" onclick="selectPatient(${patient.id})">
+        <div class="font-medium text-gray-900">${patient.name}</div>
+        <div class="text-sm text-gray-600">${patient.document_type}: ${patient.document_number}</div>
+        <div class="text-sm text-gray-500">${patient.company || 'Sin empresa'}</div>
+      </div>
+    `).join('');
+    
+    patientResults.classList.remove('hidden');
+  }
+
+  // Seleccionar paciente
+  (window as any).selectPatient = async (patientId: number) => {
+    const patient = currentPatients.find(p => p.id === patientId);
+    if (patient) {
+      // Verificar si el paciente tiene solicitudes activas
+      try {
+        const response = await fetch(`/api/admin/patients/${patientId}/check-active-requests`);
+        const result = await response.json();
+
+        if (result.success && result.data.hasActiveRequest) {
+          const request = result.data.request;
+          const statusTexts: Record<string, string> = {
+            'pending': 'pendiente de asignación',
+            'scheduled': 'agendada'
+          };
+          const statusText = statusTexts[request.status] || request.status;
+
+          const examTypes: Record<string, string> = {
+            'ingreso': 'Ingreso',
+            'periodico': 'Periódico',
+            'retiro': 'Retiro',
+            'post_incapacidad': 'Post-Incapacidad',
+            'reubicacion': 'Reubicación'
+          };
+          const examTypeText = examTypes[request.exam_type] || request.exam_type;
+
+          Swal.fire({
+            icon: 'warning',
+            title: 'Solicitud Activa',
+            html: `<p>Este paciente tiene una solicitud de examen de <strong>${examTypeText}</strong> ${statusText} desde <strong>${request.company_name}</strong>.</p>
+                   <p class="mt-2 text-sm text-gray-600">No se pueden agendar citas adicionales hasta que se complete esta solicitud.</p>`,
+            confirmButtonColor: '#3B82F6',
+            showConfirmButton: false,
+            timer: 4000,
+            timerProgressBar: true,
+            didClose: () => {
+              window.location.href = `/admin/patients/${patient.id}`;
+            }
+          });
+          return;
+        }
+      } catch (error) {
+        console.error('Error al verificar solicitudes activas:', error);
+      }
+
+      // Si no hay solicitudes activas, seleccionar normalmente
+      selectedPatientId.value = patient.id.toString();
+      selectedPatientName.textContent = patient.name;
+      selectedPatientDocument.textContent = `${patient.document_type}: ${patient.document_number}`;
+
+      patientSearch.value = patient.name;
+      selectedPatient.classList.remove('hidden');
+      patientResults.classList.add('hidden');
+    }
+  };
+
+  // Limpiar selección de paciente
+  clearPatient.addEventListener('click', () => {
+    selectedPatientId.value = '';
+    patientSearch.value = '';
+    selectedPatient.classList.add('hidden');
+    patientResults.classList.add('hidden');
+  });
+
+  // Ocultar resultados al hacer clic fuera
+  document.addEventListener('click', (e) => {
+    if (!patientSearch.contains(e.target as Node) && !patientResults.contains(e.target as Node)) {
+      patientResults.classList.add('hidden');
+    }
+  });
+
+  // Envío del formulario
+  appointmentForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(appointmentForm);
+    const data = Object.fromEntries(formData.entries());
+    
+    // Validar que se haya seleccionado un paciente
+    if (!selectedPatientId.value) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Debe seleccionar un paciente'
+      });
+      return;
+    }
+
+    // Validar que se haya seleccionado un doctor
+    if (!data.doctorId) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Debe seleccionar un doctor para la cita'
+      });
+      return;
+    }
+
+    // Validar fecha y hora futuras
+    const appointmentDate = data.appointmentDate as string;
+    const appointmentTime = data.appointmentTime as string;
+    
+    if (!appointmentDate || !appointmentTime) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Debe seleccionar fecha y hora para la cita'
+      });
+      return;
+    }
+
+    // Crear objeto Date con la fecha y hora seleccionadas
+    const selectedDateTime = new Date(`${appointmentDate}T${appointmentTime}`);
+    const now = new Date();
+    
+    // Validar que la fecha/hora sea futura (al menos 30 minutos desde ahora)
+    const minFutureTime = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutos
+    
+    if (selectedDateTime <= minFutureTime) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Fecha inválida',
+        text: 'La cita debe programarse al menos 30 minutos en el futuro',
+        footer: `Hora actual: ${now.toLocaleString('es-ES')}`
+      });
+      return;
+    }
+
+    // Validar horario laboral (7:00 AM a 6:00 PM)
+    const selectedHour = selectedDateTime.getHours();
+    if (selectedHour < 7 || selectedHour >= 18) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Horario no disponible',
+        text: 'Las citas solo pueden programarse entre 7:00 AM y 6:00 PM'
+      });
+      return;
+    }
+
+    const submitBtn = appointmentForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+    const submitText = document.getElementById('submitText')!;
+    const submitLoader = document.getElementById('submitLoader')!;
+    
+    // Estado de carga
+    submitBtn.disabled = true;
+    submitText.textContent = 'Agendando...';
+    submitLoader.classList.remove('hidden');
+
+    try {
+      const response = await fetch('/api/admin/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        Swal.fire({
+          icon: 'success',
+          title: '¡Cita agendada!',
+          text: 'La cita ha sido agendada exitosamente',
+          timer: 1500,
+          showConfirmButton: false
+        }).then(() => {
+          window.location.href = '/admin/patients';
+        });
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: result.message
+        });
+      }
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo agendar la cita'
+      });
+    } finally {
+      submitBtn.disabled = false;
+      submitText.textContent = 'Agendar Cita';
+      submitLoader.classList.add('hidden');
+    }
+  });
+
+  // Preseleccionar paciente si viene del parámetro URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const preselectedPatientId = urlParams.get('patientId');
+  
+  if (preselectedPatientId) {
+    // Cargar información del paciente preseleccionado
+    loadPreselectedPatient(preselectedPatientId);
+  }
+
+  async function loadPreselectedPatient(patientId: string) {
+    try {
+      const response = await fetch(`/api/admin/patients`);
+      const data = await response.json();
+
+      if (data.success) {
+        const patient = data.data.find((p: any) => p.id.toString() === patientId);
+        if (patient) {
+          await selectPatientById(patient);
+        }
+      }
+    } catch (error) {
+      // Silently fail
+    }
+  }
+
+  async function selectPatientById(patient: any) {
+    // Verificar si el paciente tiene solicitudes activas
+    try {
+      const response = await fetch(`/api/admin/patients/${patient.id}/check-active-requests`);
+      const result = await response.json();
+
+      if (result.success && result.data.hasActiveRequest) {
+        const request = result.data.request;
+        const statusTexts: Record<string, string> = {
+          'pending': 'pendiente de asignación',
+          'scheduled': 'agendada'
+        };
+        const statusText = statusTexts[request.status] || request.status;
+
+        const examTypes: Record<string, string> = {
+          'ingreso': 'Ingreso',
+          'periodico': 'Periódico',
+          'retiro': 'Retiro',
+          'post_incapacidad': 'Post-Incapacidad',
+          'reubicacion': 'Reubicación'
+        };
+        const examTypeText = examTypes[request.exam_type] || request.exam_type;
+
+        Swal.fire({
+          icon: 'warning',
+          title: 'Solicitud Activa',
+          html: `<p>Este paciente tiene una solicitud de examen de <strong>${examTypeText}</strong> ${statusText} desde <strong>${request.company_name}</strong>.</p>
+                 <p class="mt-2 text-sm text-gray-600">No se pueden agendar citas adicionales hasta que se complete esta solicitud.</p>`,
+          confirmButtonColor: '#3B82F6',
+          showConfirmButton: false,
+          timer: 4000,
+          timerProgressBar: true,
+          didClose: () => {
+            window.location.href = `/admin/patients/${patient.id}`;
+          }
+        });
+        return;
+      }
+    } catch {
+    }
+    // Si no hay solicitudes activas, seleccionar normalmente
+    selectedPatientId.value = patient.id.toString();
+    selectedPatientName.textContent = patient.name;
+    selectedPatientDocument.textContent = `${patient.document_type}: ${patient.document_number}`;
+
+    patientSearch.value = patient.name;
+    selectedPatient.classList.remove('hidden');
+    patientResults.classList.add('hidden');
+  }
+
+  // Cargar doctores disponibles
+  async function loadDoctors() {
+    const doctorSelect = document.getElementById('doctorSelect') as HTMLSelectElement;
+    
+    try {
+      const response = await fetch('/api/admin/doctors');
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        doctorSelect.innerHTML = '<option value="">Seleccionar doctor...</option>';
+        
+        result.data.forEach((doctor: any) => {
+          const option = document.createElement('option');
+          option.value = doctor.id;
+          option.textContent = `${doctor.name} - ${doctor.specialization}`;
+          doctorSelect.appendChild(option);
+        });
+      } else {
+        doctorSelect.innerHTML = '<option value="">Error cargando doctores</option>';
+      }
+    } catch (error) {
+      // Silently fail
+      doctorSelect.innerHTML = '<option value="">Error cargando doctores</option>';
+    }
+  }
+
+  // Cargar doctores al cargar la página
+  loadDoctors();
+</script>

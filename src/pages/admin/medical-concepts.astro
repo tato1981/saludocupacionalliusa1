@@ -1,0 +1,378 @@
+---
+import DashboardLayout from '../../components/layout/DashboardLayout.astro';
+import { requireAuth, hasRole } from '../../lib/auth';
+
+const user = requireAuth(Astro.cookies);
+if (!hasRole(user, 'admin')) {
+  return Astro.redirect('/auth/login');
+}
+---
+
+<DashboardLayout title="Conceptos Médicos - Panel Admin" user={user}>
+  <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Conceptos Médicos</h1>
+      <p class="text-gray-600 mt-1">Gestión y emisión de Certificados de Aptitud Laboral.</p>
+    </div>
+    <div class="mt-4 sm:mt-0">
+      <div class="relative">
+        <input type="text" id="searchConcept" placeholder="Buscar por paciente o documento..." 
+               class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 w-full sm:w-64 text-sm">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paciente</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empresa</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo Examen</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Doctor</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Concepto</th>
+            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="conceptsTableBody" class="bg-white divide-y divide-gray-200">
+          <tr>
+            <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">Cargando conceptos...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+      <span class="text-sm text-gray-700" id="resultsCount">Mostrando 0 resultados</span>
+      <div class="flex space-x-2">
+        <button class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50" disabled>Anterior</button>
+        <button class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50" disabled>Siguiente</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Emitir Concepto -->
+  <div id="issueModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeModal()"></div>
+      <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+      <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+        <form id="issueForm" onsubmit="handleIssueSubmit(event)">
+          <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">Emitir Certificado de Aptitud</h3>
+            
+            <input type="hidden" id="modalPatientId" name="patientId">
+            <input type="hidden" id="modalAppointmentId" name="appointmentId">
+            
+            <div class="mt-4 space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Paciente</label>
+                <input type="text" id="modalPatientName" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-500 sm:text-sm" readonly>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Concepto de Aptitud *</label>
+                <select id="modalAptitude" name="aptitudeStatus" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                  <option value="">Seleccione...</option>
+                  <option value="apto">APTO</option>
+                  <option value="apto_con_restricciones">APTO CON RESTRICCIONES</option>
+                  <option value="no_apto">NO APTO</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Restricciones</label>
+                <textarea id="modalRestrictions" name="restrictions" rows="3" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Describa las restricciones si aplica..."></textarea>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700">Recomendaciones</label>
+                <textarea id="modalRecommendations" name="recommendations" rows="3" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Recomendaciones de salud ocupacional..."></textarea>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4">
+                 <div>
+                    <label class="block text-sm font-medium text-gray-700">Válido desde</label>
+                    <input type="date" id="modalStart" name="validityStart" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                 </div>
+                 <div>
+                    <label class="block text-sm font-medium text-gray-700">Válido hasta</label>
+                    <input type="date" id="modalEnd" name="validityEnd" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                 </div>
+              </div>
+            </div>
+          </div>
+          <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+            <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+              Emitir Certificado
+            </button>
+            <button type="button" onclick="closeModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script is:inline>
+    let appointmentsData = [];
+    let currentPage = 1;
+    const itemsPerPage = 10;
+
+    async function loadConcepts() {
+      try {
+        const response = await fetch('/api/admin/appointments');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const result = await response.json();
+        
+        if (result.success) {
+          // Filter for completed or confirmed appointments to allow issuing certificates
+          // Also include appointments that already have a certificate, regardless of status
+          appointmentsData = result.data.filter(app => 
+              app.status === 'completed' || 
+              app.status === 'confirmed' ||
+              app.certificate_id // Include if certificate exists
+          );
+          renderTable(appointmentsData);
+        } else {
+            document.getElementById('conceptsTableBody').innerHTML = `<tr><td colspan="7" class="px-6 py-4 text-center text-red-500">Error: ${result.message}</td></tr>`;
+        }
+      } catch (error) {
+        document.getElementById('conceptsTableBody').innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-red-500">Error de conexión o servidor. Intente recargar.</td></tr>';
+      }
+    }
+
+    function renderTable(appointments) {
+      const tbody = document.getElementById('conceptsTableBody');
+      const countSpan = document.getElementById('resultsCount');
+      const searchTerm = document.getElementById('searchConcept').value.toLowerCase();
+      const prevBtn = document.querySelector('button:nth-of-type(1)');
+      const nextBtn = document.querySelector('button:nth-of-type(2)');
+
+      // Client-side filter
+      const filtered = appointments.filter(app => 
+        app.patient_name?.toLowerCase().includes(searchTerm) || 
+        app.patient_document?.toLowerCase().includes(searchTerm)
+      );
+      
+      // Pagination Logic
+      const totalPages = Math.ceil(filtered.length / itemsPerPage);
+      
+      // Ensure currentPage is valid
+      if (currentPage < 1) currentPage = 1;
+      if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+      
+      const start = (currentPage - 1) * itemsPerPage;
+      const end = start + itemsPerPage;
+      const paginatedItems = filtered.slice(start, end);
+
+      tbody.innerHTML = '';
+      
+      if (filtered.length === 0) {
+        countSpan.textContent = 'Mostrando 0 resultados';
+        tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">No se encontraron citas completadas.</td></tr>';
+        prevBtn.disabled = true;
+        nextBtn.disabled = true;
+        return;
+      }
+
+      countSpan.textContent = `Mostrando ${start + 1}-${Math.min(end, filtered.length)} de ${filtered.length} resultados`;
+
+      // Update buttons
+      prevBtn.disabled = currentPage === 1;
+      nextBtn.disabled = currentPage === totalPages;
+
+      // Add event listeners if not already present (or re-assign)
+      prevBtn.onclick = () => {
+        if (currentPage > 1) {
+          currentPage--;
+          renderTable(appointments);
+        }
+      };
+
+      nextBtn.onclick = () => {
+        if (currentPage < totalPages) {
+          currentPage++;
+          renderTable(appointments);
+        }
+      };
+
+      paginatedItems.forEach(app => {
+        const date = new Date(app.appointment_date).toLocaleDateString('es-ES');
+        const hasCertificate = !!app.certificate_id;
+        
+        // Status Badge Logic
+        let statusBadge = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Pendiente</span>';
+        if (hasCertificate) {
+             const colors = {
+                 'apto': 'bg-green-100 text-green-800',
+                 'apto_con_restricciones': 'bg-yellow-100 text-yellow-800',
+                 'no_apto': 'bg-red-100 text-red-800'
+             };
+             const label = app.aptitude_status?.replace(/_/g, ' ').toUpperCase() || 'EMITIDO';
+             const color = colors[app.aptitude_status] || 'bg-blue-100 text-blue-800';
+             statusBadge = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${color}">${label}</span>`;
+        }
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${date}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <div class="flex items-center">
+              <div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs mr-3">
+                ${getInitials(app.patient_name)}
+              </div>
+              <div class="text-sm font-medium text-gray-900">${app.patient_name}</div>
+            </div>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${app.patient_company || '-'}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">${app.appointment_type?.replace('-', ' ')}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Dr. ${app.doctor_name}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            ${statusBadge}
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+            ${hasCertificate ? `
+                <a href="/api/certificates/download?code=${app.verification_code}" target="_blank" class="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm transition-colors duration-200" title="Descargar Certificado">
+                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                  Descargar PDF
+                </a>
+            ` : `
+                <button onclick="openIssueModal(${app.id})" class="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 shadow-sm transition-colors duration-200">
+                   <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                   Generar Certificado
+                </button>
+            `}
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function getInitials(name) {
+      if (!name) return '?';
+      return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    }
+
+    // Modal Functions
+    window.openIssueModal = function(appointmentId) {
+        const app = appointmentsData.find(a => a.id === appointmentId);
+        if (!app) return;
+
+        // Reset form and restrictions requirement
+        document.getElementById('issueForm').reset();
+        document.getElementById('modalRestrictions').required = false;
+
+        document.getElementById('modalPatientId').value = app.patient_id;
+        document.getElementById('modalAppointmentId').value = app.id;
+        document.getElementById('modalPatientName').value = app.patient_name;
+        
+        // Default dates
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('modalStart').value = today;
+        const nextYear = new Date();
+        nextYear.setFullYear(nextYear.getFullYear() + 1);
+        document.getElementById('modalEnd').value = nextYear.toISOString().split('T')[0];
+
+        document.getElementById('issueModal').classList.remove('hidden');
+    }
+
+    // Dynamic validation for restrictions
+    document.getElementById('modalAptitude')?.addEventListener('change', function(e) {
+        const val = e.target.value;
+        const restrictionsArea = document.getElementById('modalRestrictions');
+        const restrictionsLabel = restrictionsArea.previousElementSibling; // Label
+        
+        if (val === 'apto_con_restricciones') {
+            restrictionsArea.required = true;
+            restrictionsArea.placeholder = "Debe especificar las restricciones para este tipo de aptitud.";
+            if (!restrictionsLabel.innerHTML.includes('*')) {
+                restrictionsLabel.innerHTML += ' <span class="text-red-500">*</span>';
+            }
+        } else {
+            restrictionsArea.required = false;
+            restrictionsArea.placeholder = "Describa las restricciones si aplica...";
+            restrictionsLabel.innerHTML = restrictionsLabel.innerHTML.replace(' <span class="text-red-500">*</span>', '');
+        }
+    });
+
+    window.closeModal = function() {
+        document.getElementById('issueModal').classList.add('hidden');
+        document.getElementById('issueForm').reset();
+    }
+
+    window.handleIssueSubmit = async function(e) {
+        e.preventDefault();
+        
+        const formData = {
+            patient_id: document.getElementById('modalPatientId').value,
+            appointment_id: document.getElementById('modalAppointmentId').value,
+            aptitude_status: document.getElementById('modalAptitude').value,
+            restrictions: document.getElementById('modalRestrictions').value,
+            recommendations: document.getElementById('modalRecommendations').value,
+            validity_start: document.getElementById('modalStart').value,
+            validity_end: document.getElementById('modalEnd').value
+        };
+
+        try {
+            const btn = e.target.querySelector('button[type="submit"]');
+            const originalText = btn.innerText;
+            btn.innerText = 'Emitiendo...';
+            btn.disabled = true;
+
+            const response = await fetch('/api/doctor/certificates/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                window.showSweetAlert('success', '¡Éxito!', 'Certificado emitido exitosamente. Se abrirá el PDF a continuación.', 2000);
+                closeModal();
+
+                // Abrir PDF en nueva pestaña inmediatamente
+                if (result.data && result.data.verification_url) {
+                     // Construir URL de descarga basada en el código de verificación
+                     const code = result.data.verification_url.split('code=')[1];
+                     if (code) {
+                        window.open(`/api/certificates/download?code=${code}`, '_blank');
+                     }
+                }
+
+                loadConcepts(); // Reload table
+            } else {
+                window.showSweetAlert('error', 'Error', result.message);
+            }
+        } catch (error) {
+            // Silently fail
+            window.showSweetAlert('error', 'Error', 'Error al procesar la solicitud');
+        } finally {
+            const btn = e.target.querySelector('button[type="submit"]');
+            if(btn) {
+                btn.innerText = 'Emitir Certificado';
+                btn.disabled = false;
+            }
+        }
+    }
+
+    // Search Listener
+    document.getElementById('searchConcept').addEventListener('input', () => {
+        currentPage = 1; // Reset to first page on search
+        renderTable(appointmentsData);
+    });
+
+    // Initial load
+    loadConcepts();
+  </script>
+</DashboardLayout>

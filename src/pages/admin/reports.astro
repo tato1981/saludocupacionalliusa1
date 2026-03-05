@@ -1,0 +1,766 @@
+---
+import DashboardLayout from '@/components/layout/DashboardLayout.astro';
+import { requireAuth, hasRole } from '@/lib/auth';
+
+const user = requireAuth(Astro.cookies);
+if (!hasRole(user, 'admin')) {
+  return Astro.redirect('/auth/login');
+}
+---
+
+<DashboardLayout title="Reportes - Panel Admin" user={user}>
+  <!-- Chart.js CDN -->
+  <script is:inline src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- jsPDF & AutoTable CDNs -->
+  <script is:inline src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script is:inline>
+    // Polyfill para que jspdf-autotable encuentre jsPDF globalmente
+    window.jsPDF = window.jspdf.jsPDF;
+  </script>
+  <script is:inline src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+  <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Reportes y Estadísticas</h1>
+      <p class="text-gray-600 mt-1">Analiza el rendimiento y las métricas clave del sistema.</p>
+    </div>
+    <div class="mt-4 sm:mt-0 flex items-center space-x-3">
+      <button id="exportCsvBtn" class="inline-flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium shadow-sm border border-gray-200 transition-colors">
+        <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v10M16 7v10M4 7h16M4 17h16"/></svg>
+        Exportar CSV
+      </button>
+      <button id="exportPdfBtn" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v8M8 12h8M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2z"/></svg>
+        Exportar PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold text-gray-900 flex items-center gap-2">
+        <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+        Filtros Avanzados
+      </h2>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div>
+        <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Fecha Inicio</label>
+        <input id="startDate" type="date" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Fecha Fin</label>
+        <input id="endDate" type="date" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Estado</label>
+        <select id="statusFilter" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+          <option value="">Todos</option>
+          <option value="programada">Programada</option>
+          <option value="confirmada">Confirmada</option>
+          <option value="completada">Completada</option>
+          <option value="cancelada">Cancelada</option>
+          <option value="no_asistio">No asistió</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Doctor</label>
+        <select id="doctorFilter" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+          <option value="">Todos</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Empresa</label>
+        <select id="companyFilter" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+          <option value="">Todas</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="mt-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+        <button id="rangeToday" class="px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">Hoy</button>
+        <button id="range7d" class="px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">7 días</button>
+        <button id="rangeMonth" class="px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">Este mes</button>
+        <button id="range30d" class="px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">30 días</button>
+        <button id="rangeClear" class="px-3 py-1.5 rounded-full text-xs font-medium bg-white border border-gray-200 text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors">Limpiar</button>
+      </div>
+      <button id="applyFiltersBtn" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center justify-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        Aplicar Filtros
+      </button>
+    </div>
+  </div>
+
+  <!-- Métricas -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 relative overflow-hidden">
+      <div class="absolute top-0 right-0 p-4 opacity-10">
+        <svg class="w-24 h-24 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
+      </div>
+      <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Pacientes</h3>
+      <div class="mt-4 flex items-baseline gap-2">
+        <span id="totalPatients" class="text-3xl font-bold text-gray-900">-</span>
+        <span class="text-sm text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded-full">Total</span>
+      </div>
+      <div class="mt-4 space-y-2">
+        <div class="flex justify-between text-sm">
+          <span class="text-gray-600">Nuevos (mes)</span>
+          <span id="newPatientsThisMonth" class="font-semibold text-gray-900">-</span>
+        </div>
+        <div class="flex justify-between text-sm">
+          <span class="text-gray-600">Género</span>
+          <span id="patientsByGender" class="font-medium text-gray-900 text-xs">-</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 relative overflow-hidden">
+      <div class="absolute top-0 right-0 p-4 opacity-10">
+        <svg class="w-24 h-24 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>
+      </div>
+      <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Citas</h3>
+      <div class="mt-4 flex items-baseline gap-2">
+        <span id="appointmentsMonth" class="text-3xl font-bold text-gray-900">-</span>
+        <span class="text-sm text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded-full">Este Mes</span>
+      </div>
+      <div class="mt-4 space-y-2">
+        <div class="flex justify-between text-sm">
+          <span class="text-gray-600">Hoy / Completadas</span>
+          <div class="flex gap-1 font-semibold text-gray-900">
+             <span id="appointmentsToday">-</span> / <span id="appointmentsTodayCompleted" class="text-green-600">-</span>
+          </div>
+        </div>
+        <div class="flex justify-between text-sm">
+          <span class="text-gray-600">Esta Semana</span>
+          <span id="appointmentsWeek" class="font-semibold text-gray-900">-</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col justify-center">
+      <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-2">Resumen de Estado</h3>
+      <p id="appointmentsByStatus" class="text-sm text-gray-600 leading-relaxed">-</p>
+      <div class="mt-4 pt-4 border-t border-gray-100">
+        <p class="text-xs text-gray-400">Datos actualizados en tiempo real.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gráficos -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <h3 class="text-lg font-semibold text-gray-900 mb-4">Citas por Estado</h3>
+      <div class="relative h-64 w-full">
+        <canvas id="statusChart"></canvas>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <h3 class="text-lg font-semibold text-gray-900 mb-4">Tendencia de Citas (Últimos 30 días)</h3>
+      <div class="relative h-64 w-full">
+        <canvas id="timeChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gráfico por Empresa/Doctor -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
+    <div class="flex flex-col sm:flex-row justify-between items-center mb-6">
+      <h3 class="text-lg font-semibold text-gray-900">Distribución de Citas</h3>
+      <div class="mt-2 sm:mt-0 inline-flex rounded-lg shadow-sm p-1 bg-gray-100">
+        <button id="entityModeCompany" class="px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200 bg-white text-gray-900 shadow-sm">Por Empresa</button>
+        <button id="entityModeDoctor" class="px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200 text-gray-500 hover:text-gray-900">Por Doctor</button>
+      </div>
+    </div>
+    <div class="relative h-72 w-full">
+      <canvas id="entityChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Tabla de Citas -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+      <h2 class="text-lg font-semibold text-gray-900">Detalle de Citas</h2>
+      <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">Últimas 100 mostradas</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha y Hora</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paciente</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Doctor</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empresa</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Concepto (Aptitud)</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+          </tr>
+        </thead>
+        <tbody id="appointmentsTableBody" class="bg-white divide-y divide-gray-200">
+          <!-- Rows renderizados vía JS -->
+        </tbody>
+      </table>
+    </div>
+    <div class="px-4 py-4 sm:px-6 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+      <span class="text-sm text-gray-700" id="resultsCount">Mostrando 0 resultados</span>
+      <div class="flex space-x-2">
+        <button id="prevBtn" class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50" disabled>Anterior</button>
+        <button id="nextBtn" class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50" disabled>Siguiente</button>
+      </div>
+    </div>
+  </div>
+
+</DashboardLayout>
+
+<script>
+// Estado en memoria
+let allAppointments = [];
+let filteredAppointments = [];
+let doctors = [];
+let statusChart = null;
+let timeChart = null;
+let entityChart = null;
+let entityMode = 'company';
+let currentPage = 1;
+const itemsPerPage = 10;
+
+// Utilidad para fechas locales YYYY-MM-DD
+function formatLocalYMD(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// Helper para obtener hora
+function formatTime(dateInput, timeInput) {
+  if (timeInput) return timeInput.slice(0, 5);
+  if (dateInput) {
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+  return '';
+}
+
+// Helper para formatear aptitud
+function formatAptitudeStatus(status) {
+  if (!status) return '<span class="text-gray-400 italic">Pendiente</span>';
+  const map = {
+    'apto': '<span class="text-green-600 font-medium">Apto</span>',
+    'apto_con_restricciones': '<span class="text-yellow-600 font-medium">Apto con restricciones</span>',
+    'no_apto': '<span class="text-red-600 font-medium">No apto</span>'
+  };
+  return map[status] || status;
+}
+
+// Cargar métricas
+async function loadMetrics() {
+  try {
+    const [patientsRes, appointmentsRes] = await Promise.all([
+      fetch('/api/admin/patients/stats'),
+      fetch('/api/admin/appointments/stats')
+    ]);
+
+    const patientsData = await patientsRes.json();
+    const appointmentsData = await appointmentsRes.json();
+
+    if (patientsData.success && patientsData.data) {
+      document.getElementById('totalPatients').textContent = patientsData.data.totalPatients;
+      document.getElementById('newPatientsThisMonth').textContent = patientsData.data.newThisMonth;
+      const g = patientsData.data.byGender || { masculino: 0, femenino: 0, otro: 0 };
+      document.getElementById('patientsByGender').textContent = `M: ${g.masculino} · F: ${g.femenino} · O: ${g.otro}`;
+    }
+
+    if (appointmentsData.success && appointmentsData.data) {
+      document.getElementById('appointmentsToday').textContent = appointmentsData.data.todayTotal;
+      document.getElementById('appointmentsTodayCompleted').textContent = appointmentsData.data.todayCompleted;
+      document.getElementById('appointmentsWeek').textContent = appointmentsData.data.weekTotal;
+      document.getElementById('appointmentsMonth').textContent = appointmentsData.data.monthTotal;
+      const byStatus = appointmentsData.data.byStatus || {};
+      const statusStr = Object.keys(byStatus).map(k => `${k}: ${byStatus[k]}`).join(' · ');
+      document.getElementById('appointmentsByStatus').textContent = statusStr || 'No hay datos recientes';
+    }
+  } catch (err) {
+    // Silently fail
+  }
+}
+
+// Cargar doctores para filtro
+async function loadDoctors() {
+  try {
+    const res = await fetch('/api/admin/doctors');
+    const data = await res.json();
+    if (data.success) {
+      doctors = data.data || [];
+      const select = document.getElementById('doctorFilter');
+      if (select) {
+        select.innerHTML = '<option value="">Todos</option>' + doctors.map(d => `<option value="${d.id}">${d.name} - ${d.specialization || 'Medicina General'}</option>`).join('');
+      }
+    }
+  } catch (err) {
+    // Silently fail
+  }
+}
+
+// Poblar empresas desde citas
+function populateCompaniesFromAppointments() {
+  const select = document.getElementById('companyFilter');
+  if (!select) return;
+  const companies = Array.from(new Set((allAppointments || []).map(a => a.patient_company).filter(Boolean))).sort();
+  select.innerHTML = '<option value="">Todas</option>' + companies.map(c => `<option value="${c}">${c}</option>`).join('');
+}
+
+// Cargar citas
+async function loadAppointments() {
+  try {
+    const res = await fetch('/api/admin/appointments');
+    const data = await res.json();
+    if (data.success) {
+      allAppointments = data.data || [];
+      populateCompaniesFromAppointments();
+      applyFilters();
+    }
+  } catch (err) {
+    // Silently fail
+  }
+}
+
+// Aplicar filtros
+function applyFilters() {
+  const startDate = (document.getElementById('startDate')).value;
+  const endDate = (document.getElementById('endDate')).value;
+  const status = (document.getElementById('statusFilter')).value;
+  const doctorId = (document.getElementById('doctorFilter')).value;
+  const company = (document.getElementById('companyFilter')).value;
+
+  filteredAppointments = allAppointments.filter((a) => {
+    const dateStr = a.appointment_date ? new Date(a.appointment_date).toISOString().slice(0,10) : '';
+    let ok = true;
+
+    if (startDate && dateStr < startDate) ok = false;
+    if (endDate && dateStr > endDate) ok = false;
+    if (status && a.status !== status) ok = false;
+    if (doctorId && String(a.doctor_id) !== String(doctorId)) ok = false;
+    if (company && a.patient_company !== company) ok = false;
+
+    return ok;
+  });
+
+  currentPage = 1;
+  renderTable();
+  updateCharts();
+}
+
+// Renderizar tabla
+function renderTable() {
+  const tbody = document.getElementById('appointmentsTableBody');
+  const resultsCount = document.getElementById('resultsCount');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  
+  if (!tbody) return;
+
+  if (filteredAppointments.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">No se encontraron citas con los filtros seleccionados.</td></tr>';
+    if (resultsCount) resultsCount.textContent = 'Mostrando 0 resultados';
+    if (prevBtn) prevBtn.disabled = true;
+    if (nextBtn) nextBtn.disabled = true;
+    return;
+  }
+
+  // Paginación
+  const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage);
+  const start = (currentPage - 1) * itemsPerPage;
+  const end = start + itemsPerPage;
+  const paginatedAppointments = filteredAppointments.slice(start, end);
+
+  if (resultsCount) {
+    resultsCount.textContent = `Mostrando ${start + 1} - ${Math.min(end, filteredAppointments.length)} de ${filteredAppointments.length} resultados`;
+  }
+
+  if (prevBtn) {
+    prevBtn.disabled = currentPage === 1;
+    const newPrevBtn = prevBtn.cloneNode(true);
+    prevBtn.parentNode.replaceChild(newPrevBtn, prevBtn);
+    newPrevBtn.addEventListener('click', () => {
+      if (currentPage > 1) {
+        currentPage--;
+        renderTable();
+      }
+    });
+  }
+
+  if (nextBtn) {
+    nextBtn.disabled = currentPage >= totalPages;
+    const newNextBtn = nextBtn.cloneNode(true);
+    nextBtn.parentNode.replaceChild(newNextBtn, nextBtn);
+    newNextBtn.addEventListener('click', () => {
+      if (currentPage < totalPages) {
+        currentPage++;
+        renderTable();
+      }
+    });
+  }
+
+  tbody.innerHTML = paginatedAppointments.map(a => {
+    let statusClass = 'bg-gray-100 text-gray-800';
+    if (a.status === 'programada') statusClass = 'bg-blue-100 text-blue-800';
+    else if (a.status === 'confirmada') statusClass = 'bg-indigo-100 text-indigo-800';
+    else if (a.status === 'completada') statusClass = 'bg-green-100 text-green-800';
+    else if (a.status === 'cancelada') statusClass = 'bg-red-100 text-red-800';
+    else if (a.status === 'no_asistio') statusClass = 'bg-yellow-100 text-yellow-800';
+
+    const date = new Date(a.appointment_date);
+    const dateStr = date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timeStr = formatTime(a.appointment_date, a.appointment_time);
+
+    return `
+      <tr class="hover:bg-gray-50 transition-colors">
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+          ${dateStr} <span class="text-gray-500 ml-1">${timeStr}</span>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+          <div class="font-medium">${a.patient_name || 'Sin nombre'}</div>
+          <div class="text-xs text-gray-500">${a.patient_email || ''}</div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+          ${a.doctor_name || 'Sin asignar'}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+          ${a.patient_company || '-'}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+          ${formatAptitudeStatus(a.aptitude_status)}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+          <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
+            ${a.status}
+          </span>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// Actualizar gráficos
+function updateCharts() {
+  if (typeof Chart === 'undefined') return;
+
+  // 1. Citas por estado
+  const statusCounts = {};
+  filteredAppointments.forEach(a => {
+    statusCounts[a.status] = (statusCounts[a.status] || 0) + 1;
+  });
+
+  const ctxStatus = document.getElementById('statusChart');
+  if (statusChart) statusChart.destroy();
+  
+  if (ctxStatus) {
+    statusChart = new Chart(ctxStatus, {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(statusCounts),
+        datasets: [{
+          data: Object.values(statusCounts),
+          backgroundColor: [
+            '#3B82F6', // blue-500
+            '#10B981', // green-500
+            '#EF4444', // red-500
+            '#F59E0B', // yellow-500
+            '#6366F1'  // indigo-500
+          ],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right' }
+        },
+        cutout: '70%'
+      }
+    });
+  }
+
+  // 2. Citas por día (Time Chart)
+  const dateCounts = {};
+  filteredAppointments.forEach(a => {
+    const d = new Date(a.appointment_date).toISOString().slice(0,10);
+    dateCounts[d] = (dateCounts[d] || 0) + 1;
+  });
+  
+  // Ordenar fechas
+  const sortedDates = Object.keys(dateCounts).sort();
+  const dataTime = sortedDates.map(d => dateCounts[d]);
+
+  const ctxTime = document.getElementById('timeChart');
+  if (timeChart) timeChart.destroy();
+
+  if (ctxTime) {
+    timeChart = new Chart(ctxTime, {
+      type: 'line',
+      data: {
+        labels: sortedDates,
+        datasets: [{
+          label: 'Citas',
+          data: dataTime,
+          borderColor: '#3B82F6',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0 } }
+        }
+      }
+    });
+  }
+
+  // 3. Entidad (Empresa o Doctor)
+  const ctxEntity = document.getElementById('entityChart');
+  if (entityChart) entityChart.destroy();
+  
+  const counts = {};
+  filteredAppointments.forEach(a => {
+    const key = entityMode === 'company' 
+      ? (a.patient_company || 'Sin empresa') 
+      : (a.doctor_name || 'Sin doctor');
+    counts[key] = (counts[key] || 0) + 1;
+  });
+
+  // Top 10
+  const sortedKeys = Object.keys(counts).sort((a,b) => counts[b] - counts[a]).slice(0, 10);
+  
+  if (ctxEntity) {
+    entityChart = new Chart(ctxEntity, {
+      type: 'bar',
+      data: {
+        labels: sortedKeys,
+        datasets: [{
+          label: 'Citas',
+          data: sortedKeys.map(k => counts[k]),
+          backgroundColor: '#6366F1',
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0 } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+}
+
+// Inicialización
+document.addEventListener('DOMContentLoaded', () => {
+  loadMetrics();
+  loadDoctors();
+  loadAppointments();
+
+  // Listeners
+  document.getElementById('applyFiltersBtn')?.addEventListener('click', applyFilters);
+  
+  // Quick ranges
+  const setRange = (days) => {
+    const end = new Date();
+    const start = new Date();
+    if (days === 0) { // Hoy
+       // start is today
+    } else if (days === 30) { // Monthish
+       start.setDate(end.getDate() - 30);
+    } else if (days === 7) {
+       start.setDate(end.getDate() - 7);
+    } else if (days === -1) { // Month strict
+       start.setDate(1);
+    }
+    
+    document.getElementById('endDate').value = formatLocalYMD(end);
+    document.getElementById('startDate').value = formatLocalYMD(start);
+    applyFilters();
+  };
+
+  document.getElementById('rangeToday')?.addEventListener('click', () => setRange(0));
+  document.getElementById('range7d')?.addEventListener('click', () => setRange(7));
+  document.getElementById('range30d')?.addEventListener('click', () => setRange(30));
+  document.getElementById('rangeMonth')?.addEventListener('click', () => setRange(-1));
+  
+  document.getElementById('rangeClear')?.addEventListener('click', () => {
+    document.getElementById('startDate').value = '';
+    document.getElementById('endDate').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('doctorFilter').value = '';
+    document.getElementById('companyFilter').value = '';
+    applyFilters();
+  });
+
+  // Entity switch
+  const btnCompany = document.getElementById('entityModeCompany');
+  const btnDoctor = document.getElementById('entityModeDoctor');
+
+  const updateEntityModeUI = () => {
+    if (entityMode === 'company') {
+      btnCompany.classList.remove('bg-white', 'text-gray-500');
+      btnCompany.classList.add('bg-white', 'text-gray-900', 'shadow-sm'); // Actually button styling is tricky with current html, let's simplify
+      // Re-apply classes from scratch easier
+      btnCompany.className = "px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200 bg-white text-gray-900 shadow-sm";
+      btnDoctor.className = "px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200 text-gray-500 hover:text-gray-900";
+    } else {
+      btnDoctor.className = "px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200 bg-white text-gray-900 shadow-sm";
+      btnCompany.className = "px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200 text-gray-500 hover:text-gray-900";
+    }
+    updateCharts();
+  };
+
+  btnCompany?.addEventListener('click', () => { entityMode = 'company'; updateEntityModeUI(); });
+  btnDoctor?.addEventListener('click', () => { entityMode = 'doctor'; updateEntityModeUI(); });
+
+  // Export
+  document.getElementById('exportCsvBtn')?.addEventListener('click', () => {
+    // Helper para formatear aptitud (reutilizado)
+    const formatAptitude = (status) => {
+      if (!status) return 'Pendiente';
+      const map = {
+        'apto': 'Apto',
+        'apto_con_restricciones': 'Apto con restricciones',
+        'no_apto': 'No apto'
+      };
+      return map[status] || status;
+    };
+
+    // Helper para formatear fecha
+    const formatDate = (dateStr) => {
+      if (!dateStr) return '';
+      return new Date(dateStr).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+
+    // CSV export
+    let csv = 'Fecha,Hora,Paciente,Doctor,Empresa,Concepto (Aptitud),Estado\n';
+    filteredAppointments.forEach(a => {
+      const date = formatDate(a.appointment_date);
+      const time = formatTime(a.appointment_date, a.appointment_time);
+      const patient = (a.patient_name || 'Sin nombre').replace(/,/g, ''); // Evitar romper CSV
+      const doctor = (a.doctor_name || 'Sin asignar').replace(/,/g, '');
+      const company = (a.patient_company || '-').replace(/,/g, '');
+      const aptitude = formatAptitude(a.aptitude_status);
+      
+      csv += `${date},${time},${patient},${doctor},${company},${aptitude},${a.status}\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'reporte_citas.csv';
+    a.click();
+  });
+  
+  document.getElementById('exportPdfBtn')?.addEventListener('click', () => {
+      // @ts-ignore
+      const { jsPDF } = window.jspdf;
+      // Crear documento en modo landscape (horizontal)
+      const doc = new jsPDF('l', 'mm', 'a4');
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      // Título centrado
+      doc.setFontSize(18);
+      const title = 'Reporte de Citas - Salud Ocupacional';
+      const titleWidth = doc.getTextWidth(title);
+      doc.text(title, (pageWidth - titleWidth) / 2, 22);
+
+      // Fecha y hora de generación centrada
+      doc.setFontSize(11);
+      doc.setTextColor(100);
+      const dateStr = `Generado el: ${new Date().toLocaleDateString('es-ES')} ${new Date().toLocaleTimeString('es-ES')}`;
+      const dateWidth = doc.getTextWidth(dateStr);
+      doc.text(dateStr, (pageWidth - dateWidth) / 2, 30);
+
+      // --- Añadir Gráficos como Imágenes ---
+      let currentY = 40;
+      
+      const statusCanvas = document.getElementById('statusChart');
+      const timeCanvas = document.getElementById('timeChart');
+
+      if (statusCanvas && timeCanvas) {
+        try {
+          // Convertir canvas a imagen PNG
+          const statusImg = statusCanvas.toDataURL('image/png', 1.0);
+          const timeImg = timeCanvas.toDataURL('image/png', 1.0);
+          
+          // Calcular dimensiones para que quepan 2 en una fila
+          // Margen 10mm cada lado, espacio 10mm entre gráficas
+          const availableWidth = pageWidth - 20; 
+          const chartWidth = (availableWidth - 10) / 2;
+          const chartHeight = 60; // Altura fija razonable
+
+          doc.addImage(statusImg, 'PNG', 10, currentY, chartWidth, chartHeight);
+          doc.addImage(timeImg, 'PNG', 10 + chartWidth + 10, currentY, chartWidth, chartHeight);
+          
+          currentY += chartHeight + 10; // Mover Y hacia abajo
+        } catch (e) {
+          // Silently fail
+        }
+      }
+
+      // Función helper para formatear el estado de aptitud
+      const formatAptitude = (status) => {
+        if (!status) return 'Pendiente';
+        const map = {
+          'apto': 'Apto',
+          'apto_con_restricciones': 'Apto con restricciones',
+          'no_apto': 'No apto'
+        };
+        return map[status] || status;
+      };
+
+      // Definir columnas y filas (incluyendo Concepto de Aptitud)
+      const columns = ['Fecha', 'Hora', 'Paciente', 'Doctor', 'Empresa', 'Concepto (Aptitud)', 'Estado'];
+      const rows = filteredAppointments.map(a => [
+        new Date(a.appointment_date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+        formatTime(a.appointment_date, a.appointment_time),
+        a.patient_name || 'Sin nombre',
+        a.doctor_name || 'Sin asignar',
+        a.patient_company || '-',
+        formatAptitude(a.aptitude_status),
+        a.status
+      ]);
+
+      // Generar tabla centrada
+      // @ts-ignore
+      doc.autoTable({
+        head: [columns],
+        body: rows,
+        startY: currentY,
+        theme: 'grid',
+        styles: { fontSize: 8, halign: 'center' }, // Centrar texto de celdas
+        headStyles: { fillColor: [59, 130, 246], halign: 'center' }, // Blue-500
+        columnStyles: {
+          0: { cellWidth: 25 },
+          1: { cellWidth: 15 },
+          2: { cellWidth: 'auto' }, // Paciente
+          3: { cellWidth: 'auto' }, // Doctor
+          4: { cellWidth: 35 },     // Empresa
+          5: { cellWidth: 40 },     // Concepto
+          6: { cellWidth: 25 }      // Estado
+        },
+        margin: { left: 10, right: 10 } // Márgenes laterales mínimos
+      });
+
+      // Guardar PDF
+      doc.save('reporte_citas_completo.pdf');
+  });
+});
+</script>

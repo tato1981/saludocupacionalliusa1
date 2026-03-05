@@ -1,0 +1,458 @@
+---
+interface Props {
+  onPhotoCapture?: (photoBlob: Blob, photoUrl: string) => void;
+  className?: string;
+}
+
+const { onPhotoCapture, className = "" } = Astro.props;
+---
+
+<div class={`camera-capture-component ${className}`}>
+  <!-- Botón para activar cámara -->
+  <div id="cameraButton" class="camera-button-container">
+    <button 
+      type="button"
+      id="startCameraBtn"
+      class="w-full flex flex-col items-center justify-center p-6 border-2 border-dashed border-blue-300 rounded-lg hover:border-blue-400 transition-colors bg-blue-50 hover:bg-blue-100"
+    >
+      <svg class="w-12 h-12 text-blue-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+      </svg>
+      <span class="text-blue-600 font-medium">Tomar Foto del Paciente</span>
+      <span class="text-blue-500 text-sm mt-1">Hacer clic para activar cámara</span>
+    </button>
+  </div>
+
+  <!-- Container de la cámara -->
+  <div id="cameraContainer" class="camera-container hidden">
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+      <!-- Header de la cámara -->
+      <div class="bg-blue-600 text-white p-4 flex justify-between items-center">
+        <h3 class="font-semibold">Captura de Foto del Paciente</h3>
+        <button type="button" id="closeCameraBtn" class="text-white hover:text-gray-200">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Video y Canvas -->
+      <div class="p-4">
+        <div class="relative mb-4">
+          <!-- Video stream de la cámara -->
+          <video 
+            id="cameraVideo" 
+            autoplay 
+            playsinline 
+            class="w-full max-w-md mx-auto rounded-lg shadow-md"
+            style="max-height: 400px;"
+          ></video>
+          
+          <!-- Canvas para captura (oculto) -->
+          <canvas id="captureCanvas" class="hidden"></canvas>
+          
+          <!-- Overlay de enfoque -->
+          <div class="absolute inset-0 border-2 border-blue-400 rounded-lg pointer-events-none opacity-50"></div>
+        </div>
+
+        <!-- Controles de la cámara -->
+        <div class="flex justify-center space-x-4">
+          <button 
+            type="button"
+            id="captureBtn"
+            class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0118.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+            <span>Capturar Foto</span>
+          </button>
+          
+          <button 
+            type="button"
+            id="switchCameraBtn"
+            class="px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            title="Cambiar cámara"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview de la foto capturada -->
+  <div id="photoPreview" class="photo-preview hidden">
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+      <div class="bg-green-600 text-white p-4 flex justify-between items-center">
+        <h3 class="font-semibold">Foto Capturada</h3>
+        <div class="flex space-x-2">
+          <button type="button" id="retakeBtn" class="text-white hover:text-gray-200" title="Tomar otra foto">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+          </button>
+          <button type="button" id="acceptPhotoBtn" class="text-white hover:text-gray-200" title="Aceptar foto">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+      
+      <div class="p-4">
+        <img 
+          id="capturedPhoto" 
+          class="w-full max-w-md mx-auto rounded-lg shadow-md"
+          style="max-height: 400px; object-fit: contain;"
+        />
+        
+        <div class="mt-4 text-center space-y-2">
+          <div class="text-sm text-gray-600">
+            <span id="photoSize" class="font-medium"></span> | 
+            <span class="text-green-600 font-medium">Formato AVIF</span>
+          </div>
+          
+          <div class="flex justify-center space-x-4">
+            <button 
+              type="button"
+              id="retakePhotoBtn"
+              class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              Tomar Otra
+            </button>
+            <button 
+              type="button"
+              id="confirmPhotoBtn"
+              class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors animate-pulse"
+            >
+              ✅ Confirmar Foto (Requerido)
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Estado de la foto confirmada -->
+  <div id="photoConfirmed" class="photo-confirmed hidden">
+    <div class="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
+      <div class="flex items-center space-x-3">
+        <div class="flex-shrink-0">
+          <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+        <div>
+          <p class="text-sm font-medium text-green-800">
+            Foto del paciente capturada exitosamente
+          </p>
+          <p class="text-sm text-green-600">
+            La imagen se guardará al crear el paciente
+          </p>
+        </div>
+      </div>
+      <button 
+        type="button"
+        id="changePhotoBtn"
+        class="text-green-600 hover:text-green-800 text-sm font-medium"
+      >
+        Cambiar foto
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+class CameraCapture {
+  private video: HTMLVideoElement;
+  private canvas: HTMLCanvasElement;
+  private stream: MediaStream | null = null;
+  private currentFacingMode: 'user' | 'environment' = 'user';
+  private capturedPhotoBlob: Blob | null = null;
+  private capturedPhotoUrl: string | null = null;
+
+  constructor() {
+    this.video = document.getElementById('cameraVideo') as HTMLVideoElement;
+    this.canvas = document.getElementById('captureCanvas') as HTMLCanvasElement;
+    this.initializeEventListeners();
+  }
+
+  private initializeEventListeners() {
+    // Activar cámara
+    document.getElementById('startCameraBtn')?.addEventListener('click', () => {
+      this.startCamera();
+    });
+
+    // Cerrar cámara
+    document.getElementById('closeCameraBtn')?.addEventListener('click', () => {
+      this.stopCamera();
+    });
+
+    // Capturar foto
+    document.getElementById('captureBtn')?.addEventListener('click', () => {
+      this.capturePhoto();
+    });
+
+    // Cambiar cámara
+    document.getElementById('switchCameraBtn')?.addEventListener('click', () => {
+      this.switchCamera();
+    });
+
+    // Botones de preview
+    document.getElementById('retakePhotoBtn')?.addEventListener('click', () => {
+      this.retakePhoto();
+    });
+
+    document.getElementById('confirmPhotoBtn')?.addEventListener('click', () => {
+      this.confirmPhoto();
+    });
+
+    // Cambiar foto confirmada
+    document.getElementById('changePhotoBtn')?.addEventListener('click', () => {
+      this.changePhoto();
+    });
+  }
+
+  private async startCamera() {
+    try {
+      const constraints = {
+        video: {
+          facingMode: this.currentFacingMode,
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      };
+
+      this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+      this.video.srcObject = this.stream;
+
+      // Mostrar interfaz de cámara
+      document.getElementById('cameraButton')?.classList.add('hidden');
+      document.getElementById('cameraContainer')?.classList.remove('hidden');
+
+    } catch (error) {
+      // Silently fail
+      this.showAlert('error', 'Error de Cámara', 'No se pudo acceder a la cámara. Verifica los permisos.');
+    }
+  }
+
+  private stopCamera() {
+    if (this.stream) {
+      this.stream.getTracks().forEach(track => track.stop());
+      this.stream = null;
+    }
+
+    // Mostrar botón inicial
+    document.getElementById('cameraContainer')?.classList.add('hidden');
+    document.getElementById('photoPreview')?.classList.add('hidden');
+    document.getElementById('cameraButton')?.classList.remove('hidden');
+  }
+
+  private async switchCamera() {
+    this.currentFacingMode = this.currentFacingMode === 'user' ? 'environment' : 'user';
+    this.stopCamera();
+    await this.startCamera();
+  }
+
+  private async capturePhoto() {
+    const context = this.canvas.getContext('2d');
+    if (!context) return;
+
+    // Configurar canvas con las dimensiones del video
+    this.canvas.width = this.video.videoWidth;
+    this.canvas.height = this.video.videoHeight;
+
+    // Capturar frame actual del video
+    context.drawImage(this.video, 0, 0);
+
+    // Convertir a AVIF (con fallback a WebP si no es compatible)
+    try {
+      // Intentar AVIF primero
+      const avifBlob = await this.canvasToAvif(this.canvas);
+      this.capturedPhotoBlob = avifBlob;
+    } catch (error) {
+      // Silently fail
+      // Fallback a WebP
+      const webpBlob = await this.canvasToWebP(this.canvas);
+      this.capturedPhotoBlob = webpBlob;
+    }
+
+    if (this.capturedPhotoBlob) {
+      this.capturedPhotoUrl = URL.createObjectURL(this.capturedPhotoBlob);
+      this.showPhotoPreview();
+    }
+  }
+
+  private async canvasToAvif(canvas: HTMLCanvasElement): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(blob);
+        } else {
+          reject(new Error('No se pudo convertir a AVIF'));
+        }
+      }, 'image/avif', 0.8);
+    });
+  }
+
+  private async canvasToWebP(canvas: HTMLCanvasElement): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(blob);
+        } else {
+          reject(new Error('No se pudo convertir la imagen'));
+        }
+      }, 'image/webp', 0.8);
+    });
+  }
+
+  private showPhotoPreview() {
+    if (!this.capturedPhotoUrl) return;
+
+    const img = document.getElementById('capturedPhoto') as HTMLImageElement;
+    const sizeSpan = document.getElementById('photoSize');
+
+    img.src = this.capturedPhotoUrl;
+    
+    if (sizeSpan && this.capturedPhotoBlob) {
+      const sizeKB = Math.round(this.capturedPhotoBlob.size / 1024);
+      sizeSpan.textContent = `${sizeKB} KB`;
+    }
+
+    // Ocultar cámara y mostrar preview
+    document.getElementById('cameraContainer')?.classList.add('hidden');
+    document.getElementById('photoPreview')?.classList.remove('hidden');
+  }
+
+  private retakePhoto() {
+    if (this.capturedPhotoUrl) {
+      URL.revokeObjectURL(this.capturedPhotoUrl);
+      this.capturedPhotoUrl = null;
+      this.capturedPhotoBlob = null;
+    }
+
+    // Volver a mostrar la cámara
+    document.getElementById('photoPreview')?.classList.add('hidden');
+    document.getElementById('cameraContainer')?.classList.remove('hidden');
+  }
+
+  private confirmPhoto() {
+    if (this.capturedPhotoBlob && this.capturedPhotoUrl) {
+      // Parar la cámara
+      this.stopCamera();
+
+      // Mostrar estado confirmado
+      document.getElementById('photoPreview')?.classList.add('hidden');
+      document.getElementById('photoConfirmed')?.classList.remove('hidden');
+
+      // Llamar callback si está definido
+      if (typeof (window as any).onPhotoCapture === 'function') {
+        (window as any).onPhotoCapture(this.capturedPhotoBlob, this.capturedPhotoUrl);
+      }
+
+      this.showAlert('success', 'Foto Confirmada', 'La foto del paciente se ha capturado correctamente');
+    }
+  }
+
+  private changePhoto() {
+    if (this.capturedPhotoUrl) {
+      URL.revokeObjectURL(this.capturedPhotoUrl);
+      this.capturedPhotoUrl = null;
+      this.capturedPhotoBlob = null;
+    }
+
+    // Volver al estado inicial
+    document.getElementById('photoConfirmed')?.classList.add('hidden');
+    document.getElementById('cameraButton')?.classList.remove('hidden');
+  }
+
+  private showAlert(type: 'success' | 'error' | 'warning' | 'info', title: string, message?: string) {
+    try {
+      if (typeof (window as any).showSweetAlert === 'function') {
+        (window as any).showSweetAlert(type, title, message);
+      } else {
+        const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+        const fullMessage = message ? `${icon} ${title}: ${message}` : `${icon} ${title}`;
+        alert(fullMessage);
+      }
+    } catch (error) {
+      // Silently fail
+    }
+  }
+
+  // Método público para obtener la foto capturada
+  public getCapturedPhoto(): { blob: Blob | null, url: string | null } {
+    return {
+      blob: this.capturedPhotoBlob,
+      url: this.capturedPhotoUrl
+    };
+  }
+
+  // Método público para limpiar recursos
+  public cleanup() {
+    this.stopCamera();
+    if (this.capturedPhotoUrl) {
+      URL.revokeObjectURL(this.capturedPhotoUrl);
+    }
+  }
+}
+
+// Inicializar el componente cuando el DOM esté listo o inmediatamente si ya está listo
+function initializeCamera() {
+  if (document.getElementById('cameraVideo')) {
+    const cameraCapture = new CameraCapture();
+    
+    // Hacer la instancia accesible globalmente
+    (window as any).cameraCapture = cameraCapture;
+  } else {
+    // Si el DOM no está listo, esperar un poco y volver a intentar
+    setTimeout(initializeCamera, 100);
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeCamera);
+} else {
+  initializeCamera();
+}
+</script>
+
+<style>
+.camera-capture-component {
+  @apply w-full;
+}
+
+.camera-container video {
+  @apply transform;
+}
+
+.photo-preview img {
+  @apply object-contain;
+}
+
+/* Animaciones suaves */
+.camera-capture-component > div {
+  @apply transition-all duration-300 ease-in-out;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .camera-container .p-4 {
+    @apply p-2;
+  }
+  
+  .camera-container video {
+    @apply max-h-64;
+  }
+  
+  .photo-preview img {
+    @apply max-h-64;
+  }
+}
+</style>

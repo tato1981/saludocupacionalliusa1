@@ -1,0 +1,1288 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import { requireAuth } from '@/lib/auth';
+
+// Verificar autenticación
+const user = requireAuth(Astro.cookies);
+if (!user) {
+  return Astro.redirect('/auth/login');
+}
+---
+
+<Layout title="Mis Consultas - Sistema de Salud Ocupacional">
+  <div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white shadow">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center py-4">
+          <div class="flex items-center space-x-4">
+            <a href="/dashboard" class="text-gray-500 hover:text-gray-700">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+              </svg>
+            </a>
+            <h1 class="text-2xl font-bold text-gray-900">Mis Consultas Médicas</h1>
+          </div>
+          <div class="text-sm text-gray-600">
+            Usuario: <span class="font-medium">{user.name}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      
+      <!-- Panel de información del paciente -->
+      <div class="bg-white rounded-lg shadow mb-6 p-6">
+        <div class="flex items-center space-x-4">
+          <div class="flex-shrink-0 h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center">
+            <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+          </div>
+          <div class="flex-1">
+            <h2 class="text-xl font-bold text-gray-900">Información del Paciente</h2>
+            <div id="patientInfo" class="mt-2 text-sm text-gray-600">
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <span class="font-medium">Nombre:</span>
+                  <span id="patientName">-</span>
+                </div>
+                <div>
+                  <span class="font-medium">Documento:</span>
+                  <span id="patientDocument">-</span>
+                </div>
+                <div>
+                  <span class="font-medium">Email:</span>
+                  <span id="patientEmail">-</span>
+                </div>
+                <div>
+                  <span class="font-medium">Teléfono:</span>
+                  <span id="patientPhone">-</span>
+                </div>
+                <div>
+                  <span class="font-medium">Empresa:</span>
+                  <span id="patientCompany">-</span>
+                </div>
+                <div>
+                  <span class="font-medium">Tipo de Sangre:</span>
+                  <span id="patientBloodType">-</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Próximas citas -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div class="bg-white rounded-lg shadow">
+          <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">Próximas Citas</h3>
+          </div>
+          <div class="p-6">
+            <div id="upcomingAppointments" class="space-y-4">
+              <!-- Se cargan dinámicamente -->
+            </div>
+            <div id="noUpcomingAppointments" class="hidden text-center py-8 text-gray-500">
+              <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+              <p>No tienes citas programadas</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resumen médico -->
+        <div class="bg-white rounded-lg shadow">
+          <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="text-lg font-medium text-gray-900">Resumen Médico</h3>
+            <button 
+              id="viewCompleteHistoryBtn"
+              class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm transition-colors"
+            >
+              📋 Ver Historial Completo
+            </button>
+          </div>
+          <div class="p-6">
+            <div class="space-y-4">
+              <div>
+                <h4 class="font-medium text-gray-900 mb-2">Alergias</h4>
+                <p id="patientAllergies" class="text-sm text-gray-600">-</p>
+              </div>
+              <div>
+                <h4 class="font-medium text-gray-900 mb-2">Medicamentos Actuales</h4>
+                <p id="patientMedications" class="text-sm text-gray-600">-</p>
+              </div>
+              <div>
+                <h4 class="font-medium text-gray-900 mb-2">Condiciones Médicas</h4>
+                <p id="patientConditions" class="text-sm text-gray-600">-</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Historial de citas -->
+      <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+          <h3 class="text-lg font-medium text-gray-900">Historial de Citas</h3>
+          <div class="flex space-x-2">
+            <select id="statusFilter" class="border border-gray-300 rounded px-3 py-1 text-sm">
+              <option value="">Todos los estados</option>
+              <option value="programada">Programada</option>
+              <option value="completada">Completada</option>
+              <option value="cancelada">Cancelada</option>
+              <option value="no_asistio">No asistió</option>
+            </select>
+            <button 
+              id="refreshHistory"
+              class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm transition-colors"
+            >
+              🔄 Actualizar
+            </button>
+          </div>
+        </div>
+        
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo de Cita</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Doctor</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Motivo</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="appointmentsHistoryBody" class="bg-white divide-y divide-gray-200">
+              <!-- Se carga dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Loading state -->
+        <div id="historyLoadingState" class="text-center py-8">
+          <div class="inline-flex items-center">
+            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Cargando historial...
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  // Declaraciones de tipo para window
+  declare global {
+    interface Window {
+      jspdf: any;
+    }
+  }
+  
+  let currentPatient: any = null;
+  let appointmentsHistory: any[] = [];
+
+  // Cargar información del paciente
+  async function loadPatientInfo() {
+    // Silently fail
+    try {
+      const response = await fetch('/api/patient/profile');
+      const data = await response.json();
+      
+      // Silently fail
+      
+      if (data.success && data.data) {
+        currentPatient = data.data;
+        updatePatientInfo(currentPatient);
+        // Silently fail
+      } else {
+        // Silently fail
+        // Si no existe perfil de paciente, mostrar mensaje
+        document.getElementById('patientInfo')!.innerHTML = `
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div class="flex">
+              <svg class="flex-shrink-0 h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+              </svg>
+              <div class="ml-3">
+                <h3 class="text-sm font-medium text-yellow-800">Perfil incompleto</h3>
+                <p class="mt-1 text-sm text-yellow-700">
+                  Tu perfil de paciente aún no ha sido creado. Contacta al administrador para completar tu registro.
+                </p>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    } catch (error) {
+      // Silently fail
+    }
+  }
+
+  // Actualizar información del paciente en la UI
+  function updatePatientInfo(patient: any) {
+    document.getElementById('patientName')!.textContent = patient.name || '-';
+    document.getElementById('patientDocument')!.textContent = 
+      patient.document_type && patient.document_number 
+        ? `${patient.document_type}: ${patient.document_number}` 
+        : '-';
+    document.getElementById('patientEmail')!.textContent = patient.email || '-';
+    document.getElementById('patientPhone')!.textContent = patient.phone || '-';
+    document.getElementById('patientCompany')!.textContent = patient.company || '-';
+    document.getElementById('patientBloodType')!.textContent = patient.blood_type || '-';
+    document.getElementById('patientAllergies')!.textContent = patient.allergies || 'Ninguna registrada';
+    document.getElementById('patientMedications')!.textContent = patient.medications || 'Ninguno registrado';
+    document.getElementById('patientConditions')!.textContent = patient.medical_conditions || 'Ninguna registrada';
+  }
+
+  // Cargar próximas citas
+  async function loadUpcomingAppointments() {
+    if (!currentPatient) return;
+
+    try {
+      const response = await fetch('/api/patient/appointments/upcoming');
+      const data = await response.json();
+      
+      if (data.success && data.data.length > 0) {
+        const upcomingContainer = document.getElementById('upcomingAppointments')!;
+        upcomingContainer.innerHTML = data.data.map((appointment: any) => `
+          <div class="border border-gray-200 rounded-lg p-4">
+            <div class="flex justify-between items-start">
+              <div>
+                <h4 class="font-medium text-gray-900">${appointment.appointment_type}</h4>
+                <p class="text-sm text-gray-600 mt-1">
+                  ${new Date(appointment.appointment_date).toLocaleDateString('es-ES', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </p>
+                <p class="text-sm text-gray-600">
+                  ${new Date(appointment.appointment_date).toLocaleTimeString('es-ES', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </p>
+                ${appointment.reason ? `<p class="text-sm text-gray-500 mt-2">${appointment.reason}</p>` : ''}
+              </div>
+              <span class="px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeClass(appointment.status)}">
+                ${getStatusText(appointment.status)}
+              </span>
+            </div>
+          </div>
+        `).join('');
+      } else {
+        document.getElementById('noUpcomingAppointments')!.classList.remove('hidden');
+      }
+    } catch (error) {
+      // Silently fail
+    }
+  }
+
+  // Cargar historial de citas
+  async function loadAppointmentsHistory() {
+    const loadingState = document.getElementById('historyLoadingState')!;
+    const tableBody = document.getElementById('appointmentsHistoryBody')!;
+    
+    loadingState.classList.remove('hidden');
+    
+    try {
+      const response = await fetch('/api/patient/appointments/history');
+      const data = await response.json();
+      
+      if (data.success) {
+        appointmentsHistory = data.data;
+        renderAppointmentsHistory(appointmentsHistory);
+      }
+    } catch (error) {
+      // Silently fail
+    } finally {
+      loadingState.classList.add('hidden');
+    }
+  }
+
+  // Renderizar historial de citas
+  function renderAppointmentsHistory(appointments: any[]) {
+    const tableBody = document.getElementById('appointmentsHistoryBody')!;
+    
+    if (appointments.length === 0) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+            No se encontraron citas en el historial
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tableBody.innerHTML = appointments.map(appointment => `
+      <tr class="hover:bg-gray-50">
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+          ${new Date(appointment.appointment_date).toLocaleDateString('es-ES')}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+          ${appointment.appointment_type}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+          ${appointment.doctor_name || 'Por asignar'}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+          <span class="px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeClass(appointment.status)}">
+            ${getStatusText(appointment.status)}
+          </span>
+        </td>
+        <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+          ${appointment.reason || '-'}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+          ${appointment.status === 'completada' ? 
+            `<div class="flex space-x-2">
+              <button onclick="viewAppointmentDetails(${appointment.id})" class="text-blue-600 hover:text-blue-900">Ver Detalles</button>
+              <button onclick="viewMedicalHistory(${appointment.id})" class="text-green-600 hover:text-green-900">Ver Historia Médica</button>
+            </div>` :
+            '-'
+          }
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // Obtener clase CSS para el estado
+  function getStatusBadgeClass(status: string): string {
+    switch (status) {
+      case 'programada': return 'bg-blue-100 text-blue-800';
+      case 'completada': return 'bg-green-100 text-green-800';
+      case 'cancelada': return 'bg-red-100 text-red-800';
+      case 'no_asistio': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  }
+
+  // Obtener texto del estado
+  function getStatusText(status: string): string {
+    switch (status) {
+      case 'programada': return 'Programada';
+      case 'completada': return 'Completada';
+      case 'cancelada': return 'Cancelada';
+      case 'no_asistio': return 'No asistió';
+      default: return status;
+    }
+  }
+
+  // Ver detalles de cita
+  (window as any).viewAppointmentDetails = (appointmentId: number) => {
+    // Silently fail
+    // Implementar modal con detalles de la cita
+  };
+
+  // Ver historial médico completo
+  (window as any).viewMedicalHistory = async (appointmentId: number) => {
+    try {
+      // Buscar historia médica asociada a la cita
+      const response = await fetch(`/api/patient/appointments/${appointmentId}/medical-history`);
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        // Abrir modal con la historia médica completa
+        openMedicalHistoryModal(data.data);
+      } else {
+        showSweetAlert('warning', 'Historia Médica No Encontrada', 'No se encontró historia médica para esta cita');
+      }
+    } catch (error) {
+      // Silently fail
+      showSweetAlert('error', 'Error de Conexión', 'Error al cargar la historia médica');
+    }
+  };
+
+  // Función para abrir modal con historia médica
+  function openMedicalHistoryModal(medicalHistory: any) {
+    // Crear modal dinámicamente
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+      <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+          <h2 class="text-xl font-bold text-gray-900">Historia Médica Completa</h2>
+          <div class="flex space-x-2">
+            <button onclick="editMedicalHistory(${medicalHistory.id})" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">
+              ✏️ Editar
+            </button>
+            <button onclick="downloadMedicalHistoryPDF(${medicalHistory.id})" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm">
+              📄 Descargar PDF
+            </button>
+            <button onclick="closeMedicalHistoryModal()" class="text-gray-500 hover:text-gray-700">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        
+        <div class="p-6 space-y-6">
+          ${generateMedicalHistoryHTML(medicalHistory)}
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Agregar función para cerrar modal
+    (window as any).closeMedicalHistoryModal = () => {
+      document.body.removeChild(modal);
+    };
+    
+    // Cerrar con ESC
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        (window as any).closeMedicalHistoryModal();
+        document.removeEventListener('keydown', handleEsc);
+      }
+    };
+    document.addEventListener('keydown', handleEsc);
+  }
+
+  // Generar HTML para mostrar la historia médica
+  function generateMedicalHistoryHTML(history: any): string {
+    let vitalSignsHTML = '';
+    if (history.vital_signs) {
+      try {
+        const vitalSigns = typeof history.vital_signs === 'string' 
+          ? JSON.parse(history.vital_signs) 
+          : history.vital_signs;
+        
+        vitalSignsHTML = `
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            ${vitalSigns.systolic_pressure && vitalSigns.diastolic_pressure ? 
+              `<div><span class="font-medium">Presión arterial:</span> ${vitalSigns.systolic_pressure}/${vitalSigns.diastolic_pressure} mmHg</div>` : ''}
+            ${vitalSigns.heart_rate ? 
+              `<div><span class="font-medium">Frecuencia cardíaca:</span> ${vitalSigns.heart_rate} lpm</div>` : ''}
+            ${vitalSigns.weight ? 
+              `<div><span class="font-medium">Peso:</span> ${vitalSigns.weight} kg</div>` : ''}
+            ${vitalSigns.height ? 
+              `<div><span class="font-medium">Estatura:</span> ${vitalSigns.height} cm</div>` : ''}
+            ${vitalSigns.weight && vitalSigns.height ? 
+              `<div><span class="font-medium">IMC:</span> ${(vitalSigns.weight / Math.pow(vitalSigns.height/100, 2)).toFixed(1)}</div>` : ''}
+            ${vitalSigns.temperature ? 
+              `<div><span class="font-medium">Temperatura:</span> ${vitalSigns.temperature}°C</div>` : ''}
+            ${vitalSigns.oxygen_saturation ? 
+              `<div><span class="font-medium">Saturación O2:</span> ${vitalSigns.oxygen_saturation}%</div>` : ''}
+          </div>
+        `;
+      } catch (error) {
+        vitalSignsHTML = '<p class="text-gray-500">Error al procesar signos vitales</p>';
+      }
+    }
+
+    return `
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <h3 class="font-bold text-blue-900 mb-2">Información de la Consulta</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div><span class="font-medium">Fecha:</span> ${new Date(history.created_at).toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })}</div>
+          <div><span class="font-medium">Doctor:</span> Dr. ${history.doctor_name || 'N/A'}</div>
+          ${history.cie10_code ? `<div><span class="font-medium">Código CIE-10:</span> ${history.cie10_code}</div>` : ''}
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <h4 class="font-bold text-gray-900 mb-2">Motivo de Consulta</h4>
+          <p class="text-gray-700 bg-gray-50 p-3 rounded">${history.symptoms || 'No especificado'}</p>
+        </div>
+
+        ${history.current_illness ? `
+        <div>
+          <h4 class="font-bold text-gray-900 mb-2">Enfermedad Actual</h4>
+          <p class="text-gray-700 bg-gray-50 p-3 rounded">${history.current_illness}</p>
+        </div>
+        ` : ''}
+
+        ${vitalSignsHTML ? `
+        <div>
+          <h4 class="font-bold text-gray-900 mb-2">Signos Vitales</h4>
+          <div class="bg-gray-50 p-3 rounded">
+            ${vitalSignsHTML}
+          </div>
+        </div>
+        ` : ''}
+
+        ${history.personal_history || history.family_history || history.surgical_history ? `
+        <div>
+          <h4 class="font-bold text-gray-900 mb-2">Antecedentes</h4>
+          <div class="bg-gray-50 p-3 rounded space-y-2">
+            ${history.personal_history ? `<div><span class="font-medium">Personales:</span> ${history.personal_history}</div>` : ''}
+            ${history.family_history ? `<div><span class="font-medium">Familiares:</span> ${history.family_history}</div>` : ''}
+            ${history.surgical_history ? `<div><span class="font-medium">Quirúrgicos:</span> ${history.surgical_history}</div>` : ''}
+          </div>
+        </div>
+        ` : ''}
+
+        ${history.physical_exam ? `
+        <div>
+          <h4 class="font-bold text-gray-900 mb-2">Examen Físico</h4>
+          <p class="text-gray-700 bg-gray-50 p-3 rounded">${history.physical_exam}</p>
+        </div>
+        ` : ''}
+
+        <div>
+          <h4 class="font-bold text-green-700 mb-2">Diagnóstico</h4>
+          <p class="text-gray-700 bg-green-50 p-3 rounded border border-green-200">${history.diagnosis || 'No especificado'}</p>
+        </div>
+
+        <div>
+          <h4 class="font-bold text-orange-700 mb-2">Plan de Tratamiento</h4>
+          <p class="text-gray-700 bg-orange-50 p-3 rounded border border-orange-200">${history.treatment || 'No especificado'}</p>
+        </div>
+
+        ${history.medications ? `
+        <div>
+          <h4 class="font-bold text-purple-700 mb-2">Medicamentos Prescritos</h4>
+          <p class="text-gray-700 bg-purple-50 p-3 rounded border border-purple-200">${history.medications}</p>
+        </div>
+        ` : ''}
+
+        ${history.recommendations ? `
+        <div>
+          <h4 class="font-bold text-blue-700 mb-2">Recomendaciones</h4>
+          <p class="text-gray-700 bg-blue-50 p-3 rounded border border-blue-200">${history.recommendations}</p>
+        </div>
+        ` : ''}
+
+        ${history.next_appointment_date ? `
+        <div>
+          <h4 class="font-bold text-gray-900 mb-2">Próxima Cita</h4>
+          <p class="text-gray-700 bg-gray-50 p-3 rounded">${new Date(history.next_appointment_date).toLocaleDateString('es-ES')}</p>
+        </div>
+        ` : ''}
+
+        ${history.notes ? `
+        <div>
+          <h4 class="font-bold text-gray-900 mb-2">Notas Adicionales</h4>
+          <p class="text-gray-700 bg-gray-50 p-3 rounded">${history.notes}</p>
+        </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  // Editar historia médica (solo para pacientes - redirect al doctor)
+  (window as any).editMedicalHistory = (historyId: number) => {
+    // Los pacientes no pueden editar directamente, pero pueden solicitar edición
+    if (confirm('Para editar la historia médica, será redirigido a la vista del doctor. ¿Continuar?')) {
+      // Redirigir a la página del doctor con el paciente
+      window.location.href = `/doctor/patients/${currentPatient.id}/medical-history?edit=${historyId}`;
+    }
+  };
+
+  // Descargar PDF de historia médica
+  (window as any).downloadMedicalHistoryPDF = async (historyId: number) => {
+    try {
+      const response = await fetch(`/api/patient/medical-history/${historyId}`);
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        // Usar la función de generar PDF (simplificada para pacientes)
+        await generateSimplePDF(data.data, currentPatient);
+      } else {
+        showSweetAlert('error', 'Error de Datos', 'Error al obtener los datos para el PDF');
+      }
+    } catch (error) {
+      // Silently fail
+      showSweetAlert('error', 'Error de Descarga', 'Error al descargar el PDF');
+    }
+  };
+
+  // Función simplificada para generar PDF desde vista de paciente
+  async function generateSimplePDF(history: any, patient: any) {
+    try {
+      // Cargar jsPDF dinámicamente si no está cargado
+      if (!(window as any).jspdf) {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        document.head.appendChild(script);
+        
+        await new Promise((resolve, reject) => {
+          script.onload = resolve;
+          script.onerror = () => reject(new Error('No se pudo cargar jsPDF'));
+          setTimeout(() => reject(new Error('Timeout cargando jsPDF')), 10000);
+        });
+      }
+      
+      const { jsPDF } = (window as any).jspdf;
+      const doc = new jsPDF();
+      
+      // Configuración básica
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 20;
+      let yPosition = margin;
+      
+      // Función para verificar espacio y añadir página si es necesario
+      function checkPage(neededSpace = 20) {
+        if (yPosition + neededSpace > pageHeight - margin) {
+          doc.addPage();
+          yPosition = margin;
+        }
+      }
+      
+      // Función para agregar texto con salto de línea
+      function addText(text: string, fontSize = 10, style = 'normal', color = [0, 0, 0], maxWidth = pageWidth - 2 * margin) {
+        checkPage(fontSize + 5);
+        
+        doc.setFontSize(fontSize);
+        doc.setFont('helvetica', style);
+        doc.setTextColor(color[0], color[1], color[2]);
+        
+        const lines = doc.splitTextToSize(text, maxWidth);
+        lines.forEach((line: string, index: number) => {
+          if (index > 0) checkPage(fontSize);
+          doc.text(line, margin, yPosition);
+          yPosition += fontSize * 0.6;
+        });
+        yPosition += 5;
+      }
+      
+      // Función para agregar foto del paciente
+      async function addPatientPhoto() {
+        if (patient.photo_path) {
+          try {
+            // Crear imagen para obtener dimensiones
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            
+            return new Promise((resolve) => {
+              img.onload = function() {
+                try {
+                  const canvas = document.createElement('canvas');
+                  const ctx = canvas.getContext('2d');
+                  
+                  if (!ctx) {
+                    // Silently fail
+                    resolve(null);
+                    return;
+                  }
+                  
+                  // Configurar canvas con tamaño fijo para el PDF
+                  const photoWidth = 40;
+                  const photoHeight = 50;
+                  canvas.width = photoWidth * 3; // Alta resolución
+                  canvas.height = photoHeight * 3;
+                  
+                  // Dibujar imagen escalada
+                  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                  
+                  // Convertir a base64
+                  const imageData = canvas.toDataURL('image/jpeg', 0.8);
+                  
+                  // Agregar al PDF
+                  doc.addImage(imageData, 'JPEG', pageWidth - margin - photoWidth, yPosition, photoWidth, photoHeight);
+                  
+                  resolve(null);
+                } catch (error) {
+                  console.log('Error procesando la imagen:', error);
+                  resolve(null);
+                }
+              };
+              
+              img.onerror = function() {
+                console.log('No se pudo cargar la foto del paciente');
+                resolve(null);
+              };
+              
+              // Construir la URL completa de la foto
+              const photoUrl = patient.photo_path.startsWith('http') 
+                ? patient.photo_path 
+                : `${window.location.origin}${patient.photo_path}`;
+              
+              console.log('Intentando cargar foto desde:', photoUrl);
+              img.src = photoUrl;
+            });
+          } catch (error) {
+            console.log('Error procesando foto del paciente:', error);
+          }
+        }
+      }
+      
+      // Header del documento
+      doc.setFillColor(240, 248, 255);
+      doc.rect(0, 0, pageWidth, 35, 'F');
+      
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 100, 200);
+      doc.text('HISTORIA MÉDICA OCUPACIONAL', margin, 20);
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 100, 100);
+      doc.text('Sistema de Salud Ocupacional', margin, 30);
+      
+      yPosition = 45;
+      
+      // Agregar foto del paciente
+      const photoYPosition = yPosition;
+      await addPatientPhoto();
+      
+      // Información del paciente (al lado de la foto)
+      addText('INFORMACIÓN DEL PACIENTE', 12, 'bold', [0, 100, 200]);
+      addText(`Nombre: ${patient.name || 'N/A'}`);
+      
+      if (patient.document_type && patient.document_number) {
+        addText(`Documento: ${patient.document_type}: ${patient.document_number}`);
+      }
+      
+      if (patient.date_of_birth) {
+        const age = new Date().getFullYear() - new Date(patient.date_of_birth).getFullYear();
+        addText(`Fecha de nacimiento: ${new Date(patient.date_of_birth).toLocaleDateString('es-ES')} (${age} años)`);
+      }
+      
+      addText(`Género: ${patient.gender || 'No especificado'}`);
+      addText(`Empresa: ${patient.company || 'No especificada'}`);
+      addText(`Ocupación: ${patient.occupation || 'No especificada'}`);
+      addText(`Tipo de sangre: ${patient.blood_type || 'No especificado'}`);
+      addText(`Alergias: ${patient.allergies || 'Ninguna registrada'}`);
+      
+      // Asegurar que estemos debajo de la foto
+      yPosition = Math.max(yPosition, photoYPosition + 60);
+      
+      // Información de la consulta
+      yPosition += 10;
+      addText('INFORMACIÓN DE LA CONSULTA', 12, 'bold', [0, 100, 200]);
+      addText(`Fecha: ${new Date(history.created_at).toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })}`);
+      addText(`Doctor: Dr. ${history.doctor_name || 'N/A'}`);
+      if (history.cie10_code) {
+        addText(`Código CIE-10: ${history.cie10_code}`);
+      }
+      
+      // Motivo de consulta
+      yPosition += 5;
+      addText('MOTIVO DE CONSULTA', 12, 'bold', [0, 100, 200]);
+      addText(history.symptoms || 'No especificado');
+      
+      // Enfermedad actual
+      if (history.current_illness) {
+        yPosition += 5;
+        addText('ENFERMEDAD ACTUAL', 12, 'bold', [0, 100, 200]);
+        addText(history.current_illness);
+      }
+      
+      // Signos vitales
+      if (history.vital_signs) {
+        try {
+          const vitalSigns = typeof history.vital_signs === 'string' 
+            ? JSON.parse(history.vital_signs) 
+            : history.vital_signs;
+            
+          yPosition += 5;
+          addText('SIGNOS VITALES', 12, 'bold', [0, 100, 200]);
+          
+          if (vitalSigns.systolic_pressure && vitalSigns.diastolic_pressure) {
+            addText(`Presión arterial: ${vitalSigns.systolic_pressure}/${vitalSigns.diastolic_pressure} mmHg`);
+          }
+          if (vitalSigns.heart_rate) {
+            addText(`Frecuencia cardíaca: ${vitalSigns.heart_rate} lpm`);
+          }
+          if (vitalSigns.weight && vitalSigns.height) {
+            const bmi = (vitalSigns.weight / Math.pow(vitalSigns.height/100, 2)).toFixed(1);
+            addText(`Peso: ${vitalSigns.weight} kg`);
+            addText(`Estatura: ${vitalSigns.height} cm`);
+            addText(`IMC: ${bmi}`);
+          }
+          if (vitalSigns.temperature) {
+            addText(`Temperatura: ${vitalSigns.temperature}°C`);
+          }
+          if (vitalSigns.oxygen_saturation) {
+            addText(`Saturación de oxígeno: ${vitalSigns.oxygen_saturation}%`);
+          }
+        } catch (error) {
+          console.error('Error procesando signos vitales:', error);
+        }
+      }
+      
+      // Antecedentes
+      if (history.personal_history || history.family_history || history.surgical_history) {
+        yPosition += 5;
+        addText('ANTECEDENTES', 12, 'bold', [0, 100, 200]);
+        
+        if (history.personal_history) {
+          addText('Personales:', 10, 'bold');
+          addText(history.personal_history);
+        }
+        if (history.family_history) {
+          addText('Familiares:', 10, 'bold');
+          addText(history.family_history);
+        }
+        if (history.surgical_history) {
+          addText('Quirúrgicos:', 10, 'bold');
+          addText(history.surgical_history);
+        }
+      }
+      
+      // Examen físico
+      if (history.physical_exam) {
+        yPosition += 5;
+        addText('EXAMEN FÍSICO', 12, 'bold', [0, 100, 200]);
+        addText(history.physical_exam);
+      }
+      
+      // Diagnóstico
+      yPosition += 5;
+      addText('DIAGNÓSTICO', 12, 'bold', [0, 150, 0]);
+      addText(history.diagnosis || 'No especificado');
+      
+      // Tratamiento
+      yPosition += 5;
+      addText('PLAN DE TRATAMIENTO', 12, 'bold', [200, 100, 0]);
+      addText(history.treatment || 'No especificado');
+      
+      // Medicamentos
+      if (history.medications) {
+        yPosition += 5;
+        addText('MEDICAMENTOS PRESCRITOS', 12, 'bold', [150, 0, 150]);
+        addText(history.medications);
+      }
+      
+      // Recomendaciones
+      if (history.recommendations) {
+        yPosition += 5;
+        addText('RECOMENDACIONES', 12, 'bold', [0, 100, 200]);
+        addText(history.recommendations);
+      }
+      
+      // Próxima cita
+      if (history.next_appointment_date) {
+        yPosition += 5;
+        addText('PRÓXIMA CITA', 12, 'bold', [0, 100, 200]);
+        addText(new Date(history.next_appointment_date).toLocaleDateString('es-ES'));
+      }
+      
+      // Notas adicionales
+      if (history.notes) {
+        yPosition += 5;
+        addText('NOTAS ADICIONALES', 12, 'bold', [0, 100, 200]);
+        addText(history.notes);
+      }
+      
+      // Footer
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Generado el ${new Date().toLocaleDateString('es-ES')} - Sistema de Salud Ocupacional`, 
+               margin, pageHeight - 15);
+      
+      // Guardar
+      const fileName = `Historia_Medica_${(patient.name || 'Paciente').replace(/\s+/g, '_')}_${new Date(history.created_at).toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
+      
+      showSweetAlert('success', '¡PDF Generado!', 'Historia médica descargada exitosamente', 2000);
+      
+    } catch (error) {
+      // Silently fail
+      showSweetAlert('error', 'Error al Generar PDF', (error instanceof Error ? error.message : 'Error desconocido'));
+    }
+  }
+
+  // Inicializar event listeners cuando el DOM esté listo
+  function initializeEventListeners() {
+    // Silently fail
+    
+    // Filtro por estado
+    const statusFilter = document.getElementById('statusFilter') as HTMLSelectElement;
+    if (statusFilter) {
+      statusFilter.addEventListener('change', () => {
+        const filterValue = statusFilter.value;
+        const filteredAppointments = filterValue 
+          ? appointmentsHistory.filter(app => app.status === filterValue)
+          : appointmentsHistory;
+        renderAppointmentsHistory(filteredAppointments);
+      });
+      // Silently fail
+    } else {
+      // Silently fail
+    }
+
+    // Botón refresh
+    const refreshBtn = document.getElementById('refreshHistory');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => {
+        loadAppointmentsHistory();
+        loadUpcomingAppointments();
+      });
+      // Silently fail
+    } else {
+      // Silently fail
+    }
+
+    // Botón ver historial completo
+    const completeHistoryBtn = document.getElementById('viewCompleteHistoryBtn');
+    if (completeHistoryBtn) {
+      completeHistoryBtn.addEventListener('click', async () => {
+        // Silently fail
+        if (!currentPatient) {
+          showSweetAlert('warning', 'Información No Disponible', 'No se ha cargado la información del paciente');
+          return;
+        }
+        
+        try {
+          // Silently fail
+          
+          // Obtener todas las historias médicas del paciente
+          const response = await fetch('/api/patient/medical-history/complete');
+          const data = await response.json();
+          
+          // Silently fail
+          
+          if (data.success) {
+            if (data.data && data.data.length > 0) {
+              // Silently fail
+              openCompleteHistoryModal(data.data);
+            } else {
+              // Silently fail
+              showSweetAlert('info', 'Sin Historias Médicas', 'No se encontraron historias médicas para este paciente');
+            }
+          } else {
+            // Silently fail
+            showSweetAlert('error', 'Error del Servidor', data.message || 'Error al obtener el historial');
+          }
+        } catch (error) {
+          // Silently fail
+          showSweetAlert('error', 'Error de Conexión', (error instanceof Error ? error.message : 'Error desconocido'));
+        }
+      });
+      // Silently fail
+    } else {
+      // Silently fail
+    }
+  }
+
+  // Modal para historial completo
+  function openCompleteHistoryModal(histories: any[]) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+      <div class="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto shadow-2xl transition-colors duration-200">
+        <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+          <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+              <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+            </div>
+            <h2 class="text-xl font-bold text-gray-900">Historial Médico Completo</h2>
+            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm font-medium">${histories.length} registros</span>
+          </div>
+          <button onclick="closeCompleteHistoryModal()" class="text-gray-500 hover:text-gray-700 transition-colors duration-200">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        
+        <div class="p-6">
+          ${histories.length === 0 ? `
+            <div class="text-center py-12">
+              <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+              </div>
+              <h3 class="text-lg font-medium text-gray-900 mb-2">Sin historial médico</h3>
+              <p class="text-gray-500">No se encontraron registros médicos para este paciente.</p>
+            </div>
+          ` : `
+            <div class="space-y-4">
+              ${histories.map((history, index) => `
+                <div class="border border-gray-200 rounded-lg p-4 ${index === 0 ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'} transition-colors duration-200">
+                  <div class="flex justify-between items-start mb-4">
+                    <div class="flex-1">
+                      <div class="flex items-center space-x-2 mb-2">
+                        <h3 class="font-bold text-lg text-gray-900">
+                          Consulta #${histories.length - index}
+                        </h3>
+                        ${index === 0 ? '<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">Más reciente</span>' : ''}
+                      </div>
+                      <div class="flex items-center space-x-4 text-sm text-gray-600">
+                        <div class="flex items-center space-x-1">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4m-6 0h6m-6 0V7a1 1 0 00-1 1v9a1 1 0 001 1h6a1 1 0 001-1V8a1 1 0 00-1-1"/>
+                          </svg>
+                          <span>${new Date(history.created_at).toLocaleDateString('es-ES', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}</span>
+                        </div>
+                        <div class="flex items-center space-x-1">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                          </svg>
+                          <span>Dr. ${history.doctor_name || 'N/A'}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="flex space-x-2 ml-4">
+                      <button onclick="viewSingleHistory(${history.id})" class="bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200">
+                        👁️ Ver Detalle
+                      </button>
+                      <button onclick="downloadSinglePDF(${history.id})" class="bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200">
+                        📄 PDF
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div class="space-y-2">
+                      <div>
+                        <span class="font-medium text-gray-700">Motivo de consulta:</span>
+                        <p class="text-gray-600 mt-1 p-2 bg-white rounded border">${history.symptoms || 'No especificado'}</p>
+                      </div>
+                    </div>
+                    <div class="space-y-2">
+                      <div>
+                        <span class="font-medium text-gray-700">Diagnóstico:</span>
+                        <p class="text-gray-600 mt-1 p-2 bg-white rounded border">${history.diagnosis || 'No especificado'}</p>
+                      </div>
+                    </div>
+                    ${history.treatment ? `
+                    <div class="md:col-span-2 space-y-2">
+                      <span class="font-medium text-gray-700">Tratamiento prescrito:</span>
+                      <p class="text-gray-600 mt-1 p-2 bg-white rounded border">${history.treatment}</p>
+                    </div>
+                    ` : ''}
+                    ${history.notes ? `
+                    <div class="md:col-span-2 space-y-2">
+                      <span class="font-medium text-gray-700">Observaciones:</span>
+                      <p class="text-gray-600 mt-1 p-2 bg-white rounded border">${history.notes}</p>
+                    </div>
+                    ` : ''}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `}
+          
+          <!-- Botones de acción del modal -->
+          <div class="mt-6 pt-4 border-t border-gray-200 flex justify-between items-center">
+            <div class="text-sm text-gray-500">
+              Total de consultas: <span class="font-medium">${histories.length}</span>
+            </div>
+            <div class="flex space-x-3">
+              <button onclick="downloadAllHistoriesPDF()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200">
+                📄 Descargar Todo (PDF)
+              </button>
+              <button onclick="closeCompleteHistoryModal()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200">
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Funciones del modal
+    (window as any).closeCompleteHistoryModal = () => {
+      document.body.removeChild(modal);
+    };
+    
+    (window as any).viewSingleHistory = (historyId: number) => {
+      // Cerrar modal actual y abrir historia individual
+      (window as any).closeCompleteHistoryModal();
+      (window as any).downloadMedicalHistoryPDF(historyId);
+    };
+    
+    (window as any).downloadSinglePDF = (historyId: number) => {
+      (window as any).downloadMedicalHistoryPDF(historyId);
+    };
+    
+    (window as any).downloadAllHistoriesPDF = async () => {
+      try {
+        // Obtener todas las historias desde el endpoint existente
+        const response = await fetch('/api/patient/medical-history/complete');
+        const result = await response.json();
+        
+        if (!result.success || !Array.isArray(result.data)) {
+          throw new Error(result.message || 'No se pudo obtener el historial completo');
+        }
+        
+        const histories = result.data;
+        if (histories.length === 0) {
+          (window as any).showSweetAlert?.('info', 'Sin registros', 'No hay historias para descargar');
+          return;
+        }
+        
+        // Cargar jsPDF si no está cargado
+        if (!(window as any).jspdf) {
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+          document.head.appendChild(script);
+          await new Promise((resolve, reject) => {
+            script.onload = resolve;
+            script.onerror = () => reject(new Error('No se pudo cargar jsPDF'));
+            setTimeout(() => reject(new Error('Timeout cargando jsPDF')), 10000);
+          });
+        }
+        
+        const { jsPDF } = (window as any).jspdf;
+        const doc = new jsPDF();
+        
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 15;
+        let y = margin;
+        
+        // Portada
+        doc.setFontSize(16);
+        doc.text('Historial Médico Completo', margin, y);
+        y += 10;
+        doc.setFontSize(11);
+        const patientName = (typeof currentPatient !== 'undefined' && currentPatient?.name) ? currentPatient.name : 'Paciente';
+        doc.text(`Paciente: ${patientName}`, margin, y);
+        y += 8;
+        doc.text(`Total de consultas: ${histories.length}`, margin, y);
+        
+        // Iterar historias
+        histories.forEach((history: any, index: number) => {
+          if (index > 0) {
+            doc.addPage();
+            y = margin;
+          }
+          
+          doc.setFontSize(14);
+          doc.text(`Consulta #${histories.length - index}`, margin, y);
+          y += 8;
+          doc.setFontSize(10);
+          const dateStr = new Date(history.created_at).toLocaleString('es-ES');
+          doc.text(`Fecha: ${dateStr}`, margin, y);
+          y += 6;
+          doc.text(`Doctor: ${history.doctor_name || 'N/A'}`, margin, y);
+          y += 10;
+          
+          // Secciones
+          function addSection(title: string, value?: string) {
+            if (!value) return;
+            doc.setFontSize(11);
+            doc.text(title, margin, y);
+            y += 6;
+            doc.setFontSize(10);
+            const lines = doc.splitTextToSize(value, pageWidth - margin * 2);
+            doc.text(lines, margin, y);
+            y += Math.min(60, lines.length * 5 + 4); // limitar crecimiento
+          }
+          
+          addSection('Motivo de consulta', history.symptoms);
+          addSection('Diagnóstico', history.diagnosis);
+          addSection('Plan de tratamiento', history.treatment);
+          addSection('Observaciones', history.notes);
+          
+          // Footer de página
+          doc.setFontSize(8);
+          const footerY = pageHeight - 10;
+          doc.text(`Generado por Sistema de Salud Ocupacional - ${new Date().toLocaleDateString('es-ES')}`,
+                   margin, footerY);
+        });
+        
+        const fileSafeName = patientName.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
+        doc.save(`Historial_Completo_${fileSafeName}.pdf`);
+        (window as any).showSweetAlert?.('success', 'PDF generado', 'Descarga completada', 2000);
+      } catch (error) {
+        console.error('Error generando PDF completo:', error);
+        (window as any).showSweetAlert?.('error', 'Error al generar PDF', (error as any)?.message || 'Error desconocido');
+      }
+    };
+    
+    // Cerrar con ESC
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        (window as any).closeCompleteHistoryModal();
+        document.removeEventListener('keydown', handleEsc);
+      }
+    };
+    document.addEventListener('keydown', handleEsc);
+  }
+
+  // Cargar datos iniciales
+  document.addEventListener('DOMContentLoaded', () => {
+    initializeEventListeners();
+    loadPatientInfo().then(() => {
+      loadUpcomingAppointments();
+      loadAppointmentsHistory();
+    });
+  });
+</script>
+
+<!-- SweetAlert2 CDN -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+  // Verificar que SweetAlert2 se cargó correctamente
+  window.addEventListener('load', function() {
+    // Silently fail
+  });
+
+  // Función helper para mostrar alertas con SweetAlert2
+  function showSweetAlert(type: string, title: string, message: string, timer?: number) {
+    if (typeof (window as any).Swal === 'undefined') {
+      alert(`${title}: ${message}`);
+      return;
+    }
+    
+    const config: any = {
+      icon: type,
+      title: title,
+      text: message,
+      confirmButtonColor: '#3B82F6'
+    };
+    
+    if (timer) {
+      config.timer = timer;
+      config.showConfirmButton = false;
+    }
+    
+    return (window as any).Swal.fire(config);
+  }
+
+  // Función para confirmaciones con SweetAlert2
+  function showSweetConfirm(title: string, message: string, confirmText: string = 'Sí, continuar') {
+    if (typeof (window as any).Swal === 'undefined') {
+      return Promise.resolve(confirm(`${title}: ${message}`));
+    }
+    
+    return (window as any).Swal.fire({
+      title: title,
+      text: message,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3B82F6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: confirmText,
+      cancelButtonText: 'Cancelar'
+    }).then((result: any) => result.isConfirmed);
+  }
+
+  // Hacer las funciones disponibles globalmente
+  (window as any).showSweetAlert = showSweetAlert;
+  (window as any).showSweetConfirm = showSweetConfirm;
+</script>
+</Layout>

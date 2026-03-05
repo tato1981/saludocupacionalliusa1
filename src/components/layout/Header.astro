@@ -1,0 +1,104 @@
+---
+const { user } = Astro.props;
+---
+
+<header class="bg-white shadow-sm h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8 z-10 sticky top-0">
+  <div class="flex items-center gap-3">
+    <!-- Botón de Menú (solo visible en móvil/tablet) -->
+    <button id="mobileMenuBtn" class="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 transition-colors">
+      <span class="sr-only">Abrir menú</span>
+      <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+      </svg>
+    </button>
+
+    <!-- Botón Inicio (visible en todas las pantallas) -->
+    <a href="/dashboard" class="flex items-center gap-2 px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100 hover:text-blue-600 transition-colors font-medium">
+      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+      </svg>
+      <span class="hidden sm:inline">Inicio</span>
+    </a>
+  </div>
+
+  <div class="flex items-center gap-4">
+    <div class="hidden md:flex flex-col items-end mr-2">
+      <span class="text-sm font-semibold text-gray-700">{user?.name}</span>
+      <span class="text-xs text-gray-500 capitalize">{user?.role}</span>
+    </div>
+    
+    <div class="relative ml-3">
+      <div>
+        <button type="button" class="flex items-center max-w-xs bg-white rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" id="user-menu-button" aria-expanded="false" aria-haspopup="true">
+          <span class="sr-only">Abrir menú de usuario</span>
+          <div class="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold border border-blue-200">
+            {user?.name?.charAt(0).toUpperCase()}
+          </div>
+        </button>
+      </div>
+      
+      <!--
+        Dropdown menu, show/hide based on menu state.
+      -->
+      <div class="hidden origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none transition-all duration-200 transform opacity-0 scale-95" role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1" id="user-menu-dropdown">
+        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" tabindex="-1" id="user-menu-item-0">Mi Perfil</a>
+        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" tabindex="-1" id="user-menu-item-1">Configuración</a>
+        <button id="logoutBtnHeader" class="w-full text-left block px-4 py-2 text-sm text-red-600 hover:bg-gray-100" role="menuitem" tabindex="-1" id="user-menu-item-2">Cerrar Sesión</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<script>
+  const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  
+  mobileMenuBtn?.addEventListener('click', () => {
+    sidebar?.classList.remove('-translate-x-full');
+    overlay?.classList.remove('hidden');
+  });
+
+  // User menu dropdown toggle
+  const userMenuBtn = document.getElementById('user-menu-button');
+  const userMenuDropdown = document.getElementById('user-menu-dropdown');
+
+  userMenuBtn?.addEventListener('click', () => {
+    const isHidden = userMenuDropdown?.classList.contains('hidden');
+    if (isHidden) {
+      userMenuDropdown?.classList.remove('hidden');
+      setTimeout(() => {
+        userMenuDropdown?.classList.remove('opacity-0', 'scale-95');
+        userMenuDropdown?.classList.add('opacity-100', 'scale-100');
+      }, 10);
+    } else {
+      userMenuDropdown?.classList.remove('opacity-100', 'scale-100');
+      userMenuDropdown?.classList.add('opacity-0', 'scale-95');
+      setTimeout(() => {
+        userMenuDropdown?.classList.add('hidden');
+      }, 200);
+    }
+  });
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (event) => {
+    if (!userMenuBtn?.contains(event.target as Node) && !userMenuDropdown?.contains(event.target as Node)) {
+      userMenuDropdown?.classList.remove('opacity-100', 'scale-100');
+      userMenuDropdown?.classList.add('opacity-0', 'scale-95');
+      setTimeout(() => {
+        userMenuDropdown?.classList.add('hidden');
+      }, 200);
+    }
+  });
+
+  // Logout logic
+  const logoutBtnHeader = document.getElementById('logoutBtnHeader');
+  logoutBtnHeader?.addEventListener('click', async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/auth/login';
+    } catch (error) {
+      // Silently fail
+    }
+  });
+</script>

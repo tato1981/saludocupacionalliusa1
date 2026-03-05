@@ -1,0 +1,34 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Sidebar from './Sidebar.astro';
+import Header from './Header.astro';
+
+interface Props {
+  title: string;
+  user: any;
+}
+
+const { title, user } = Astro.props;
+const currentPath = Astro.url.pathname;
+---
+
+<Layout title={title}>
+  <div class="min-h-screen bg-gray-50">
+    <!-- Sidebar -->
+    <Sidebar user={user} currentPath={currentPath} />
+
+    <!-- Main Content Wrapper -->
+    <div class:list={[
+      "w-full transition-all duration-300",
+      currentPath === '/dashboard' ? 'lg:pl-64' : ''
+    ]}>
+      <!-- Header -->
+      <Header user={user} />
+
+      <!-- Page Content -->
+      <main class="w-full overflow-x-hidden overflow-y-auto bg-gray-50 p-4 sm:p-6 lg:p-8">
+        <slot />
+      </main>
+    </div>
+  </div>
+</Layout>

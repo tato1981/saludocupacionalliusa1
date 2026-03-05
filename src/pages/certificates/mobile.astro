@@ -1,0 +1,395 @@
+---
+import Layout from "../../layouts/Layout.astro";
+---
+
+<Layout title="Verificar Certificado - Móvil">
+  <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <!-- Header móvil optimizado -->
+    <div class="bg-white shadow-sm">
+      <div class="px-4 py-6">
+        <h1 class="text-2xl font-bold text-gray-900 text-center">Verificar Certificado</h1>
+        <p class="text-sm text-gray-600 text-center mt-1">Escanea el QR o ingresa el código</p>
+      </div>
+    </div>
+
+    <div class="p-4 space-y-6">
+      <!-- Entrada manual -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="text-center mb-6">
+          <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+          </div>
+          <h2 class="text-xl font-semibold text-gray-900 mb-2">Verificar Certificado</h2>
+          <p class="text-sm text-gray-600 mb-4">Ingresa el código del certificado</p>
+        </div>
+        
+        <form id="verifyForm" class="space-y-4">
+          <div>
+            <label for="certificateCode" class="sr-only">Código del certificado</label>
+            <input 
+              type="text" 
+              id="certificateCode" 
+              placeholder="Ej: ABC123XYZ789"
+              class="w-full px-4 py-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg text-center"
+              required
+            />
+          </div>
+          <button 
+            type="submit" 
+            class="w-full bg-green-600 text-white py-4 px-6 rounded-lg font-semibold text-lg shadow-lg hover:bg-green-700 active:bg-green-800 transition-colors"
+          >
+            Verificar Certificado
+          </button>
+        </form>
+      </div>
+
+      <!-- Área de resultados -->
+      <div id="result" class="hidden">
+        <!-- Banner de estado -->
+        <div id="statusBanner" class="rounded-lg border p-4 mb-4">
+          <div class="flex items-center gap-3">
+            <span id="statusIcon" class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold">?</span>
+            <div class="flex-1">
+              <p id="statusTitle" class="font-semibold text-lg"></p>
+              <p id="statusSubtitle" class="text-sm"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta del certificado -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+          <!-- Header de la tarjeta -->
+          <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+            <h3 class="text-white text-lg font-semibold">Certificado de Aptitud Laboral</h3>
+          </div>
+
+          <!-- Contenido del certificado -->
+          <div class="p-6 space-y-6">
+            <!-- Información del paciente -->
+            <div>
+              <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Paciente</h4>
+              <div id="patientInfo" class="space-y-2"></div>
+            </div>
+
+            <!-- Estado y vigencia -->
+            <div>
+              <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Estado y Vigencia</h4>
+              <div id="statusInfo" class="space-y-2"></div>
+            </div>
+
+            <!-- Restricciones y recomendaciones -->
+            <div id="restrictionsSection" class="hidden">
+              <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Observaciones</h4>
+              <div id="restrictionsInfo" class="space-y-2"></div>
+            </div>
+          </div>
+
+          <!-- Acciones -->
+          <div class="px-6 py-4 bg-gray-50 border-t space-y-3">
+            <button 
+              id="downloadBtn" 
+              class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              Descargar PDF
+            </button>
+            
+            <div class="flex gap-3">
+              <button 
+                id="shareBtn" 
+                class="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"></path>
+                </svg>
+                Compartir
+              </button>
+              
+              <button 
+                id="newScanBtn" 
+                class="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                Nuevo
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Información adicional -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-3">¿Cómo verificar?</h3>
+        <div class="space-y-3 text-sm text-gray-600">
+          <div class="flex items-start gap-3">
+            <span class="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">1</span>
+            <p>Escanea el código QR del certificado usando la cámara de tu teléfono</p>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">2</span>
+            <p>O ingresa manualmente el código que aparece en el certificado</p>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">3</span>
+            <p>Revisa la información y descarga el PDF oficial si es necesario</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading overlay -->
+  <div id="loadingOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 m-4 max-w-sm w-full text-center">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+      <p class="text-gray-700">Verificando certificado...</p>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" is:inline></script>
+  
+  <script is:inline>
+    // Inicialización
+    document.addEventListener('DOMContentLoaded', function() {
+      setupEventListeners();
+      checkUrlParams();
+    });
+
+    function setupEventListeners() {
+      // Formulario manual
+      document.getElementById('verifyForm').addEventListener('submit', handleManualSubmit);
+      
+      // Botones de resultado
+      document.getElementById('shareBtn').addEventListener('click', shareResult);
+      document.getElementById('newScanBtn').addEventListener('click', resetScanner);
+    }
+
+    function checkUrlParams() {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
+      if (code && code.trim() !== '') {
+        document.getElementById('certificateCode').value = code;
+        verifyCertificate(code);
+      }
+    }
+
+    async function handleManualSubmit(e) {
+      e.preventDefault();
+      const code = document.getElementById('certificateCode').value.trim();
+      if (code) {
+        await verifyCertificate(code);
+      }
+    }
+
+    async function verifyCertificate(code) {
+      showLoading(true);
+      
+      try {
+        const response = await fetch(`/api/certificates/verify?code=${encodeURIComponent(code)}`);
+        const data = await response.json();
+        
+        showLoading(false);
+        
+        if (data.success && data.data) {
+          displayCertificate(data.data, code);
+        } else {
+          showError(data.message || 'Certificado no encontrado');
+        }
+      } catch (error) {
+        showLoading(false);
+        showError('Error al verificar el certificado. Verifica tu conexión.');
+      }
+    }
+
+    function displayCertificate(cert, code) {
+      // Mostrar resultado
+      document.getElementById('result').classList.remove('hidden');
+      
+      // Configurar banner de estado
+      const statusBanner = document.getElementById('statusBanner');
+      const statusIcon = document.getElementById('statusIcon');
+      const statusTitle = document.getElementById('statusTitle');
+      const statusSubtitle = document.getElementById('statusSubtitle');
+      
+      statusBanner.className = 'rounded-lg border p-4 mb-4 bg-green-50 border-green-200';
+      statusIcon.className = 'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold bg-green-600';
+      statusIcon.textContent = '✓';
+      statusTitle.textContent = 'Certificado Válido';
+      statusTitle.className = 'font-semibold text-lg text-green-800';
+      statusSubtitle.textContent = 'La verificación fue exitosa';
+      statusSubtitle.className = 'text-sm text-green-700';
+
+      // Mostrar información del paciente
+      const patientInfo = document.getElementById('patientInfo');
+      patientInfo.innerHTML = `
+        <div class="text-sm"><span class="font-medium text-gray-900">${cert.patient_name || 'N/A'}</span></div>
+        <div class="text-sm text-gray-600">${cert.document_type || ''} ${cert.document_number || ''}</div>
+        ${cert.date_of_birth ? `<div class="text-sm text-gray-600">Nacimiento: ${new Date(cert.date_of_birth).toLocaleDateString('es-ES')}</div>` : ''}
+        ${cert.company ? `<div class="text-sm text-gray-600">Empresa: ${cert.company}</div>` : ''}
+        ${cert.occupation ? `<div class="text-sm text-gray-600">Ocupación: ${cert.occupation}</div>` : ''}
+      `;
+
+      // Mostrar estado y vigencia
+      const statusMap = {
+        'apto': { text: 'APTO PARA EL TRABAJO', color: 'text-green-700 bg-green-100' },
+        'apto_con_restricciones': { text: 'APTO CON RESTRICCIONES', color: 'text-yellow-700 bg-yellow-100' },
+        'apto_manipulacion_alimentos': { text: 'APTO PARA MANIPULACIÓN DE ALIMENTOS', color: 'text-blue-700 bg-blue-100' },
+        'apto_trabajo_alturas': { text: 'APTO PARA TRABAJO EN ALTURAS', color: 'text-purple-700 bg-purple-100' },
+        'apto_espacios_confinados': { text: 'APTO PARA ESPACIOS CONFINADOS', color: 'text-indigo-700 bg-indigo-100' },
+        'apto_conduccion': { text: 'APTO PARA CONDUCCIÓN', color: 'text-teal-700 bg-teal-100' }
+      };
+      
+      const status = statusMap[cert.aptitude_status] || { text: cert.aptitude_status, color: 'text-gray-700 bg-gray-100' };
+      
+      const statusInfo = document.getElementById('statusInfo');
+      const emissionSource = cert.certificate_date || cert.created_at;
+      const createdDate = emissionSource
+        ? new Date(emissionSource).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })
+        : 'N/A';
+      const validityStart = cert.validity_start ? new Date(cert.validity_start).toLocaleDateString('es-ES') : null;
+      const validityEnd = cert.validity_end ? new Date(cert.validity_end).toLocaleDateString('es-ES') : null;
+
+      // Mapeo de tipos de cita
+      const appointmentTypeMap = {
+        'examen_periodico': 'Examen Médico Periódico',
+        'examen_ingreso': 'Examen de Ingreso',
+        'examen_egreso': 'Examen de Egreso',
+        'examen_reintegro': 'Examen de Reintegro',
+        'consulta_general': 'Consulta General',
+        'consulta_especializada': 'Consulta Especializada',
+        'seguimiento': 'Seguimiento',
+        'urgencias': 'Urgencias'
+      };
+      const appointmentTypeText = cert.appointment_type ? (appointmentTypeMap[cert.appointment_type] || cert.appointment_type) : null;
+
+      statusInfo.innerHTML = `
+        <div class="mb-3">
+          <span class="inline-block px-3 py-1 rounded-full text-sm font-medium ${status.color}">${status.text}</span>
+        </div>
+        <div class="text-sm text-gray-600">Fecha de emisión: ${createdDate}</div>
+        ${appointmentTypeText ? `<div class="text-sm text-gray-900 font-semibold">Tipo de Cita: ${appointmentTypeText}</div>` : ''}
+        ${validityStart ? `<div class="text-sm text-gray-600">Vigencia desde: ${validityStart}</div>` : ''}
+        ${validityEnd ? `<div class="text-sm text-gray-600">Vigencia hasta: ${validityEnd}</div>` : ''}
+      `;
+
+      // Mostrar restricciones si existen
+      const restrictionsSection = document.getElementById('restrictionsSection');
+      const restrictionsInfo = document.getElementById('restrictionsInfo');
+      
+      if (cert.restrictions || cert.recommendations) {
+        restrictionsSection.classList.remove('hidden');
+        restrictionsInfo.innerHTML = `
+          ${cert.restrictions ? `<div class="text-sm"><span class="font-medium">Restricciones:</span> ${cert.restrictions}</div>` : ''}
+          ${cert.recommendations ? `<div class="text-sm"><span class="font-medium">Recomendaciones:</span> ${cert.recommendations}</div>` : ''}
+        `;
+      } else {
+        restrictionsSection.classList.add('hidden');
+      }
+
+      // Configurar botón de descarga
+      const downloadBtn = document.getElementById('downloadBtn');
+      downloadBtn.onclick = () => {
+        window.open(`/api/certificates/download?code=${encodeURIComponent(code)}`, '_blank');
+      };
+
+      // Scroll hacia el resultado
+      document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function showError(message) {
+      document.getElementById('result').classList.remove('hidden');
+      
+      const statusBanner = document.getElementById('statusBanner');
+      const statusIcon = document.getElementById('statusIcon');
+      const statusTitle = document.getElementById('statusTitle');
+      const statusSubtitle = document.getElementById('statusSubtitle');
+      
+      statusBanner.className = 'rounded-lg border p-4 mb-4 bg-red-50 border-red-200';
+      statusIcon.className = 'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold bg-red-600';
+      statusIcon.textContent = '✗';
+      statusTitle.textContent = 'Certificado No Válido';
+      statusTitle.className = 'font-semibold text-lg text-red-800';
+      statusSubtitle.textContent = message;
+      statusSubtitle.className = 'text-sm text-red-700';
+
+      // Ocultar secciones de información
+      document.getElementById('patientInfo').innerHTML = '';
+      document.getElementById('statusInfo').innerHTML = '';
+      document.getElementById('restrictionsSection').classList.add('hidden');
+      
+      // Scroll hacia el resultado
+      document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function showLoading(show) {
+      const overlay = document.getElementById('loadingOverlay');
+      if (show) {
+        overlay.classList.remove('hidden');
+      } else {
+        overlay.classList.add('hidden');
+      }
+    }
+
+    async function shareResult() {
+      const code = document.getElementById('certificateCode').value.trim();
+      if (!code) return;
+
+      const shareUrl = `${window.location.origin}/certificates/mobile?code=${encodeURIComponent(code)}`;
+      
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: 'Certificado de Aptitud Laboral',
+            text: 'Verificar certificado de salud ocupacional',
+            url: shareUrl
+          });
+        } catch (error) {
+          copyToClipboard(shareUrl);
+        }
+      } else {
+        copyToClipboard(shareUrl);
+      }
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        Swal.fire({
+          icon: 'success',
+          title: 'Enlace copiado',
+          text: 'El enlace se copió al portapapeles',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      }).catch(() => {
+        // Fallback para navegadores sin soporte
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Enlace copiado',
+          text: 'El enlace se copió al portapapeles',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      });
+    }
+
+    function resetScanner() {
+      document.getElementById('result').classList.add('hidden');
+      document.getElementById('certificateCode').value = '';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  </script>
+</Layout>

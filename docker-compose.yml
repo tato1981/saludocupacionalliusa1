@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    restart: always
+    ports:
+      - "4321:4321"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=4321
+      - NODE_ENV=production
+      # Configuración de Base de Datos
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      # Configuración de Autenticación
+      - JWT_SECRET=${JWT_SECRET}
+      # Configuración de Cloudflare R2 (Almacenamiento de imágenes)
+      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
+      - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
+      - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
+      - R2_BUCKET_NAME=${R2_BUCKET_NAME}
+      - R2_PUBLIC_URL=${R2_PUBLIC_URL}
+      - R2_IMAGE_FORMAT=${R2_IMAGE_FORMAT:-webp}
+      # URL Base de la aplicación
+      - APP_BASE_URL=${APP_BASE_URL}
+    volumes:
+      # Persistencia opcional para uploads locales (si fuera necesario)
+      - ./uploads:/app/uploads

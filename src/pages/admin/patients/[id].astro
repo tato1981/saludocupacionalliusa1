@@ -1,0 +1,1134 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { requireAuth, hasRole } from '../../../lib/auth';
+
+const user = requireAuth(Astro.cookies);
+if (!hasRole(user, 'staff')) {
+  return Astro.redirect('/auth/login');
+}
+
+const patientId = Astro.params.id;
+if (!patientId) {
+  return Astro.redirect('/admin/patients');
+}
+---
+
+<Layout title="Ver Paciente - Panel Admin">
+  <div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white shadow">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center py-4">
+          <div class="flex items-center space-x-4">
+            <a href="/admin/patients" class="text-gray-500 hover:text-gray-700">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+              </svg>
+            </a>
+            <h1 class="text-2xl font-bold text-gray-900">Detalles del Paciente</h1>
+          </div>
+          <div class="flex space-x-3">
+            <button 
+              id="editPatientBtn"
+              class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            >
+              ✏️ Editar
+            </button>
+            <button 
+              id="scheduleAppointmentBtn"
+              class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            >
+              📅 Nueva Cita
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      
+      <!-- Loading State -->
+      <div id="loadingState" class="text-center py-8">
+        <div class="inline-flex items-center">
+          <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Cargando información del paciente...
+        </div>
+      </div>
+
+      <!-- Error State -->
+      <div id="errorState" class="hidden text-center py-8">
+        <div class="text-red-600">
+          <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <h3 class="text-lg font-medium mb-2">Error al cargar paciente</h3>
+          <p id="errorMessage" class="text-gray-600"></p>
+          <button onclick="window.location.href='/admin/patients'" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg">
+            Volver a la lista
+          </button>
+        </div>
+      </div>
+
+      <!-- Patient Information -->
+      <div id="patientContent" class="hidden">
+        
+        <!-- Basic Information Card -->
+        <div class="bg-white rounded-lg shadow mb-6">
+          <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-medium text-gray-900">Información Personal</h2>
+          </div>
+          <div class="p-6">
+            <div class="flex flex-col lg:flex-row gap-6">
+              
+              <!-- Foto del Paciente -->
+              <div class="flex-shrink-0 text-center lg:text-left">
+                <div class="w-32 h-32 mx-auto lg:mx-0 mb-4">
+                  <div id="patientPhotoContainer" class="w-32 h-32 rounded-lg border-2 border-gray-200 overflow-hidden bg-gray-100 flex items-center justify-center">
+                    <img 
+                      id="patientPhoto" 
+                      src="" 
+                      alt="Foto del paciente"
+                      class="w-full h-full object-cover hidden"
+                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'"
+                    />
+                    <div id="patientPhotoPlaceholder" class="flex flex-col items-center justify-center text-gray-400">
+                      <svg class="w-12 h-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                      </svg>
+                      <span class="text-xs">Sin foto</span>
+                    </div>
+                  </div>
+                </div>
+                <p class="text-sm text-gray-600 text-center lg:text-left">Foto del paciente</p>
+              </div>
+
+              <!-- Información Personal -->
+              <div class="flex-1">
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
+                    <p id="patientName" class="text-sm text-gray-900 bg-gray-50 p-3 rounded-md border">-</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <p id="patientEmail" class="text-sm text-gray-900 bg-gray-50 p-3 rounded-md border break-all">-</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                    <p id="patientPhone" class="text-sm text-gray-900 bg-gray-50 p-3 rounded-md border">-</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Documento</label>
+                    <p id="patientDocument" class="text-sm text-gray-900 bg-gray-50 p-3 rounded-md border">-</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Nacimiento</label>
+                    <p id="patientBirthDate" class="text-sm text-gray-900 bg-gray-50 p-3 rounded-md border">-</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Género</label>
+                    <p id="patientGender" class="text-sm text-gray-900 bg-gray-50 p-3 rounded-md border capitalize">-</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Sangre</label>
+                    <p id="patientBloodType" class="text-sm text-gray-900 bg-gray-50 p-3 rounded-md border">-</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Edad</label>
+                    <p id="patientAge" class="text-sm text-gray-900 bg-gray-50 p-3 rounded-md border">-</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+                    <p id="patientAddress" class="text-sm text-gray-900 bg-gray-50 p-3 rounded-md border">-</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Work Information Card -->
+        <div class="bg-white rounded-lg shadow mb-6">
+          <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-medium text-gray-900">Información Laboral</h2>
+          </div>
+          <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
+                <p id="patientCompany" class="text-sm text-gray-900 bg-gray-50 p-3 rounded-md border">-</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Ocupación</label>
+                <p id="patientOccupation" class="text-sm text-gray-900 bg-gray-50 p-3 rounded-md border">-</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Emergency Contact Card -->
+        <div class="bg-white rounded-lg shadow mb-6">
+          <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-medium text-gray-900">Contacto de Emergencia</h2>
+          </div>
+          <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                <p id="emergencyContactName" class="text-sm text-gray-900 bg-gray-50 p-3 rounded-md border">-</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                <p id="emergencyContactPhone" class="text-sm text-gray-900 bg-gray-50 p-3 rounded-md border">-</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Medical Information Card -->
+        <div class="bg-white rounded-lg shadow mb-6">
+          <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-medium text-gray-900">Información Médica</h2>
+          </div>
+          <div class="p-6">
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Alergias</label>
+                <p id="patientAllergies" class="text-sm text-gray-900 bg-gray-50 p-3 rounded-md border">-</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Medicamentos</label>
+                <p id="patientMedications" class="text-sm text-gray-900 bg-gray-50 p-3 rounded-md border">-</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Condiciones Médicas</label>
+                <p id="patientMedicalConditions" class="text-sm text-gray-900 bg-gray-50 p-3 rounded-md border">-</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="appointments" class="bg-white rounded-lg shadow">
+          <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+              <h2 class="text-lg font-medium text-gray-900 mb-2 sm:mb-0">Historial de Citas</h2>
+              <div class="flex flex-wrap gap-2">
+                <button 
+                  id="refreshAppointmentsBtn"
+                  class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded-md transition-colors"
+                >
+                  🔄 Actualizar
+                </button>
+                <button 
+                  id="newAppointmentBtn"
+                  class="text-sm bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded-md transition-colors"
+                >
+                  📅 Nueva Cita
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Estadísticas del historial -->
+          <div id="appointmentStats" class="px-6 py-4 bg-gray-50 border-b border-gray-200 hidden">
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-center">
+              <div class="bg-white rounded-lg p-3 shadow-sm">
+                <div class="text-lg font-bold text-gray-900" id="statTotal">-</div>
+                <div class="text-xs text-gray-600">Total</div>
+              </div>
+              <div class="bg-white rounded-lg p-3 shadow-sm">
+                <div class="text-lg font-bold text-green-600" id="statCompleted">-</div>
+                <div class="text-xs text-gray-600">Completadas</div>
+              </div>
+              <div class="bg-white rounded-lg p-3 shadow-sm">
+                <div class="text-lg font-bold text-blue-600" id="statUpcoming">-</div>
+                <div class="text-xs text-gray-600">Próximas</div>
+              </div>
+              <div class="bg-white rounded-lg p-3 shadow-sm">
+                <div class="text-lg font-bold text-red-600" id="statMissed">-</div>
+                <div class="text-xs text-gray-600">Perdidas</div>
+              </div>
+              <div class="bg-white rounded-lg p-3 shadow-sm">
+                <div class="text-lg font-bold text-yellow-600" id="statCancelled">-</div>
+                <div class="text-xs text-gray-600">Canceladas</div>
+              </div>
+              <div class="bg-white rounded-lg p-3 shadow-sm">
+                <div class="text-xs font-bold text-gray-700" id="statLastVisit">-</div>
+                <div class="text-xs text-gray-600">Última Visita</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="p-6">
+            <div id="appointmentsContainer">
+              <div class="text-center py-4 text-gray-500">
+                <div class="inline-flex items-center">
+                  <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Cargando historial de citas...
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div
+    id="appointmentModal"
+    class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden"
+  >
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
+      <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <h3 class="text-lg font-medium text-gray-900">Editar cita</h3>
+        <button
+          id="closeAppointmentModal"
+          type="button"
+          class="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+        >
+          ×
+        </button>
+      </div>
+      <form id="appointmentEditForm" class="px-6 py-4 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+            <input
+              type="date"
+              id="editAppointmentDate"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Hora</label>
+            <input
+              type="time"
+              id="editAppointmentTime"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de cita</label>
+          <select
+            id="editAppointmentType"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            required
+          >
+            <option value="">Seleccionar tipo...</option>
+            <option value="examen_periodico">Examen Médico Periódico</option>
+            <option value="examen_ingreso">Examen de Ingreso</option>
+            <option value="examen_egreso">Examen de Egreso</option>
+            <option value="examen_reintegro">Examen de Reintegro</option>
+            <option value="consulta_general">Consulta General</option>
+            <option value="consulta_especializada">Consulta Especializada</option>
+            <option value="seguimiento">Seguimiento</option>
+            <option value="urgencias">Urgencias</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Doctor asignado</label>
+          <select
+            id="editDoctorSelect"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            required
+          >
+            <option value="">Cargando doctores...</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Duración (minutos)</label>
+            <select
+              id="editDurationMinutes"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="30">30 minutos</option>
+              <option value="45">45 minutos</option>
+              <option value="60">60 minutos</option>
+              <option value="90">90 minutos</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Motivo de la cita</label>
+          <textarea
+            id="editReason"
+            rows="3"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Describa el motivo de la cita..."
+          ></textarea>
+        </div>
+
+        <div class="flex justify-end space-x-3 pt-2">
+          <button
+            id="cancelAppointmentEdit"
+            type="button"
+            class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            id="saveAppointmentEditBtn"
+            type="submit"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+          >
+            <span id="saveAppointmentEditText">Guardar cambios</span>
+            <svg
+              id="saveAppointmentEditLoader"
+              class="hidden animate-spin -mr-1 ml-3 h-5 w-5 text-white inline"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              ></circle>
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  const patientId = window.location.pathname.split('/').pop();
+  let currentPatient: any = null;
+  let currentEditingAppointment: any = null;
+
+  const appointmentModal = document.getElementById('appointmentModal') as HTMLDivElement;
+  const appointmentEditForm = document.getElementById('appointmentEditForm') as HTMLFormElement;
+  const editAppointmentDateInput = document.getElementById('editAppointmentDate') as HTMLInputElement;
+  const editAppointmentTimeInput = document.getElementById('editAppointmentTime') as HTMLInputElement;
+  const editAppointmentTypeSelect = document.getElementById('editAppointmentType') as HTMLSelectElement;
+  const editDoctorSelect = document.getElementById('editDoctorSelect') as HTMLSelectElement;
+  const editDurationMinutesSelect = document.getElementById('editDurationMinutes') as HTMLSelectElement;
+  const editReasonInput = document.getElementById('editReason') as HTMLTextAreaElement;
+  const saveAppointmentEditBtn = document.getElementById('saveAppointmentEditBtn') as HTMLButtonElement;
+  const saveAppointmentEditText = document.getElementById('saveAppointmentEditText')!;
+  const saveAppointmentEditLoader = document.getElementById('saveAppointmentEditLoader') as SVGSVGElement;
+  const closeAppointmentModalBtn = document.getElementById('closeAppointmentModal') as HTMLButtonElement;
+  const cancelAppointmentEditBtn = document.getElementById('cancelAppointmentEdit') as HTMLButtonElement;
+
+  // Función helper para alertas usando SweetAlert2 global
+  function showAlert(type: 'success' | 'error' | 'warning' | 'info', title: string, message?: string, timer?: number) {
+    // Usar las funciones globales de SweetAlert2
+    if (typeof (window as any).showSweetAlert === 'function') {
+      return (window as any).showSweetAlert(type, title, message, timer);
+    } else {
+      // Fallback a alerta nativa
+      const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+      const fullMessage = message ? `${icon} ${title}: ${message}` : `${icon} ${title}`;
+      alert(fullMessage);
+      return Promise.resolve();
+    }
+  }
+
+  function showConfirm(title: string, message?: string) {
+    // Usar las funciones globales de SweetAlert2
+    if (typeof (window as any).showSweetConfirm === 'function') {
+      return (window as any).showSweetConfirm(title, message);
+    } else {
+      // Fallback a confirm nativo
+      const fullMessage = message ? `${title}: ${message}` : title;
+      return Promise.resolve(confirm(fullMessage));
+    }
+  }
+
+  // Elementos del DOM
+  const loadingState = document.getElementById('loadingState')!;
+  const errorState = document.getElementById('errorState')!;
+  const patientContent = document.getElementById('patientContent')!;
+  const errorMessage = document.getElementById('errorMessage')!;
+
+  async function loadEditDoctors(selectedDoctorId?: number) {
+    try {
+      const response = await fetch('/api/admin/doctors');
+      const result = await response.json();
+
+      if (result.success && Array.isArray(result.data)) {
+        editDoctorSelect.innerHTML = '<option value="">Seleccionar doctor...</option>';
+        result.data.forEach((doctor: any) => {
+          const option = document.createElement('option');
+          option.value = String(doctor.id);
+          option.textContent = `${doctor.name} - ${doctor.specialization}`;
+          editDoctorSelect.appendChild(option);
+        });
+
+        if (selectedDoctorId) {
+          editDoctorSelect.value = String(selectedDoctorId);
+        }
+      } else {
+        editDoctorSelect.innerHTML = '<option value="">Error cargando doctores</option>';
+      }
+    } catch (error) {
+      editDoctorSelect.innerHTML = '<option value="">Error cargando doctores</option>';
+    }
+  }
+
+  async function openAppointmentModal(appointment: any) {
+    currentEditingAppointment = appointment;
+
+    const rawDate =
+      appointment.appointment_date ||
+      appointment.appointmentDate ||
+      null;
+
+    const dateObj = rawDate ? new Date(rawDate) : null;
+    const pad = (n: number) => n.toString().padStart(2, '0');
+
+    if (dateObj && !isNaN(dateObj.getTime())) {
+      const year = dateObj.getFullYear();
+      const month = pad(dateObj.getMonth() + 1);
+      const day = pad(dateObj.getDate());
+      const hours = pad(dateObj.getHours());
+      const minutes = pad(dateObj.getMinutes());
+
+      editAppointmentDateInput.value = `${year}-${month}-${day}`;
+      editAppointmentTimeInput.value = `${hours}:${minutes}`;
+    } else {
+      editAppointmentDateInput.value = '';
+      editAppointmentTimeInput.value = '';
+    }
+
+    editAppointmentTypeSelect.value =
+      appointment.appointment_type ||
+      appointment.appointmentType ||
+      '';
+
+    const duration =
+      appointment.duration_minutes ||
+      appointment.durationMinutes ||
+      30;
+    editDurationMinutesSelect.value = String(duration);
+
+    editReasonInput.value = appointment.reason || '';
+
+    await loadEditDoctors(appointment.doctor_id || appointment.doctorId);
+
+    appointmentModal.classList.remove('hidden');
+  }
+
+  function closeAppointmentModal() {
+    appointmentModal.classList.add('hidden');
+    currentEditingAppointment = null;
+    appointmentEditForm.reset();
+  }
+
+  closeAppointmentModalBtn.addEventListener('click', () => {
+    closeAppointmentModal();
+  });
+
+  cancelAppointmentEditBtn.addEventListener('click', () => {
+    closeAppointmentModal();
+  });
+
+  appointmentModal.addEventListener('click', (event) => {
+    if (event.target === appointmentModal) {
+      closeAppointmentModal();
+    }
+  });
+
+  appointmentEditForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!currentEditingAppointment) {
+      return;
+    }
+
+    const dateValue = editAppointmentDateInput.value;
+    const timeValue = editAppointmentTimeInput.value;
+    const doctorValue = editDoctorSelect.value;
+    const typeValue = editAppointmentTypeSelect.value;
+    const durationValue = editDurationMinutesSelect.value;
+
+    if (!dateValue || !timeValue) {
+      showAlert('error', 'Error', 'Debe seleccionar fecha y hora para la cita');
+      return;
+    }
+
+    if (!doctorValue) {
+      showAlert('error', 'Error', 'Debe seleccionar un doctor para la cita');
+      return;
+    }
+
+    const selectedDateTime = new Date(`${dateValue}T${timeValue}`);
+    const now = new Date();
+    const minFutureTime = new Date(now.getTime() + 30 * 60 * 1000);
+
+    if (selectedDateTime <= minFutureTime) {
+      showAlert(
+        'warning',
+        'Fecha inválida',
+        'La cita debe programarse al menos 30 minutos en el futuro'
+      );
+      return;
+    }
+
+    const selectedHour = selectedDateTime.getHours();
+    if (selectedHour < 7 || selectedHour >= 18) {
+      showAlert(
+        'warning',
+        'Horario no disponible',
+        'Las citas solo pueden programarse entre 7:00 AM y 6:00 PM'
+      );
+      return;
+    }
+
+    saveAppointmentEditBtn.disabled = true;
+    saveAppointmentEditText.textContent = 'Guardando...';
+    saveAppointmentEditLoader.classList.remove('hidden');
+
+    try {
+      const payload: any = {
+        appointmentDate: dateValue,
+        appointmentTime: timeValue,
+        doctorId: doctorValue,
+        appointmentType: typeValue,
+        durationMinutes: durationValue,
+        reason: editReasonInput.value || undefined
+      };
+
+      const response = await fetch(
+        `/api/admin/appointments/${currentEditingAppointment.id}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        }
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        await showAlert(
+          'success',
+          'Cita actualizada',
+          'La cita ha sido actualizada exitosamente'
+        );
+        closeAppointmentModal();
+        loadAppointmentsHistory();
+      } else {
+        showAlert(
+          'error',
+          'Error',
+          result.message || 'No se pudo actualizar la cita'
+        );
+      }
+    } catch (error) {
+      showAlert('error', 'Error', 'Error de conexión al actualizar la cita');
+    } finally {
+      saveAppointmentEditBtn.disabled = false;
+      saveAppointmentEditText.textContent = 'Guardar cambios';
+      saveAppointmentEditLoader.classList.add('hidden');
+    }
+  });
+
+  // Cargar información del paciente
+  async function loadPatientData() {
+    try {
+      const response = await fetch(`/api/admin/patients/${patientId}`);
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        currentPatient = result.data;
+        populatePatientData(currentPatient);
+        loadAppointmentsHistory();
+        
+        // Mostrar contenido
+        loadingState.classList.add('hidden');
+        patientContent.classList.remove('hidden');
+      } else {
+        showError(result.message || 'No se pudo cargar la información del paciente');
+      }
+    } catch (error) {
+      showError('Error de conexión al cargar el paciente');
+    }
+  }
+
+  // Mostrar error
+  function showError(message: string) {
+    loadingState.classList.add('hidden');
+    errorMessage.textContent = message;
+    errorState.classList.remove('hidden');
+  }
+
+  // Poblar datos del paciente
+  function populatePatientData(patient: any) {
+    // Información básica
+    document.getElementById('patientName')!.textContent = patient.name || '-';
+    document.getElementById('patientEmail')!.textContent = patient.email || '-';
+    document.getElementById('patientPhone')!.textContent = patient.phone || '-';
+    document.getElementById('patientDocument')!.textContent = 
+      `${patient.document_type || ''} ${patient.document_number || ''}`.trim() || '-';
+    document.getElementById('patientBirthDate')!.textContent = 
+      patient.date_of_birth ? new Date(patient.date_of_birth).toLocaleDateString() : '-';
+    document.getElementById('patientGender')!.textContent = patient.gender || '-';
+    document.getElementById('patientBloodType')!.textContent = patient.blood_type || '-';
+    document.getElementById('patientAge')!.textContent = calculateAge(patient.date_of_birth) + ' años';
+    document.getElementById('patientAddress')!.textContent = patient.address || '-';
+    
+    // Información laboral
+    document.getElementById('patientCompany')!.textContent = patient.company || '-';
+    document.getElementById('patientOccupation')!.textContent = patient.occupation || '-';
+    
+    // Contacto de emergencia
+    document.getElementById('emergencyContactName')!.textContent = patient.emergency_contact_name || '-';
+    document.getElementById('emergencyContactPhone')!.textContent = patient.emergency_contact_phone || '-';
+    
+    // Información médica
+    document.getElementById('patientAllergies')!.textContent = patient.allergies || 'Ninguna registrada';
+    document.getElementById('patientMedications')!.textContent = patient.medications || 'Ningún medicamento registrado';
+    document.getElementById('patientMedicalConditions')!.textContent = patient.medical_conditions || 'Ninguna condición registrada';
+    
+    // Doctor asignado - verificar si el elemento existe antes de asignar
+    const assignedDoctorElement = document.getElementById('assignedDoctor');
+    if (assignedDoctorElement) {
+      assignedDoctorElement.textContent = patient.doctor_name || 'No asignado';
+    }
+
+    // Mostrar foto del paciente
+    const patientPhoto = document.getElementById('patientPhoto') as HTMLImageElement;
+    const patientPhotoPlaceholder = document.getElementById('patientPhotoPlaceholder')!;
+    
+    if (patient.photo_path) {
+      patientPhoto.src = patient.photo_path;
+      patientPhoto.style.display = 'block';
+      patientPhotoPlaceholder.style.display = 'none';
+    } else {
+      patientPhoto.style.display = 'none';
+      patientPhotoPlaceholder.style.display = 'flex';
+    }
+  }
+
+  // Calcular edad
+  function calculateAge(birthDate: string): number {
+    if (!birthDate) return 0;
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    
+    return age;
+  }
+
+  // Cargar historial de citas
+  async function loadAppointmentsHistory() {
+    const container = document.getElementById('appointmentsContainer')!;
+    const statsContainer = document.getElementById('appointmentStats')!;
+    
+    try {
+      container.innerHTML = `
+        <div class="text-center py-4 text-gray-500">
+          <div class="inline-flex items-center">
+            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Cargando historial de citas...
+          </div>
+        </div>
+      `;
+
+      const response = await fetch(`/api/admin/patients/${patientId}/appointments`);
+      const result = await response.json();
+
+      if (result.success) {
+        const { appointments, statistics } = result.data;
+        
+        // Mostrar estadísticas
+        populateAppointmentStats(statistics);
+        statsContainer.classList.remove('hidden');
+        
+        // Mostrar historial de citas
+        if (appointments.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-8">
+              <div class="text-gray-400 mb-4">
+                <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+              </div>
+              <h3 class="text-lg font-medium text-gray-900 mb-2">Sin historial de citas</h3>
+              <p class="text-gray-600 mb-4">Este paciente aún no tiene citas registradas en el sistema.</p>
+              <button 
+                onclick="scheduleNewAppointment()"
+                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                📅 Programar Primera Cita
+              </button>
+            </div>
+          `;
+        } else {
+          // Agrupar citas por fecha
+          const groupedAppointments = groupAppointmentsByDate(appointments);
+          renderAppointmentsHistory(groupedAppointments);
+        }
+      } else {
+        throw new Error(result.message || 'Error al cargar historial');
+      }
+    } catch (error) {
+      // Silently fail
+      container.innerHTML = `
+        <div class="text-center py-8">
+          <div class="text-red-400 mb-4">
+            <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-medium text-gray-900 mb-2">Error al cargar historial</h3>
+          <p class="text-gray-600 mb-4">No se pudo cargar el historial de citas del paciente.</p>
+          <button 
+            onclick="loadAppointmentsHistory()"
+            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+          >
+            🔄 Reintentar
+          </button>
+        </div>
+      `;
+    }
+  }
+
+  // Poblar estadísticas de citas
+  function populateAppointmentStats(stats: any) {
+    document.getElementById('statTotal')!.textContent = stats.total || '0';
+    document.getElementById('statCompleted')!.textContent = stats.completed || '0';
+    document.getElementById('statUpcoming')!.textContent = stats.upcoming || '0';
+    document.getElementById('statMissed')!.textContent = stats.missed || '0';
+    document.getElementById('statCancelled')!.textContent = stats.cancelled || '0';
+    
+    const lastVisitElement = document.getElementById('statLastVisit')!;
+    if (stats.lastCompletedAppointment) {
+      const lastVisitDate = new Date(stats.lastCompletedAppointment);
+      lastVisitElement.textContent = lastVisitDate.toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit'
+      });
+    } else {
+      lastVisitElement.textContent = 'Ninguna';
+    }
+  }
+
+  // Agrupar citas por fecha
+  function groupAppointmentsByDate(appointments: any[]) {
+    const grouped: { [key: string]: any[] } = {};
+    
+    appointments.forEach(appointment => {
+      const date = new Date(appointment.appointment_date).toDateString();
+      if (!grouped[date]) {
+        grouped[date] = [];
+      }
+      grouped[date].push(appointment);
+    });
+    
+    return grouped;
+  }
+
+  // Renderizar historial de citas
+  function renderAppointmentsHistory(groupedAppointments: { [key: string]: any[] }) {
+    const container = document.getElementById('appointmentsContainer')!;
+    
+    const html = Object.entries(groupedAppointments).map(([dateStr, dayAppointments]) => {
+      const date = new Date(dateStr);
+      const formattedDate = date.toLocaleDateString('es-ES', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      
+      const appointmentsHtml = dayAppointments.map(appointment => {
+        const statusColor = getStatusColor(appointment.status);
+        const statusIcon = getStatusIcon(appointment.status);
+        
+        return `
+          <div class="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-lg">${statusIcon}</span>
+                  <span class="px-2 py-1 text-xs font-medium rounded-full ${statusColor}">
+                    ${appointment.status_display}
+                  </span>
+                  <span class="text-sm text-gray-600">${appointment.appointment_time}</span>
+                </div>
+                
+                <h4 class="font-medium text-gray-900 mb-1">
+                  ${appointment.appointment_type || 'Consulta General'}
+                </h4>
+                
+                ${appointment.doctor_name ? `
+                  <p class="text-sm text-gray-600 mb-1">
+                    👨‍⚕️ Dr. ${appointment.doctor_name}
+                    ${appointment.doctor_specialization ? ` - ${appointment.doctor_specialization}` : ''}
+                  </p>
+                ` : ''}
+                
+                ${appointment.reason ? `
+                  <p class="text-sm text-gray-700 mb-2">
+                    <strong>Motivo:</strong> ${appointment.reason}
+                  </p>
+                ` : ''}
+                
+                ${appointment.notes ? `
+                  <p class="text-sm text-gray-600">
+                    <strong>Notas:</strong> ${appointment.notes}
+                  </p>
+                ` : ''}
+                
+                ${appointment.has_certificate > 0 ? `
+                  <div class="mt-2">
+                    <span class="inline-flex items-center px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
+                      📄 Certificado médico disponible
+                    </span>
+                  </div>
+                ` : ''}
+              </div>
+              
+              <div class="flex flex-col sm:items-end gap-2">
+                <div class="text-xs text-gray-500">
+                  Creada: ${new Date(appointment.created_at).toLocaleDateString('es-ES')}
+                </div>
+                
+                ${appointment.completed_at ? `
+                  <div class="text-xs text-gray-500">
+                    Completada: ${new Date(appointment.completed_at).toLocaleDateString('es-ES')}
+                  </div>
+                ` : ''}
+                
+                ${appointment.status === 'programada' && new Date(appointment.appointment_date) >= new Date() ? `
+                  <div class="flex gap-2">
+                    <button 
+                      onclick="editAppointment(${appointment.id})"
+                      class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded transition-colors"
+                    >
+                      ✏️ Editar
+                    </button>
+                    <button 
+                      onclick="cancelAppointment(${appointment.id})"
+                      class="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded transition-colors"
+                    >
+                      ❌ Cancelar
+                    </button>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      return `
+        <div class="mb-6">
+          <h3 class="text-sm font-medium text-gray-900 mb-3 capitalize bg-gray-50 px-3 py-2 rounded-lg">
+            📅 ${formattedDate}
+          </h3>
+          <div class="space-y-3 ml-4">
+            ${appointmentsHtml}
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    container.innerHTML = html;
+  }
+
+  // Obtener color según estado
+  function getStatusColor(status: string): string {
+    switch (status) {
+      case 'completada':
+        return 'bg-green-100 text-green-800';
+      case 'programada':
+        return 'bg-blue-100 text-blue-800';
+      case 'cancelada':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'no_asistio':
+        return 'bg-red-100 text-red-800';
+      case 'en_progreso':
+        return 'bg-purple-100 text-purple-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  }
+
+  // Obtener icono según estado
+  function getStatusIcon(status: string): string {
+    switch (status) {
+      case 'completada':
+        return '✅';
+      case 'programada':
+        return '📅';
+      case 'cancelada':
+        return '⚠️';
+      case 'no_asistio':
+        return '❌';
+      case 'en_progreso':
+        return '🔄';
+      default:
+        return '❓';
+    }
+  }
+
+  // Funciones para acciones de citas
+  function scheduleNewAppointment() {
+    window.location.href = `/admin/appointments/new?patientId=${patientId}`;
+  }
+
+  async function editAppointment(appointmentId: number) {
+    try {
+      const response = await fetch(`/api/admin/appointments/${appointmentId}`);
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        await openAppointmentModal(result.data);
+      } else {
+        showAlert(
+          'error',
+          'Error',
+          result.message || 'No se pudo cargar la cita'
+        );
+      }
+    } catch (error) {
+      showAlert('error', 'Error', 'Error de conexión al cargar la cita');
+    }
+  }
+
+  async function cancelAppointment(appointmentId: number) {
+    const result = await showConfirm(
+      '❌ Cancelar Cita',
+      '¿Está seguro de que desea cancelar esta cita?'
+    );
+
+    if (result.isConfirmed) {
+      try {
+        const response = await fetch(`/api/admin/appointments/${appointmentId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ status: 'cancelada' })
+        });
+        const result = await response.json();
+
+        if (result.success) {
+          showAlert('success', 'Cita Cancelada', 'La cita ha sido cancelada exitosamente');
+          loadAppointmentsHistory(); // Recargar historial
+        } else {
+          showAlert('error', 'Error', result.message || 'No se pudo cancelar la cita');
+        }
+      } catch (error) {
+        showAlert('error', 'Error', 'Error de conexión al cancelar la cita');
+      }
+    }
+  }
+
+  // Hacer funciones globales para botones onclick
+  (window as any).scheduleNewAppointment = scheduleNewAppointment;
+  (window as any).editAppointment = editAppointment;
+  (window as any).cancelAppointment = cancelAppointment;
+
+  // Event listeners
+  document.getElementById('editPatientBtn')!.addEventListener('click', () => {
+    // Regresar a la página de pacientes y abrir el modal de edición
+    window.location.href = `/admin/patients?edit=${patientId}`;
+  });
+
+  document.getElementById('scheduleAppointmentBtn')!.addEventListener('click', () => {
+    window.location.href = `/admin/appointments/new?patientId=${patientId}`;
+  });
+
+  // Event listeners para historial de citas
+  document.getElementById('refreshAppointmentsBtn')!.addEventListener('click', () => {
+    loadAppointmentsHistory();
+  });
+
+  document.getElementById('newAppointmentBtn')!.addEventListener('click', () => {
+    window.location.href = `/admin/appointments/new?patientId=${patientId}`;
+  });
+
+  // Verificar si el paciente tiene solicitudes activas
+  async function checkActiveRequests() {
+    try {
+      const response = await fetch(`/api/admin/patients/${patientId}/check-active-requests`);
+      const result = await response.json();
+
+      if (result.success && result.data.hasActiveRequest) {
+        const request = result.data.request;
+        const scheduleBtn = document.getElementById('scheduleAppointmentBtn') as HTMLButtonElement;
+        const newAppointmentBtn = document.getElementById('newAppointmentBtn') as HTMLButtonElement;
+
+        // Deshabilitar botones
+        if (scheduleBtn) {
+          scheduleBtn.disabled = true;
+          scheduleBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+          scheduleBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+          scheduleBtn.title = 'Este paciente tiene una solicitud de examen activa';
+        }
+
+        if (newAppointmentBtn) {
+          newAppointmentBtn.disabled = true;
+          newAppointmentBtn.classList.remove('bg-green-100', 'hover:bg-green-200', 'text-green-700');
+          newAppointmentBtn.classList.add('bg-gray-300', 'text-gray-500', 'cursor-not-allowed');
+          newAppointmentBtn.title = 'Este paciente tiene una solicitud de examen activa';
+        }
+
+        // Mostrar mensaje de información
+        const statusTexts: Record<string, string> = {
+          'pending': 'pendiente de asignación',
+          'scheduled': 'agendada'
+        };
+
+        const statusText = statusTexts[request.status] || request.status;
+        const examTypes: Record<string, string> = {
+          'ingreso': 'Ingreso',
+          'periodico': 'Periódico',
+          'retiro': 'Retiro',
+          'post_incapacidad': 'Post-Incapacidad',
+          'reubicacion': 'Reubicación'
+        };
+        const examTypeText = examTypes[request.exam_type] || request.exam_type;
+
+        (window as any).showSweetAlert(
+          'info',
+          'Solicitud Activa',
+          `Este paciente tiene una solicitud de examen de ${examTypeText} ${statusText} desde ${request.company_name}. No se pueden agendar citas adicionales hasta que se complete esta solicitud.`,
+          5000
+        );
+      }
+    } catch {
+    }
+  }
+
+  // Cargar datos al inicializar la página
+  loadPatientData();
+  checkActiveRequests();
+</script>

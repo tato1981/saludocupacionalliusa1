@@ -1,0 +1,529 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { requireAuth } from '../../lib/auth';
+
+// Verificar autenticación y rol de doctor
+const user = requireAuth(Astro.cookies);
+if (!user || user.role !== 'doctor') {
+  return Astro.redirect('/auth/login');
+}
+---
+
+<Layout title="Mis Pacientes - Panel Doctor">
+  <!-- SweetAlert2 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" is:inline></script>
+  
+  <div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white shadow">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center py-6">
+          <div class="flex items-center space-x-4">
+            <a href="/dashboard" class="text-gray-500 hover:text-gray-700">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+              </svg>
+            </a>
+            <h1 class="text-2xl font-bold text-gray-900">Mis Pacientes</h1>
+          </div>
+          <div class="text-sm text-gray-600">
+            Dr. <span class="font-medium">{user.name}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <!-- Estadísticas rápidas -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow p-6">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM9 3a2 2 0 11-4 0 2 2 0 014 0z"></path>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <div class="text-sm font-medium text-gray-500">Total Pacientes</div>
+              <div class="text-2xl font-bold text-gray-900" id="totalPatients">-</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <div class="text-sm font-medium text-gray-500">Mis Asignados</div>
+              <div class="text-2xl font-bold text-gray-900" id="myPatients">-</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="h-8 w-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <div class="text-sm font-medium text-gray-500">Consultas Recientes</div>
+              <div class="text-2xl font-bold text-gray-900" id="recentConsultations">-</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="h-8 w-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <div class="text-sm font-medium text-gray-500">Total Consultas</div>
+              <div class="text-2xl font-bold text-gray-900" id="totalConsultations">-</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filtros y búsqueda -->
+      <div class="bg-white rounded-lg shadow mb-6">
+        <div class="p-6">
+          <div class="flex flex-col sm:flex-row gap-4">
+            <div class="flex-1">
+              <input 
+                type="text" 
+                id="searchInput"
+                placeholder="Buscar por nombre, documento o empresa..."
+                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div class="sm:w-48">
+              <select id="filterSelect" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                <option value="all">Todos los pacientes</option>
+                <option value="assigned">Mis asignados</option>
+                <option value="recent">Con consultas recientes</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading spinner -->
+      <div id="loadingSpinner" class="text-center py-12">
+        <div class="inline-flex items-center px-4 py-2 font-semibold leading-6 text-sm shadow rounded-md text-blue-500 bg-blue-100">
+          <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Cargando pacientes...
+        </div>
+      </div>
+
+      <!-- Lista de pacientes -->
+      <div id="patientsContainer" class="hidden">
+        <div id="patientsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Pacientes se cargarán dinámicamente -->
+        </div>
+
+        <!-- Mensaje de no hay pacientes -->
+        <div id="noPatientsMessage" class="hidden text-center py-12">
+          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+          </svg>
+          <h3 class="mt-2 text-lg font-medium text-gray-900">No hay pacientes</h3>
+          <p class="mt-1 text-gray-500">No se encontraron pacientes que coincidan con los filtros.</p>
+        </div>
+
+        <!-- Pagination -->
+        <div id="paginationControls" class="mt-8 px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+          <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+              <p class="text-sm text-gray-700">
+                Mostrando <span class="font-medium" id="pageStart">0</span> a <span class="font-medium" id="pageEnd">0</span> de <span class="font-medium" id="totalResults">0</span> resultados
+              </p>
+            </div>
+            <div>
+              <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <button id="prevBtn" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <span class="sr-only">Anterior</span>
+                  <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L8.414 10l4.293 4.293a1 1 0 01-1.414 1.414l-5-5a1 1 0 010-1.414l5-5a1 1 0 011.414 0z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+                <button id="nextBtn" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <span class="sr-only">Siguiente</span>
+                  <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L11.586 10 7.293 5.707a1 1 0 011.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+              </nav>
+            </div>
+          </div>
+          <!-- Mobile Pagination -->
+          <div class="flex items-center justify-between sm:hidden w-full">
+             <button id="mobilePrevBtn" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+               Anterior
+             </button>
+             <div class="text-sm text-gray-700">
+                Pág <span id="mobileCurrentPage">1</span>
+             </div>
+             <button id="mobileNextBtn" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+               Siguiente
+             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script is:inline>
+    // Variables globales
+    let allPatients = [];
+    let filteredPatients = [];
+    let currentPage = 1;
+    const itemsPerPage = 9;
+
+    // Función para mostrar alertas con SweetAlert2
+    window.showSweetAlert = function(type, title, message, timer = null) {
+      if (typeof Swal !== 'undefined') {
+        const config = {
+          icon: type,
+          title: title,
+          text: message,
+          confirmButtonColor: '#3B82F6'
+        };
+        
+        if (timer) {
+          config.timer = timer;
+          config.showConfirmButton = false;
+        }
+        
+        Swal.fire(config);
+      } else {
+        alert(`${title}: ${message}`);
+      }
+    };
+
+    // Cargar pacientes al cargar la página
+    document.addEventListener('DOMContentLoaded', async function() {
+      await loadPatients();
+      setupEventListeners();
+    });
+
+    // Configurar event listeners
+    function setupEventListeners() {
+      const searchInput = document.getElementById('searchInput');
+      const filterSelect = document.getElementById('filterSelect');
+
+      searchInput.addEventListener('input', filterPatients);
+      filterSelect.addEventListener('change', filterPatients);
+
+      // Pagination Listeners
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      const mobilePrevBtn = document.getElementById('mobilePrevBtn');
+      const mobileNextBtn = document.getElementById('mobileNextBtn');
+
+      function changePage(delta) {
+        const totalPages = Math.ceil(filteredPatients.length / itemsPerPage);
+        const newPage = currentPage + delta;
+        
+        if (newPage >= 1 && newPage <= totalPages) {
+          currentPage = newPage;
+          renderPatients();
+          // Scroll to top of grid
+          document.getElementById('patientsGrid').scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+
+      prevBtn.addEventListener('click', () => changePage(-1));
+      nextBtn.addEventListener('click', () => changePage(1));
+      mobilePrevBtn.addEventListener('click', () => changePage(-1));
+      mobileNextBtn.addEventListener('click', () => changePage(1));
+    }
+
+    // Cargar pacientes desde la API
+    async function loadPatients() {
+      try {
+        const response = await fetch('/api/doctor/patients');
+        const result = await response.json();
+
+        if (result.success) {
+          allPatients = result.data;
+          filteredPatients = [...allPatients];
+          updateStatistics();
+          renderPatients();
+          
+          // Ocultar spinner y mostrar contenido
+          document.getElementById('loadingSpinner').classList.add('hidden');
+          document.getElementById('patientsContainer').classList.remove('hidden');
+        } else {
+          throw new Error(result.message || 'Error al cargar pacientes');
+        }
+      } catch (error) {
+        showSweetAlert('error', 'Error de Conexión', 'No se pudieron cargar los pacientes');
+        
+        // Ocultar spinner
+        document.getElementById('loadingSpinner').classList.add('hidden');
+        document.getElementById('patientsContainer').classList.remove('hidden');
+      }
+    }
+
+    // Actualizar estadísticas
+    function updateStatistics() {
+      const userId = parseInt('${user.id}');
+      const totalPatients = allPatients.length;
+      const myPatients = allPatients.filter(p => p.assigned_doctor_id === userId).length;
+      const totalConsultations = allPatients.reduce((sum, p) => sum + (p.total_consultations || 0), 0);
+      const recentConsultations = allPatients.reduce((sum, p) => sum + (p.recent_consultations || 0), 0);
+
+      document.getElementById('totalPatients').textContent = totalPatients;
+      document.getElementById('myPatients').textContent = myPatients;
+      document.getElementById('totalConsultations').textContent = totalConsultations;
+      document.getElementById('recentConsultations').textContent = recentConsultations;
+    }
+
+    // Filtrar pacientes
+    function filterPatients() {
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+      const filterType = document.getElementById('filterSelect').value;
+      const userId = parseInt('${user.id}');
+
+      filteredPatients = allPatients.filter(patient => {
+        // Filtro de búsqueda
+        const matchesSearch = !searchTerm || 
+          patient.name.toLowerCase().includes(searchTerm) ||
+          patient.document_number.toLowerCase().includes(searchTerm) ||
+          (patient.company && patient.company.toLowerCase().includes(searchTerm));
+
+        // Filtro de tipo
+        let matchesFilter = true;
+        if (filterType === 'assigned') {
+          matchesFilter = patient.assigned_doctor_id === userId;
+        } else if (filterType === 'recent') {
+          matchesFilter = (patient.recent_consultations || 0) > 0;
+        }
+
+        return matchesSearch && matchesFilter;
+      });
+
+      currentPage = 1; // Reset to first page on filter change
+      renderPatients();
+    }
+
+    // Renderizar pacientes
+    function renderPatients() {
+      const container = document.getElementById('patientsGrid');
+      const noResultsMessage = document.getElementById('noPatientsMessage');
+      const paginationControls = document.getElementById('paginationControls');
+
+      if (filteredPatients.length === 0) {
+        container.innerHTML = '';
+        noResultsMessage.classList.remove('hidden');
+        paginationControls.classList.add('hidden');
+      } else {
+        noResultsMessage.classList.add('hidden');
+        paginationControls.classList.remove('hidden');
+        
+        // Calculate pagination
+        const totalPages = Math.ceil(filteredPatients.length / itemsPerPage);
+        
+        // Validate currentPage
+        if (currentPage < 1) currentPage = 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+        
+        const start = (currentPage - 1) * itemsPerPage;
+        const end = Math.min(start + itemsPerPage, filteredPatients.length);
+        const paginatedItems = filteredPatients.slice(start, end);
+        
+        // Render items
+        container.innerHTML = paginatedItems.map(patient => createPatientCard(patient)).join('');
+        
+        // Update Pagination UI
+        updatePaginationUI(start, end, filteredPatients.length, totalPages);
+      }
+    }
+
+    function updatePaginationUI(start, end, total, totalPages) {
+      // Desktop
+      document.getElementById('pageStart').textContent = start + 1;
+      document.getElementById('pageEnd').textContent = end;
+      document.getElementById('totalResults').textContent = total;
+      
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      
+      prevBtn.disabled = currentPage === 1;
+      nextBtn.disabled = currentPage === totalPages;
+      
+      // Mobile
+      document.getElementById('mobileCurrentPage').textContent = `${currentPage} / ${totalPages}`;
+      
+      const mobilePrevBtn = document.getElementById('mobilePrevBtn');
+      const mobileNextBtn = document.getElementById('mobileNextBtn');
+      
+      mobilePrevBtn.disabled = currentPage === 1;
+      mobileNextBtn.disabled = currentPage === totalPages;
+    }
+
+    // Utilidad: normalizar URL de la foto del paciente
+    function getPhotoUrl(path) {
+      if (!path) return null;
+      let photoUrl = path;
+      // Si ya es una URL completa (R2), usarla tal cual
+      if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) {
+        return photoUrl;
+      }
+      // Si es una ruta relativa (sistema antiguo), agregarle /uploads/
+      if (!photoUrl.startsWith('/')) {
+        photoUrl = `/${photoUrl}`;
+      }
+      if (!photoUrl.startsWith('/uploads/')) {
+        photoUrl = `/uploads${photoUrl}`;
+      }
+      const separator = photoUrl.includes('?') ? '&' : '?';
+      return `${photoUrl}${separator}t=${Date.now()}`;
+    }
+    
+    // Crear tarjeta de paciente
+    function createPatientCard(patient) {
+      const userId = parseInt('${user.id}');
+      const isAssigned = patient.assigned_doctor_id === userId;
+      const hasRecentConsultations = (patient.recent_consultations || 0) > 0;
+      const lastConsultation = patient.last_consultation_date ? 
+        new Date(patient.last_consultation_date).toLocaleDateString('es-ES') : 'Nunca';
+
+      return `
+        <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200">
+          <div class="p-6">
+            <div class="flex items-start justify-between">
+              <div class="flex-1">
+                <div class="flex items-center space-x-3 mb-2">
+                  ${patient.photo_path ? `
+                    <img src="${getPhotoUrl(patient.photo_path)}" 
+                         alt="${patient.name}" 
+                         class="w-12 h-12 rounded-full object-cover border-2 border-gray-200 shadow-sm patient-photo"
+                         loading="lazy"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center shadow-sm default-avatar" style="display: none;">
+                      <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+                      </svg>
+                    </div>
+                  ` : `
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center shadow-sm default-avatar">
+                      <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+                      </svg>
+                    </div>
+                  `}
+                  <div>
+                    <h3 class="text-lg font-semibold text-gray-900">${patient.name}</h3>
+                    <p class="text-sm text-gray-500">${patient.document_type} ${patient.document_number}</p>
+                  </div>
+                </div>
+
+                ${isAssigned ? `
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mb-2">
+                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    Mi Paciente
+                  </span>
+                ` : ''}
+
+                <div class="space-y-1 text-sm text-gray-600 mb-4">
+                  ${patient.gender ? `<p><span class="font-medium">Género:</span> ${patient.gender}</p>` : ''}
+                  ${patient.company ? `<p><span class="font-medium">Empresa:</span> ${patient.company}</p>` : ''}
+                  ${patient.occupation ? `<p><span class="font-medium">Ocupación:</span> ${patient.occupation}</p>` : ''}
+                </div>
+
+                <div class="flex items-center justify-between text-sm">
+                  <div class="flex items-center space-x-4">
+                    <span class="flex items-center">
+                      <svg class="w-4 h-4 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                      </svg>
+                      ${patient.total_consultations || 0} consultas
+                    </span>
+                    ${hasRecentConsultations ? `
+                      <span class="flex items-center text-green-600">
+                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
+                        </svg>
+                        Reciente
+                      </span>
+                    ` : ''}
+                  </div>
+                  <span class="text-gray-500">
+                    Última: ${lastConsultation}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-4 flex space-x-2">
+              <button 
+                onclick="viewPatientHistory(${patient.id})"
+                class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors">
+                Ver Historia
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Funciones de acción
+    window.viewPatientHistory = function(patientId) {
+      window.location.href = `/doctor/patients/${patientId}/medical-history`;
+    };
+
+
+  </script>
+
+  <!-- Estilos CSS para mejorar calidad de imágenes -->
+  <style>
+    /* Mejorar renderizado de imágenes */
+    img {
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+      backface-visibility: hidden;
+      transform: translateZ(0);
+    }
+    
+    /* Transiciones suaves para cargas de imagen */
+    .patient-photo {
+      transition: opacity 0.3s ease, transform 0.2s ease;
+    }
+    
+    .patient-photo:hover {
+      transform: scale(1.05);
+    }
+    
+    /* Mejorar contraste en avatares por defecto */
+    .default-avatar {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    /* Skeleton loading para imágenes */
+    .loading-skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: loading 1.5s infinite;
+    }
+    
+    @keyframes loading {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+  </style>
+  </div>
+</Layout>

@@ -1,0 +1,1145 @@
+---
+import DashboardLayout from '@/components/layout/DashboardLayout.astro';
+import CameraCapture from '@/components/ui/CameraCapture.astro';
+import SignaturePad from '@/components/ui/SignaturePad.astro';
+import { requireAuth, hasRole } from '@/lib/auth';
+
+// Verificar autenticación y rol de admin o staff
+const user = requireAuth(Astro.cookies);
+if (!hasRole(user, 'staff')) {
+  return Astro.redirect('/auth/login');
+}
+---
+
+<DashboardLayout title="Gestión de Pacientes - Panel Admin" user={user}>
+  <div class="space-y-6">
+    <!-- Encabezado de página -->
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center">
+      <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">
+        <span class="hidden sm:inline">👥 Gestión de Pacientes</span>
+        <span class="sm:hidden">👥 Pacientes</span>
+      </h1>
+      <button
+        id="newPatientBtn"
+        class="mt-4 sm:mt-0 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center text-sm sm:text-base">
+        <span class="hidden sm:inline">+ Nuevo Paciente</span>
+        <span class="sm:hidden">+ Nuevo</span>
+      </button>
+    </div>
+      
+      <!-- Estadísticas rápidas responsive -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6">
+        <div class="card p-3 sm:p-6">
+          <div class="flex items-center">
+            <div class="p-1 sm:p-2 bg-blue-100 rounded-lg">
+              <svg class="w-4 h-4 sm:w-6 sm:h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+              </svg>
+            </div>
+            <div class="ml-2 sm:ml-4">
+              <p class="text-xs sm:text-sm font-medium text-gray-600">Total Pacientes</p>
+              <p class="text-lg sm:text-2xl font-bold text-gray-900" id="totalPatients">-</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white p-3 sm:p-6 rounded-lg shadow">
+          <div class="flex items-center">
+            <div class="p-1 sm:p-2 bg-green-100 rounded-lg">
+              <svg class="w-4 h-4 sm:w-6 sm:h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+            </div>
+            <div class="ml-2 sm:ml-4">
+              <p class="text-xs sm:text-sm font-medium text-gray-600">Citas Hoy</p>
+              <p class="text-lg sm:text-2xl font-bold text-gray-900" id="todayAppointments">-</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card p-3 sm:p-6">
+          <div class="flex items-center">
+            <div class="p-1 sm:p-2 bg-yellow-100 rounded-lg">
+              <svg class="w-4 h-4 sm:w-6 sm:h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <div class="ml-2 sm:ml-4">
+              <p class="text-xs sm:text-sm font-medium text-gray-600">Pendientes</p>
+              <p class="text-lg sm:text-2xl font-bold text-gray-900" id="pendingAppointments">-</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card p-3 sm:p-6">
+          <div class="flex items-center">
+            <div class="p-1 sm:p-2 bg-purple-100 rounded-lg">
+              <svg class="w-4 h-4 sm:w-6 sm:h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              </svg>
+            </div>
+            <div class="ml-2 sm:ml-4">
+              <p class="text-xs sm:text-sm font-medium text-gray-600">Nuevos Este Mes</p>
+              <p class="text-lg sm:text-2xl font-bold text-gray-900" id="newThisMonth">-</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filtros y búsqueda responsive -->
+      <div class="card p-4 sm:p-6 mb-6">
+        <div class="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
+          <div class="flex-1 max-w-lg">
+            <div class="relative">
+              <input 
+                type="text" 
+                id="searchInput"
+                placeholder="Buscar por nombre, documento o email..."
+                class="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
+            <select id="genderFilter" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+              <option value="">Todos los géneros</option>
+              <option value="masculino">Masculino</option>
+              <option value="femenino">Femenino</option>
+              <option value="otro">Otro</option>
+            </select>
+            <button 
+              id="refreshBtn"
+              class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors text-sm"
+            >
+              <span class="hidden sm:inline">🔄 Actualizar</span>
+              <span class="sm:hidden">🔄</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lista de pacientes -->
+      <div class="card overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h2 class="text-lg font-medium text-gray-900">Lista de Pacientes</h2>
+        </div>
+        
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paciente</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Documento</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contacto</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Edad/Género</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empresa</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Última Cita</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="patientsTableBody" class="bg-white divide-y divide-gray-200">
+              <!-- Se carga dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Loading state -->
+        <div id="loadingState" class="text-center py-8">
+          <div class="inline-flex items-center">
+            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Cargando pacientes...
+          </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+          <span class="text-sm text-gray-700" id="resultsCount">Mostrando 0 resultados</span>
+          <div class="flex space-x-2">
+            <button id="prevBtn" class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50" disabled>Anterior</button>
+            <button id="nextBtn" class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50" disabled>Siguiente</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para nuevo paciente responsive -->
+  <div id="patientModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 modal-overlay">
+    <div class="relative top-4 sm:top-20 mx-auto p-4 sm:p-5 border w-full max-w-5xl shadow-lg rounded-md bg-white my-4 sm:my-0">
+      <div class="mt-3">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-base sm:text-lg font-medium text-gray-900" id="modalTitle">Nuevo Paciente</h3>
+          <button id="closeModal" class="text-gray-400 hover:text-gray-600">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        
+        <form id="patientForm" class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Nombre Completo *</label>
+              <input type="text" name="name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input type="email" name="email" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+              <input type="tel" name="phone" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Documento *</label>
+              <select name="documentType" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="cedula">Cédula</option>
+                <option value="pasaporte">Pasaporte</option>
+                <option value="tarjeta_identidad">Tarjeta de Identidad</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Número de Documento *</label>
+              <input type="text" name="documentNumber" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Nacimiento *</label>
+              <input type="date" id="dateOfBirth" name="dateOfBirth" required max="" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <p class="text-xs text-gray-500 mt-1">La fecha de nacimiento no puede ser mayor a la fecha actual</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Género *</label>
+              <select name="gender" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="masculino">Masculino</option>
+                <option value="femenino">Femenino</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Sangre</label>
+              <select name="bloodType" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="">Seleccionar...</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+            <textarea name="address" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+          </div>
+          
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Ocupación</label>
+              <input type="text" name="occupation" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Empresa (opcional)</label>
+              <select name="companyId" id="companySelect" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="">Particular / Sin empresa</option>
+              </select>
+              <small class="text-xs text-gray-500">Si no aparece en la lista, puede escribirla abajo.</small>
+              <input type="text" name="company" placeholder="Nombre de empresa (opcional)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Contacto de Emergencia</label>
+              <input type="text" name="emergencyContactName" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono de Emergencia</label>
+              <input type="tel" name="emergencyContactPhone" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+          </div>
+          
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Alergias</label>
+              <textarea name="allergies" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Describe las alergias conocidas..."></textarea>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Medicamentos Actuales</label>
+              <textarea name="medications" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Lista de medicamentos que toma actualmente..."></textarea>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Condiciones Médicas</label>
+              <textarea name="medicalConditions" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Condiciones médicas existentes..."></textarea>
+            </div>
+          </div>
+
+          <!-- Sección de foto del paciente -->
+          <div class="border-t pt-6">
+            <h4 class="text-sm font-medium text-gray-900 mb-4">Foto del Paciente</h4>
+
+            <div id="currentPhotoContainer" class="mb-4 hidden text-center">
+              <p class="text-xs text-gray-500 mb-2">Foto Actual:</p>
+              <img id="currentPhotoPreview" src="" alt="Foto actual" class="mx-auto h-32 w-32 rounded-full object-cover border-2 border-gray-200 shadow-sm" />
+            </div>
+
+            <div class="bg-gray-50 p-4 rounded-lg">
+              <CameraCapture className="w-full" />
+            </div>
+            <p class="text-xs text-gray-500 mt-2">
+              📸 La foto será útil para identificar al paciente durante las consultas médicas. Formato recomendado: AVIF para mejor calidad y menor tamaño.
+            </p>
+            <p class="text-xs text-orange-600 mt-1 font-medium">
+              ⚠️ IMPORTANTE: Después de capturar la foto, debe hacer clic en "Confirmar Foto" para que se guarde correctamente.
+            </p>
+          </div>
+
+          <!-- Sección de firma del paciente -->
+          <div class="border-t pt-6 mt-6">
+            <h4 class="text-sm font-medium text-gray-900 mb-4">Firma del Paciente</h4>
+
+            <div id="currentSignatureContainer" class="mb-4 hidden text-center">
+              <p class="text-xs text-gray-500 mb-2">Firma Actual:</p>
+              <img id="currentSignaturePreview" src="" alt="Firma actual" class="mx-auto h-24 w-auto border-2 border-gray-200 shadow-sm rounded" style="max-width: 300px;" />
+              <p class="text-xs text-blue-600 mt-2">Si captura una nueva firma, reemplazará la actual</p>
+            </div>
+
+            <div class="bg-gray-50 p-4 rounded-lg">
+              <SignaturePad className="w-full" />
+            </div>
+            <p class="text-xs text-gray-500 mt-2">
+              ✍️ La firma del paciente será utilizada en los certificados médicos y documentos oficiales.
+            </p>
+            <p class="text-xs text-orange-600 mt-1 font-medium">
+              ⚠️ IMPORTANTE: Después de firmar, debe hacer clic en "Confirmar Firma" para que se guarde correctamente.
+            </p>
+          </div>
+          
+          <div class="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-4">
+            <button type="button" id="cancelBtn" class="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm">
+              Cancelar
+            </button>
+            <button type="submit" class="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+              <span id="submitBtnText">Guardar Paciente</span>
+              <svg id="submitBtnLoader" class="hidden animate-spin -mr-1 ml-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  // 🚀 INICIALIZACIÓN CRÍTICA: Asignar callbacks INMEDIATAMENTE
+  // Variables globales para manejo de foto
+  let capturedPhotoBlob: Blob | null = null;
+  let capturedPhotoPath: string | null = null;
+
+  // Variables globales para manejo de firma
+  let capturedSignatureBlob: Blob | null = null;
+  let capturedSignaturePath: string | null = null;
+
+  // Función para manejar la foto capturada
+  (window as any).onPhotoCapture = async (photoBlob: Blob, photoUrl: string) => {
+    capturedPhotoBlob = photoBlob;
+
+    // Subir la foto inmediatamente para obtener la ruta
+    try {
+      const formData = new FormData();
+      formData.append('photo', photoBlob, 'patient-photo.' + (photoBlob.type === 'image/avif' ? 'avif' : 'webp'));
+      formData.append('patientId', 'temp_' + Date.now());
+
+      const response = await fetch('/api/admin/patients/upload-photo', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        capturedPhotoPath = result.data.path;
+        showAlert('success', 'Foto Lista', 'La foto se ha preparado correctamente', 2000);
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error) {
+      showAlert('error', 'Error', 'No se pudo procesar la foto capturada');
+    }
+  };
+
+  // Función para manejar la firma capturada
+  (window as any).onSignatureCapture = async (signatureBlob: Blob, signaturePath: string | null) => {
+    capturedSignatureBlob = signatureBlob;
+
+    // Subir la firma inmediatamente para obtener la ruta
+    try {
+      const formData = new FormData();
+      formData.append('signature', signatureBlob, 'patient-signature.png');
+      formData.append('patientId', 'temp_' + Date.now());
+
+      const response = await fetch('/api/admin/patients/upload-signature', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        capturedSignaturePath = result.data.path;
+        showAlert('success', 'Firma Lista', 'La firma se ha preparado correctamente', 2000);
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error) {
+      showAlert('error', 'Error', 'No se pudo procesar la firma capturada');
+    }
+  };
+
+
+
+  // Comentarios de depuración limpiados
+  let currentPatients: any[] = [];
+  let currentPage = 1;
+  const itemsPerPage = 10;
+
+  // Cargar estadísticas
+  async function loadStatistics() {
+    const safeFetchJson = async (url: string) => {
+      try {
+        const resp = await fetch(url);
+        if (!resp.ok) {
+          return null;
+        }
+        try {
+          return await resp.json();
+        } catch {
+          return null;
+        }
+      } catch {
+        return null;
+      }
+    };
+
+    const [patientStats, appointmentStats] = await Promise.all([
+      safeFetchJson('/api/admin/patients/stats'),
+      safeFetchJson('/api/admin/appointments/stats')
+    ]);
+
+    if (patientStats && patientStats.success && patientStats.data) {
+      const totalPatientsEl = document.getElementById('totalPatients');
+      const newThisMonthEl = document.getElementById('newThisMonth');
+      if (totalPatientsEl) totalPatientsEl.textContent = String(patientStats.data.totalPatients ?? '-');
+      if (newThisMonthEl) newThisMonthEl.textContent = String(patientStats.data.newThisMonth ?? '-');
+    }
+
+    if (appointmentStats && appointmentStats.success && appointmentStats.data) {
+      const todayAppointmentsEl = document.getElementById('todayAppointments');
+      const pendingAppointmentsEl = document.getElementById('pendingAppointments');
+      if (todayAppointmentsEl) {
+        todayAppointmentsEl.textContent = String(appointmentStats.data.todayTotal ?? '-');
+      }
+      if (pendingAppointmentsEl) {
+        const total = Number(appointmentStats.data.todayTotal ?? 0);
+        const completed = Number(appointmentStats.data.todayCompleted ?? 0);
+        pendingAppointmentsEl.textContent = String(total - completed);
+      }
+    }
+  }
+
+  // Cargar pacientes
+  async function loadPatients(searchTerm = '') {
+    const loadingState = document.getElementById('loadingState')!;
+    const tableBody = document.getElementById('patientsTableBody')!;
+    
+    loadingState.classList.remove('hidden');
+    
+    try {
+      const url = searchTerm 
+        ? `/api/admin/patients/search?q=${encodeURIComponent(searchTerm)}`
+        : '/api/admin/patients';
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.success) {
+        currentPatients = data.data;
+        renderPatients(currentPatients);
+      }
+    } catch (error) {
+      // Silently fail
+    } finally {
+      loadingState.classList.add('hidden');
+    }
+  }
+
+  // Renderizar pacientes en la tabla
+  function renderPatients(patients: any[]) {
+    const tableBody = document.getElementById('patientsTableBody')!;
+    const countSpan = document.getElementById('resultsCount')!;
+    const prevBtn = document.getElementById('prevBtn') as HTMLButtonElement;
+    const nextBtn = document.getElementById('nextBtn') as HTMLButtonElement;
+    
+    // Pagination Logic
+    const totalPages = Math.ceil(patients.length / itemsPerPage);
+    
+    // Ensure currentPage is valid
+    if (currentPage < 1) currentPage = 1;
+    if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+    
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    const paginatedItems = patients.slice(start, end);
+
+    if (patients.length === 0) {
+      countSpan.textContent = 'Mostrando 0 resultados';
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+            No se encontraron pacientes
+          </td>
+        </tr>
+      `;
+      prevBtn.disabled = true;
+      nextBtn.disabled = true;
+      return;
+    }
+
+    countSpan.textContent = `Mostrando ${start + 1}-${Math.min(end, patients.length)} de ${patients.length} resultados`;
+
+    // Update buttons
+    prevBtn.disabled = currentPage === 1;
+    nextBtn.disabled = currentPage === totalPages;
+
+    // Remove existing event listeners (to avoid duplicates)
+    const newPrevBtn = prevBtn.cloneNode(true);
+    const newNextBtn = nextBtn.cloneNode(true);
+    prevBtn.parentNode!.replaceChild(newPrevBtn, prevBtn);
+    nextBtn.parentNode!.replaceChild(newNextBtn, nextBtn);
+    
+    // Add event listeners
+    newPrevBtn.addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            renderPatients(patients);
+        }
+    });
+
+    newNextBtn.addEventListener('click', () => {
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderPatients(patients);
+        }
+    });
+
+    tableBody.innerHTML = paginatedItems.map(patient => `
+      <tr class="hover:bg-gray-50">
+        <td class="px-6 py-4 whitespace-nowrap">
+          <div class="flex items-center">
+            <div class="flex-shrink-0 h-10 w-10">
+              ${patient.photo_path ? `
+                <img 
+                  src="${patient.photo_path}" 
+                  alt="Foto de ${patient.name}"
+                  class="h-10 w-10 rounded-full object-cover border border-gray-200"
+                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'"
+                />
+                <div class="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center border border-gray-200" style="display: none;">
+                  <span class="text-sm font-medium text-gray-700">${patient.name.charAt(0).toUpperCase()}</span>
+                </div>
+              ` : `
+                <div class="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center border border-gray-200">
+                  <span class="text-sm font-medium text-gray-700">${patient.name.charAt(0).toUpperCase()}</span>
+                </div>
+              `}
+            </div>
+            <div class="ml-4">
+              <div class="text-sm font-medium text-gray-900">${patient.name}</div>
+              <div class="text-sm text-gray-500">${new Date(patient.created_at).toLocaleDateString()}</div>
+            </div>
+          </div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+          <div class="text-sm text-gray-900">${patient.document_number}</div>
+          <div class="text-sm text-gray-500">${patient.document_type}</div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+          <div class="text-sm text-gray-900">${patient.email || '-'}</div>
+          <div class="text-sm text-gray-500">${patient.phone || '-'}</div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+          <div class="text-sm text-gray-900">${calculateAge(patient.date_of_birth)} años</div>
+          <div class="text-sm text-gray-500">${patient.gender}</div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+          <div class="text-sm text-gray-900">${patient.company || '-'}</div>
+          <div class="text-sm text-gray-500">${patient.occupation || '-'}</div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+          ${patient.last_appointment_date ? `
+            <div class="text-sm text-gray-900">
+              ${new Date(patient.last_appointment_date).toLocaleDateString('es-ES')}
+            </div>
+            <div class="text-xs text-gray-500">
+              ${patient.last_appointment_time} - ${getAppointmentStatusDisplay(patient.last_appointment_status)}
+            </div>
+            ${patient.last_appointment_doctor ? `
+              <div class="text-xs text-gray-600">Dr. ${patient.last_appointment_doctor}</div>
+            ` : ''}
+          ` : `
+            <div class="text-gray-400">Sin citas</div>
+          `}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+          <div class="flex space-x-2 justify-end">
+            <button onclick="viewPatient(${patient.id})" class="text-blue-600 hover:text-blue-900 px-2 py-1 text-xs">
+              👁️ Ver
+            </button>
+            <button onclick="viewAppointmentHistory(${patient.id})" class="text-purple-600 hover:text-purple-900 px-2 py-1 text-xs" title="Ver historial de citas">
+              📋 Historial
+            </button>
+            <button onclick="editPatient(${patient.id})" class="text-indigo-600 hover:text-indigo-900 px-2 py-1 text-xs">
+              ✏️ Editar
+            </button>
+            <button onclick="scheduleAppointment(${patient.id})" class="text-green-600 hover:text-green-900 px-2 py-1 text-xs">
+              📅 Cita
+            </button>
+            <button onclick="deletePatient(${patient.id}, '${patient.name}')" class="text-red-600 hover:text-red-900 px-2 py-1 text-xs">
+              🗑️ Eliminar
+            </button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // Calcular edad
+  function calculateAge(birthDate: string): number {
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    
+    return age;
+  }
+
+  // Obtener texto de estado de cita
+  function getAppointmentStatusDisplay(status: string): string {
+    switch (status) {
+      case 'completed':
+        return 'Completada';
+      case 'scheduled':
+        return 'Programada';
+      case 'cancelled':
+        return 'Cancelada';
+      default:
+        return status || 'Sin estado';
+    }
+  }
+
+  // Modal management
+  const modal = document.getElementById('patientModal')!;
+  const patientForm = document.getElementById('patientForm') as HTMLFormElement;
+
+  function openModal() {
+    modal.classList.remove('hidden');
+    patientForm.reset();
+
+    // Limpiar estado de edición
+    delete patientForm.dataset.patientId;
+    document.getElementById('modalTitle')!.textContent = 'Nuevo Paciente';
+    document.getElementById('submitBtnText')!.textContent = 'Guardar Paciente';
+
+    // Limpiar estado de foto y firma
+    resetPhotoState();
+    resetSignatureState();
+
+    // Cargar empresas para el selector
+    loadCompaniesIntoSelect('');
+    syncCompanyInputState();
+  }
+
+  function closeModal() {
+    modal.classList.add('hidden');
+    // Limpiar estado de foto y firma al cerrar
+    resetPhotoState();
+    resetSignatureState();
+  }
+
+  // Función para limpiar el estado de la foto
+  function resetPhotoState() {
+    capturedPhotoBlob = null;
+    capturedPhotoPath = null;
+
+    // Limpiar preview de foto actual
+    const photoContainer = document.getElementById('currentPhotoContainer');
+    const photoPreview = document.getElementById('currentPhotoPreview') as HTMLImageElement;
+    if (photoContainer) photoContainer.classList.add('hidden');
+    if (photoPreview) photoPreview.src = '';
+
+    // Limpiar la cámara si existe
+    if ((window as any).cameraCapture) {
+      (window as any).cameraCapture.cleanup();
+    }
+  }
+
+  // Función para limpiar el estado de la firma
+  function resetSignatureState() {
+    capturedSignatureBlob = null;
+    capturedSignaturePath = null;
+
+    // Limpiar preview de firma actual
+    const signatureContainer = document.getElementById('currentSignatureContainer');
+    const signaturePreview = document.getElementById('currentSignaturePreview') as HTMLImageElement;
+    if (signatureContainer) signatureContainer.classList.add('hidden');
+    if (signaturePreview) signaturePreview.src = '';
+
+    // Limpiar el canvas de firma si existe
+    if ((window as any).signaturePad) {
+      (window as any).signaturePad.clearSignature();
+    }
+  }
+
+  // Cargar empresas en el selector de empresa
+  async function loadCompaniesIntoSelect(selectedId = '') {
+    const companySelect = document.getElementById('companySelect') as HTMLSelectElement | null;
+    if (!companySelect) return;
+
+    try {
+      const resp = await fetch('/api/admin/companies');
+      let data: any = null;
+      try {
+        data = await resp.json();
+      } catch (parseError) {
+      }
+
+      if (!resp.ok || !data || !data.success || !Array.isArray(data.data)) {
+        if (resp.status === 401) {
+          showAlert(
+            'error',
+            'Sin permisos para empresas',
+            'No tienes permisos para cargar el listado de empresas. Puedes escribir el nombre manualmente en el campo de empresa.'
+          );
+        } else {
+          showAlert(
+            'error',
+            'Error al cargar empresas',
+            'No se pudieron cargar las empresas. Puedes escribir el nombre manualmente en el campo de empresa.'
+          );
+        }
+        companySelect.innerHTML = '<option value="">Particular / Sin empresa</option>';
+        companySelect.value = '';
+        syncCompanyInputState();
+        return;
+      }
+
+      companySelect.innerHTML = '<option value="">Particular / Sin empresa</option>';
+      data.data.forEach((c: any) => {
+        const opt = document.createElement('option');
+        opt.value = String(c.id);
+        opt.textContent = c.name;
+        companySelect.appendChild(opt);
+      });
+      companySelect.value = selectedId || '';
+      syncCompanyInputState();
+    } catch (err) {
+      showAlert(
+        'error',
+        'Error de conexión',
+        'No se pudieron cargar las empresas por un problema de conexión. Puedes escribir el nombre manualmente en el campo de empresa.'
+      );
+      companySelect.innerHTML = '<option value="">Particular / Sin empresa</option>';
+      companySelect.value = '';
+      syncCompanyInputState();
+    }
+  }
+
+  // Sincronizar estado del input de empresa según el selector
+  function syncCompanyInputState() {
+    const companySelectEl = document.getElementById('companySelect') as HTMLSelectElement | null;
+    const companyInputEl = document.querySelector('input[name="company"]') as HTMLInputElement | null;
+    if (!companySelectEl || !companyInputEl) return;
+    if (companySelectEl.value && companySelectEl.value !== '') {
+      companyInputEl.disabled = true;
+      companyInputEl.value = '';
+      companyInputEl.placeholder = 'Empresa seleccionada en lista';
+    } else {
+      companyInputEl.disabled = false;
+      companyInputEl.placeholder = 'Nombre de empresa (opcional)';
+    }
+  }
+
+  // Listener de cambio en selector de empresa
+  document.addEventListener('change', (e) => {
+    const target = e.target as HTMLElement;
+    if (target && (target as HTMLSelectElement).id === 'companySelect') {
+      syncCompanyInputState();
+    }
+  });
+
+  // Cerrar modal al hacer clic fuera
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  // Búsqueda
+  const searchInput = document.getElementById('searchInput') as HTMLInputElement;
+  let searchTimeout: NodeJS.Timeout;
+
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      currentPage = 1; // Reset to first page
+      loadPatients(searchInput.value.trim());
+    }, 300);
+  });
+
+  // Variables movidas al inicio del script
+
+
+
+  // Función para subir la foto al servidor
+  async function uploadPhoto(photoBlob: Blob) {
+    try {
+      const formData = new FormData();
+      formData.append('photo', photoBlob, 'patient-photo.' + (photoBlob.type === 'image/avif' ? 'avif' : 'webp'));
+      formData.append('patientId', 'temp_' + Date.now());
+
+
+      
+      const response = await fetch('/api/admin/patients/upload-photo', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        capturedPhotoPath = result.data.path;
+        showAlert('success', 'Foto Subida', 'La foto se ha preparado correctamente', 2000);
+      } else {
+        showAlert('error', 'Error al Subir Foto', result.message);
+      }
+    } catch (error) {
+      showAlert('error', 'Error de Conexión', 'No se pudo subir la foto');
+    }
+  }
+
+  // Formulario de paciente
+  patientForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Verificar si hay foto pendiente de subir
+    if (capturedPhotoBlob && !capturedPhotoPath) {
+      showAlert('info', 'Procesando...', 'Subiendo foto, por favor espere');
+      try {
+        await uploadPhoto(capturedPhotoBlob);
+        if (!capturedPhotoPath) {
+          throw new Error('No se pudo obtener la ruta de la foto');
+        }
+      } catch (error) {
+        showAlert('error', 'Error', 'Error al procesar la foto. Intente capturarla nuevamente.');
+        return;
+      }
+    }
+    
+    const formData = new FormData(patientForm);
+    const data = Object.fromEntries(formData.entries());
+
+    // Agregar la ruta de la foto si existe
+    if (capturedPhotoPath) {
+      (data as any).photoPath = capturedPhotoPath;
+    }
+
+    // Agregar la ruta de la firma si existe
+    if (capturedSignaturePath) {
+      (data as any).signaturePath = capturedSignaturePath;
+    }
+
+    // Validación extra del documento
+    const documentNumber = data.documentNumber as string;
+    if (!documentNumber || documentNumber.trim() === '') {
+      showAlert('error', 'Error', 'El número de documento es requerido');
+      return;
+    }
+    
+    const submitBtn = document.querySelector('#patientForm button[type="submit"]') as HTMLButtonElement;
+    const submitBtnText = document.getElementById('submitBtnText')!;
+    const submitBtnLoader = document.getElementById('submitBtnLoader')!;
+    
+    // Verificar si es edición o creación
+    const patientId = patientForm.dataset.patientId;
+    const isEditing = !!patientId;
+    
+    // Estado de carga
+    submitBtn.disabled = true;
+    submitBtnText.textContent = isEditing ? 'Actualizando...' : 'Guardando...';
+    submitBtnLoader.classList.remove('hidden');
+
+    try {
+      const url = isEditing ? `/api/admin/patients/${patientId}` : '/api/admin/patients';
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        showAlert('success', isEditing ? '¡Paciente actualizado!' : '¡Paciente registrado!',
+                 isEditing ? 'El paciente ha sido actualizado exitosamente' : 'El paciente ha sido registrado exitosamente');
+        
+        closeModal();
+        loadPatients();
+        loadStatistics();
+        
+        // Verificar inmediatamente si se guardó correctamente
+        if (!isEditing && result.data && result.data.id) {
+          setTimeout(async () => {
+            try {
+              const verifyResponse = await fetch(`/api/admin/patients/${result.data.id}`);
+              const verifyResult = await verifyResponse.json();
+              if (verifyResult.success && verifyResult.data) {
+              }
+            } catch (verifyError) {
+              // Silently fail
+            }
+          }, 1000);
+        }
+      } else {
+        // Silently fail
+        
+        const alertResult = showAlert('error', 'Error', result.message);
+        // Silently fail
+      }
+    } catch (error) {
+      // Silently fail
+      showAlert('error', 'Error', isEditing ? 'No se pudo actualizar el paciente' : 'No se pudo registrar el paciente');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtnText.textContent = isEditing ? 'Actualizar Paciente' : 'Guardar Paciente';
+      submitBtnLoader.classList.add('hidden');
+    }
+  });
+
+  // Función helper para mostrar alertas - usando SweetAlert2 global
+  function showAlert(type: 'success' | 'error' | 'warning' | 'info', title: string, message?: string, timer?: number) {
+    // Usar las funciones globales de SweetAlert2
+    if (typeof (window as any).showSweetAlert === 'function') {
+      return (window as any).showSweetAlert(type, title, message, timer);
+    } else {
+      // Fallback a alerta nativa
+      const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+      const fullMessage = message ? `${icon} ${title}: ${message}` : `${icon} ${title}`;
+      alert(fullMessage);
+      return Promise.resolve();
+    }
+  }
+
+  // Event listeners
+  document.getElementById('newPatientBtn')!.addEventListener('click', openModal);
+  document.getElementById('closeModal')!.addEventListener('click', closeModal);
+  document.getElementById('cancelBtn')!.addEventListener('click', closeModal);
+
+  // Configurar validación de fecha de nacimiento
+  const dateOfBirthInput = document.getElementById('dateOfBirth') as HTMLInputElement;
+  const today = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
+  dateOfBirthInput.max = today; // No permitir fechas futuras
+  
+  // Validación adicional al cambiar la fecha
+  dateOfBirthInput.addEventListener('change', (e) => {
+    const selectedDate = new Date((e.target as HTMLInputElement).value);
+    const currentDate = new Date();
+    
+    if (selectedDate > currentDate) {
+      showAlert('error', 'Fecha Inválida', 'La fecha de nacimiento no puede ser mayor a la fecha actual');
+      (e.target as HTMLInputElement).value = '';
+    }
+  });
+
+  // Refresh button
+  document.getElementById('refreshBtn')!.addEventListener('click', () => {
+    loadPatients();
+    loadStatistics();
+  });
+
+  // Funciones para acciones de pacientes
+  (window as any).viewPatient = (id: number) => {
+    window.location.href = `/admin/patients/${id}`;
+  };
+
+  (window as any).viewAppointmentHistory = (id: number) => {
+    window.location.href = `/admin/patients/${id}#appointments`;
+  };
+
+  (window as any).editPatient = async (id: number) => {
+    try {
+      // Limpiar estado de foto y firma antes de abrir
+      resetPhotoState();
+      resetSignatureState();
+
+      // Obtener datos del paciente
+      const response = await fetch(`/api/admin/patients/${id}`);
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        const patient = result.data;
+
+        // Poblar el formulario con los datos del paciente
+        (document.querySelector('input[name="name"]') as HTMLInputElement).value = patient.name || '';
+        (document.querySelector('input[name="email"]') as HTMLInputElement).value = patient.email || '';
+        (document.querySelector('input[name="phone"]') as HTMLInputElement).value = patient.phone || '';
+        (document.querySelector('select[name="documentType"]') as HTMLSelectElement).value = patient.document_type || '';
+        (document.querySelector('input[name="documentNumber"]') as HTMLInputElement).value = patient.document_number || '';
+
+        // Formatear fecha de nacimiento para el input date (YYYY-MM-DD)
+        if (patient.date_of_birth) {
+          const date = new Date(patient.date_of_birth);
+          const formattedDate = !isNaN(date.getTime())
+            ? date.toISOString().split('T')[0]
+            : '';
+          (document.querySelector('input[name="dateOfBirth"]') as HTMLInputElement).value = formattedDate;
+        } else {
+          (document.querySelector('input[name="dateOfBirth"]') as HTMLInputElement).value = '';
+        }
+
+        (document.querySelector('select[name="gender"]') as HTMLSelectElement).value = patient.gender || '';
+        (document.querySelector('select[name="bloodType"]') as HTMLSelectElement).value = patient.blood_type || '';
+        (document.querySelector('textarea[name="address"]') as HTMLTextAreaElement).value = patient.address || '';
+        (document.querySelector('input[name="occupation"]') as HTMLInputElement).value = patient.occupation || '';
+        (document.querySelector('input[name="company"]') as HTMLInputElement).value = patient.company || '';
+        (document.querySelector('input[name="emergencyContactName"]') as HTMLInputElement).value = patient.emergency_contact_name || '';
+        (document.querySelector('input[name="emergencyContactPhone"]') as HTMLInputElement).value = patient.emergency_contact_phone || '';
+        (document.querySelector('textarea[name="allergies"]') as HTMLTextAreaElement).value = patient.allergies || '';
+        (document.querySelector('textarea[name="medications"]') as HTMLTextAreaElement).value = patient.medications || '';
+        (document.querySelector('textarea[name="medicalConditions"]') as HTMLTextAreaElement).value = patient.medical_conditions || '';
+
+        // Mostrar foto actual si existe
+        const photoContainer = document.getElementById('currentPhotoContainer');
+        const photoPreview = document.getElementById('currentPhotoPreview') as HTMLImageElement;
+
+        if (patient.photo_path) {
+          photoPreview.src = patient.photo_path;
+          photoContainer?.classList.remove('hidden');
+          // Guardar ruta de foto existente para enviarla si no se captura una nueva
+          capturedPhotoPath = patient.photo_path;
+        } else {
+          photoContainer?.classList.add('hidden');
+          photoPreview.src = '';
+        }
+
+        // Mostrar firma actual si existe
+        const signatureContainer = document.getElementById('currentSignatureContainer');
+        const signaturePreview = document.getElementById('currentSignaturePreview') as HTMLImageElement;
+
+        if (patient.signature_path) {
+          signaturePreview.src = patient.signature_path;
+          signatureContainer?.classList.remove('hidden');
+          // Guardar ruta de firma existente para enviarla si no se captura una nueva
+          capturedSignaturePath = patient.signature_path;
+        } else {
+          signatureContainer?.classList.add('hidden');
+          signaturePreview.src = '';
+        }
+
+        // Cargar empresas y preseleccionar la del paciente si existe
+        await loadCompaniesIntoSelect(patient.company_id ? String(patient.company_id) : '');
+        const companySelectEl = document.querySelector('select[name="companyId"]') as HTMLSelectElement | null;
+        if (companySelectEl) {
+          companySelectEl.value = patient.company_id ? String(patient.company_id) : '';
+        }
+        syncCompanyInputState();
+
+        // Cambiar el título del modal y agregar el ID del paciente
+        document.getElementById('modalTitle')!.textContent = 'Editar Paciente';
+        patientForm.dataset.patientId = id.toString();
+
+        // Abrir modal
+        modal.classList.remove('hidden');
+      } else {
+        showAlert('error', 'Error', 'No se pudo cargar la información del paciente');
+      }
+    } catch (error) {
+      showAlert('error', 'Error', 'Error al cargar datos del paciente');
+    }
+  };
+
+  (window as any).scheduleAppointment = (id: number) => {
+    window.location.href = `/admin/appointments/new?patientId=${id}`;
+  };
+
+  (window as any).deletePatient = async (id: number, name: string) => {
+    const result = await (window as any).showSweetConfirm(
+      '🗑️ Eliminar Paciente',
+      `¿Está seguro de que desea eliminar al paciente "${name}"?\n\nEsta acción no se puede deshacer y eliminará:\n• Todos los datos del paciente\n• Su historial médico\n• Citas asociadas\n\n¿Desea continuar?`,
+      '🗑️ Sí, eliminar',
+      '❌ Cancelar'
+    );
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/patients/${id}`, {
+        method: 'DELETE'
+      });
+
+      const deleteResult = await response.json();
+
+      if (deleteResult.success) {
+        showAlert('success', 'Eliminado', 'El paciente ha sido eliminado exitosamente');
+        
+        // Recargar la lista de pacientes
+        loadPatients();
+        loadStatistics();
+      } else {
+        showAlert('error', 'Error', deleteResult.message || 'No se pudo eliminar el paciente');
+      }
+    } catch (error) {
+      showAlert('error', 'Error', 'Error al eliminar el paciente');
+    }
+  };
+
+  // Cargar datos iniciales
+  loadStatistics();
+  loadPatients();
+</script>
+
+  <script>
+    // Inicialización de la página
+    document.addEventListener('DOMContentLoaded', function() {
+      // Verificar si hay un parámetro edit en la URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const editPatientId = urlParams.get('edit');
+
+      if (editPatientId) {
+        // Esperar a que se carguen los pacientes y luego abrir el modal de edición
+        setTimeout(() => {
+          if ((window as any).editPatient) {
+            (window as any).editPatient(parseInt(editPatientId));
+          }
+        }, 1000);
+      }
+    });
+  </script>
+  </div>
+</DashboardLayout>

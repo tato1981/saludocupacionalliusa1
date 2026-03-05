@@ -1,0 +1,324 @@
+---
+import DashboardLayout from '../../../components/layout/DashboardLayout.astro';
+import { requireAuth, hasRole } from '../../../lib/auth';
+import { db } from '../../../lib/database';
+
+const user = requireAuth(Astro.cookies);
+
+if (!hasRole(user, 'staff')) {
+  return Astro.redirect('/auth/login');
+}
+
+// Obtener solicitudes de examen con información de la empresa
+const [requests] = await db.execute(
+  `SELECT r.*, c.name as company_name, p.id as existing_patient_id
+   FROM exam_requests r
+   LEFT JOIN companies c ON r.company_id = c.id
+   LEFT JOIN patients p ON r.patient_document = p.document_number
+   ORDER BY r.created_at DESC`
+);
+
+// Obtener doctores activos para el modal de asignación
+const [doctors] = await db.execute(
+  `SELECT id, name, specialization 
+   FROM users 
+   WHERE role = 'doctor' AND is_active = 1 
+   ORDER BY name ASC`
+);
+
+const requestList = requests as any[];
+const doctorList = doctors as any[];
+
+const statusLabels: Record<string, string> = {
+  pending: 'Pendiente',
+  scheduled: 'Agendada',
+  completed: 'Completada',
+  cancelled: 'Cancelada',
+  rejected: 'Rechazada'
+};
+
+const statusClasses: Record<string, string> = {
+  pending: 'bg-yellow-100 text-yellow-800',
+  scheduled: 'bg-blue-100 text-blue-800',
+  completed: 'bg-green-100 text-green-800',
+  cancelled: 'bg-red-100 text-red-800',
+  rejected: 'bg-gray-100 text-gray-800'
+};
+---
+
+<DashboardLayout title="Solicitudes de Examen - Admin" user={user}>
+  <div class="space-y-6">
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Solicitudes de Examen</h1>
+        <p class="text-gray-600">Gestione y asigne las solicitudes de las empresas.</p>
+      </div>
+    </div>
+
+    <div class="bg-white shadow-sm rounded-lg border border-gray-100 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empresa</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empleado</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo Examen</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+              <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            {requestList.length === 0 ? (
+              <tr>
+                <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                  <p class="text-sm font-medium">No hay solicitudes registradas.</p>
+                </td>
+              </tr>
+            ) : (
+              requestList.map((req) => (
+                <tr>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(req.created_at).toLocaleDateString('es-ES')}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-gray-900">{req.company_name || 'Empresa eliminada'}</div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-gray-900">{req.patient_name}</div>
+                    <div class="text-xs text-gray-500">{req.patient_document_type}: {req.patient_document}</div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {req.exam_type}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span class={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClasses[req.status] || 'bg-gray-100 text-gray-800'}`}>
+                      {statusLabels[req.status] || req.status}
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    {req.status === 'pending' && (
+                      <button
+                        onclick={`openAssignModal(${JSON.stringify(req)})`}
+                        class="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-md transition-colors"
+                      >
+                        Asignar Doctor
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Asignación -->
+  <div id="assignModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+      <div class="mt-3">
+        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-2">Asignar Doctor</h3>
+        <p class="text-sm text-gray-500 mb-4" id="modalSubtitle">Asignar cita para el examen solicitado.</p>
+        
+        <form id="assignForm" class="space-y-4">
+          <input type="hidden" id="requestId" name="requestId">
+          <input type="hidden" id="isNewPatient" name="isNewPatient">
+          
+          <div id="newPatientFields" class="hidden space-y-4 border-b pb-4 mb-4">
+            <div class="bg-yellow-50 p-3 rounded-md mb-2">
+              <p class="text-sm text-yellow-700">Este paciente es nuevo. Por favor complete su información básica.</p>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Nacimiento *</label>
+              <input 
+                type="date" 
+                id="dateOfBirth" 
+                name="dateOfBirth" 
+                max={new Date().toISOString().split('T')[0]}
+                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Género *</label>
+              <select id="gender" name="gender" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="">Seleccione género...</option>
+                <option value="masculino">Masculino</option>
+                <option value="femenino">Femenino</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Doctor *</label>
+            <select id="doctorId" name="doctorId" required class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="">Seleccione un doctor...</option>
+              {doctorList.map(doc => (
+                <option value={doc.id}>{doc.name} - {doc.specialization}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Fecha *</label>
+            <input 
+              type="date" 
+              id="appointmentDate" 
+              name="appointmentDate" 
+              required 
+              min={new Date().toISOString().split('T')[0]}
+              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Hora *</label>
+            <select id="appointmentTime" name="appointmentTime" required class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="">Seleccione hora...</option>
+              <option value="07:00">07:00 AM</option>
+              <option value="07:30">07:30 AM</option>
+              <option value="08:00">08:00 AM</option>
+              <option value="08:30">08:30 AM</option>
+              <option value="09:00">09:00 AM</option>
+              <option value="09:30">09:30 AM</option>
+              <option value="10:00">10:00 AM</option>
+              <option value="10:30">10:30 AM</option>
+              <option value="11:00">11:00 AM</option>
+              <option value="11:30">11:30 AM</option>
+              <option value="12:00">12:00 PM</option>
+              <option value="12:30">12:30 PM</option>
+              <option value="13:00">01:00 PM</option>
+              <option value="13:30">01:30 PM</option>
+              <option value="14:00">02:00 PM</option>
+              <option value="14:30">02:30 PM</option>
+              <option value="15:00">03:00 PM</option>
+              <option value="15:30">03:30 PM</option>
+              <option value="16:00">04:00 PM</option>
+              <option value="16:30">04:30 PM</option>
+              <option value="17:00">05:00 PM</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Duración (minutos)</label>
+            <select id="duration" name="duration" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="30">30 minutos</option>
+              <option value="45">45 minutos</option>
+              <option value="60">60 minutos</option>
+            </select>
+          </div>
+
+          <div class="flex justify-end gap-3 mt-6">
+            <button 
+              type="button" 
+              onclick="closeAssignModal()"
+              class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+            >
+              Cancelar
+            </button>
+            <button 
+              type="submit"
+              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
+            >
+              <span id="btnText">Confirmar Asignación</span>
+              <svg id="btnLoader" class="hidden animate-spin ml-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</DashboardLayout>
+
+<script is:inline>
+  function openAssignModal(request) {
+    const modal = document.getElementById('assignModal');
+    const requestId = document.getElementById('requestId');
+    const modalSubtitle = document.getElementById('modalSubtitle');
+    const newPatientFields = document.getElementById('newPatientFields');
+    const isNewPatientInput = document.getElementById('isNewPatient');
+    const dateOfBirth = document.getElementById('dateOfBirth');
+    const gender = document.getElementById('gender');
+    
+    requestId.value = request.id;
+    modalSubtitle.textContent = `Asignar cita para: ${request.patient_name} (${request.exam_type})`;
+    modal.classList.remove('hidden');
+
+    if (!request.existing_patient_id) {
+      newPatientFields.classList.remove('hidden');
+      isNewPatientInput.value = 'true';
+      dateOfBirth.required = true;
+      gender.required = true;
+    } else {
+      newPatientFields.classList.add('hidden');
+      isNewPatientInput.value = 'false';
+      dateOfBirth.required = false;
+      gender.required = false;
+    }
+  }
+
+  function closeAssignModal() {
+    const modal = document.getElementById('assignModal');
+    modal.classList.add('hidden');
+    document.getElementById('assignForm').reset();
+  }
+
+  document.getElementById('assignForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const form = e.target;
+    const btnText = document.getElementById('btnText');
+    const btnLoader = document.getElementById('btnLoader');
+    const submitBtn = form.querySelector('button[type="submit"]');
+
+    // Estado de carga
+    submitBtn.disabled = true;
+    btnText.textContent = 'Procesando...';
+    btnLoader.classList.remove('hidden');
+
+    try {
+      const formData = new FormData(form);
+      const data = Object.fromEntries(formData.entries());
+
+      const response = await fetch('/api/admin/requests/assign', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        window.showSweetAlert('success', '¡Éxito!', 'Doctor asignado exitosamente', 2000).then(() => {
+          window.location.reload();
+        });
+      } else {
+        window.showSweetAlert('error', 'Error', result.message || 'Error al asignar doctor');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      window.showSweetAlert('error', 'Error', 'Ocurrió un error inesperado');
+    } finally {
+      submitBtn.disabled = false;
+      btnText.textContent = 'Confirmar Asignación';
+      btnLoader.classList.add('hidden');
+    }
+  });
+
+  // Cerrar modal al hacer clic fuera
+  window.onclick = function(event) {
+    const modal = document.getElementById('assignModal');
+    if (event.target == modal) {
+      closeAssignModal();
+    }
+  }
+</script>

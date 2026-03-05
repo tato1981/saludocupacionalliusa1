@@ -1,0 +1,291 @@
+---
+import DashboardLayout from '../../../components/layout/DashboardLayout.astro';
+import { requireAuth, hasRole, hashPassword } from '../../../lib/auth';
+import { db } from '../../../lib/database';
+
+const user = requireAuth(Astro.cookies);
+const isSuperadmin = user?.role === 'superadmin' || user?.role === 'admin';
+
+if (!hasRole(user, 'admin')) {
+  return Astro.redirect('/dashboard');
+}
+
+let error = '';
+let success = '';
+
+// Variables para mantener los datos del formulario
+let name = '';
+let nit = '';
+let address = '';
+let phone = '';
+let responsible_name = '';
+let email = '';
+let admin_name = '';
+let admin_email = '';
+let admin_document = '';
+let admin_phone = '';
+let admin_password = '';
+
+if (Astro.request.method === 'POST') {
+  try {
+    const formData = await Astro.request.formData();
+
+    // Datos de la empresa
+    name = formData.get('name') as string;
+    nit = formData.get('nit') as string;
+    address = formData.get('address') as string;
+    phone = formData.get('phone') as string;
+    responsible_name = formData.get('responsible_name') as string;
+    email = (formData.get('email') as string).trim();
+
+    if (isSuperadmin) {
+      admin_name = formData.get('admin_name') as string;
+      admin_email = (formData.get('admin_email') as string).trim();
+      admin_document = formData.get('admin_document') as string;
+      admin_phone = formData.get('admin_phone') as string;
+      admin_password = formData.get('admin_password') as string;
+    }
+
+    // Validaciones
+    if (!name || !nit || !email || !responsible_name) {
+      error = 'Nombre, NIT, Responsable y Email de la empresa son campos requeridos';
+    } else if (isSuperadmin && (!admin_name || !admin_email || !admin_document || !admin_password)) {
+      error = 'Nombre, Email, Documento y Contraseña del administrador son campos requeridos';
+    } else {
+      // Verificar si ya existe empresa con ese NIT o Email
+      const [existingCompany] = await db.execute(
+        'SELECT id FROM companies WHERE nit = ? OR email = ?',
+        [nit, email]
+      );
+
+      if ((existingCompany as any[]).length > 0) {
+        error = 'Ya existe una empresa con ese NIT o Email';
+      } else {
+        if (isSuperadmin) {
+          const [existingUser] = await db.execute(
+            'SELECT id FROM users WHERE email = ?',
+            [admin_email]
+          );
+
+          if ((existingUser as any[]).length > 0) {
+            error = 'Ya existe un usuario con ese email';
+          } else {
+            const [existingDoc] = await db.execute(
+              'SELECT id FROM users WHERE document_number = ?',
+              [admin_document]
+            );
+
+            if ((existingDoc as any[]).length > 0) {
+              error = 'Ya existe un usuario con ese número de documento';
+            } else {
+              const [companyResult] = await db.execute(
+                `INSERT INTO companies (name, nit, address, phone, responsible_name, email, status)
+                 VALUES (?, ?, ?, ?, ?, ?, 'active')`,
+                [name, nit, address, phone, responsible_name, email]
+              );
+
+              const companyId = (companyResult as any).insertId;
+
+              const passwordHash = await hashPassword(admin_password);
+
+              await db.execute(
+                `INSERT INTO users (name, email, password_hash, document_number, phone, role, company_id, is_active)
+                 VALUES (?, ?, ?, ?, ?, 'company', ?, 1)`,
+                [admin_name, admin_email, passwordHash, admin_document, admin_phone || null, companyId]
+              );
+
+              return Astro.redirect('/admin/companies?success=created');
+            }
+          }
+        } else {
+          await db.execute(
+            `INSERT INTO companies (name, nit, address, phone, responsible_name, email, status)
+             VALUES (?, ?, ?, ?, ?, ?, 'active')`,
+            [name, nit, address, phone, responsible_name, email]
+          );
+
+          return Astro.redirect('/admin/companies?success=created');
+        }
+      }
+    }
+  } catch (e) {
+    console.error(e);
+    error = 'Error al crear la empresa';
+  }
+}
+---
+
+<DashboardLayout title="Nueva Empresa" user={user}>
+  <div class="max-w-2xl mx-auto">
+    <div class="md:flex md:items-center md:justify-between mb-6">
+      <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+          Registrar Nueva Empresa
+        </h2>
+      </div>
+      <div class="mt-4 flex md:mt-0 md:ml-4">
+        <a href="/admin/companies" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+          Cancelar
+        </a>
+      </div>
+    </div>
+
+    {error && (
+      <div class="rounded-md bg-red-50 p-4 mb-6">
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div class="ml-3">
+            <h3 class="text-sm font-medium text-red-800">{error}</h3>
+          </div>
+        </div>
+      </div>
+    )}
+
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+      <div class="px-4 py-5 sm:p-6">
+        <form method="POST" class="space-y-8">
+
+          <!-- SECCIÓN 1: DATOS DE LA EMPRESA -->
+          <div>
+            <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4 pb-2 border-b border-gray-200">
+              📋 Datos de la Empresa
+            </h3>
+            <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+              <div class="sm:col-span-3">
+                <label for="name" class="block text-sm font-medium text-gray-700">
+                  Nombre de la Empresa *
+                </label>
+                <div class="mt-1">
+                  <input type="text" name="name" id="name" value={name} required class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md" placeholder="Ej: Constructora ABC S.A.S">
+                </div>
+              </div>
+
+              <div class="sm:col-span-3">
+                <label for="nit" class="block text-sm font-medium text-gray-700">
+                  NIT *
+                </label>
+                <div class="mt-1">
+                  <input type="text" name="nit" id="nit" value={nit} required class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md" placeholder="Ej: 900.123.456-7">
+                </div>
+              </div>
+
+              <div class="sm:col-span-6">
+                <label for="address" class="block text-sm font-medium text-gray-700">
+                  Dirección
+                </label>
+                <div class="mt-1">
+                  <input type="text" name="address" id="address" value={address} class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md" placeholder="Calle 123 #45-67">
+                </div>
+              </div>
+
+              <div class="sm:col-span-3">
+                <label for="responsible_name" class="block text-sm font-medium text-gray-700">
+                  Nombre del Responsable *
+                </label>
+                <div class="mt-1">
+                  <input type="text" name="responsible_name" id="responsible_name" value={responsible_name} required class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md" placeholder="Juan Pérez">
+                </div>
+              </div>
+
+              <div class="sm:col-span-3">
+                <label for="phone" class="block text-sm font-medium text-gray-700">
+                  Teléfono
+                </label>
+                <div class="mt-1">
+                  <input type="text" name="phone" id="phone" value={phone} class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md" placeholder="3001234567">
+                </div>
+              </div>
+
+              <div class="sm:col-span-6">
+                <label for="email" class="block text-sm font-medium text-gray-700">
+                  Correo Electrónico (Para envío de resultados) *
+                </label>
+                <div class="mt-1">
+                  <input type="email" name="email" id="email" value={email} required class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md" placeholder="contacto@empresa.com">
+                </div>
+                <p class="mt-2 text-sm text-gray-500">
+                  A este correo se enviarán las notificaciones y resultados de exámenes.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {isSuperadmin && (
+            <div class="pt-6 border-t border-gray-200">
+              <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4 pb-2 border-b border-gray-200">
+                👤 Usuario Administrador de la Empresa
+              </h3>
+              <p class="text-sm text-gray-600 mb-4">
+                Este usuario podrá iniciar sesión en el sistema para gestionar los empleados y ver los resultados de su empresa.
+              </p>
+              <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                <div class="sm:col-span-3">
+                  <label for="admin_name" class="block text-sm font-medium text-gray-700">
+                    Nombre Completo *
+                  </label>
+                  <div class="mt-1">
+                    <input type="text" name="admin_name" id="admin_name" value={admin_name} required class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md" placeholder="María González">
+                  </div>
+                </div>
+
+                <div class="sm:col-span-3">
+                  <label for="admin_email" class="block text-sm font-medium text-gray-700">
+                    Email (Para iniciar sesión) *
+                  </label>
+                  <div class="mt-1">
+                    <input type="email" name="admin_email" id="admin_email" value={admin_email} required class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md" placeholder="admin@empresa.com">
+                  </div>
+                </div>
+
+                <div class="sm:col-span-3">
+                  <label for="admin_document" class="block text-sm font-medium text-gray-700">
+                    Número de Documento *
+                  </label>
+                  <div class="mt-1">
+                    <input type="text" name="admin_document" id="admin_document" value={admin_document} required class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md" placeholder="1234567890">
+                  </div>
+                </div>
+
+                <div class="sm:col-span-3">
+                  <label for="admin_phone" class="block text-sm font-medium text-gray-700">
+                    Teléfono
+                  </label>
+                  <div class="mt-1">
+                    <input type="text" name="admin_phone" id="admin_phone" value={admin_phone} class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md" placeholder="3109876543">
+                  </div>
+                </div>
+
+                <div class="sm:col-span-6">
+                  <label for="admin_password" class="block text-sm font-medium text-gray-700">
+                    Contraseña *
+                  </label>
+                  <div class="mt-1">
+                    <input type="password" name="admin_password" id="admin_password" value={admin_password} required class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md" placeholder="Mínimo 6 caracteres">
+                  </div>
+                  <p class="mt-2 text-sm text-gray-500">
+                    Esta contraseña se usará para iniciar sesión en el sistema. Se recomienda cambiarla en el primer acceso.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div class="pt-5">
+            <div class="flex justify-end space-x-3">
+              <a href="/admin/companies" class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Cancelar
+              </a>
+              <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                {isSuperadmin ? 'Guardar Empresa y Administrador' : 'Guardar Empresa'}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</DashboardLayout>

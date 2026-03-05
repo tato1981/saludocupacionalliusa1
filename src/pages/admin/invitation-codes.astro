@@ -1,0 +1,869 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { requireAuth, isSuperAdmin } from '../../lib/auth';
+
+const user = requireAuth(Astro.cookies);
+if (!user || !isSuperAdmin(user)) {
+  return Astro.redirect('/auth/login');
+}
+---
+
+<Layout title="Códigos de Invitación - Admin">
+  <div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white shadow">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center py-6">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <h1 class="text-2xl font-bold text-gray-900">🎫 Códigos de Invitación</h1>
+            </div>
+          </div>
+          <div class="flex items-center space-x-4">
+            <button 
+              onclick="openCreateCodeModal()"
+              class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center"
+            >
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+              </svg>
+              Generar Código
+            </button>
+            <a href="/dashboard" class="text-gray-600 hover:text-gray-900">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white p-6 rounded-lg shadow">
+          <div class="flex items-center">
+            <div class="p-2 bg-blue-100 rounded-lg">
+              <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600">Total Códigos</p>
+              <p class="text-2xl font-bold text-gray-900" id="totalCodes">-</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow">
+          <div class="flex items-center">
+            <div class="p-2 bg-green-100 rounded-lg">
+              <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600">Activos</p>
+              <p class="text-2xl font-bold text-gray-900" id="activeCodes">-</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow">
+          <div class="flex items-center">
+            <div class="p-2 bg-yellow-100 rounded-lg">
+              <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600">Usados</p>
+              <p class="text-2xl font-bold text-gray-900" id="usedCodes">-</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow">
+          <div class="flex items-center">
+            <div class="p-2 bg-red-100 rounded-lg">
+              <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600">Expirados</p>
+              <p class="text-2xl font-bold text-gray-900" id="expiredCodes">-</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="bg-white p-6 rounded-lg shadow mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Buscar código</label>
+            <input 
+              type="text" 
+              id="searchCode"
+              placeholder="Buscar por código..."
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+            <select id="filterStatus" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              <option value="">Todos</option>
+              <option value="active">Activos</option>
+              <option value="used">Usados</option>
+              <option value="expired">Expirados</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input 
+              type="text" 
+              id="searchEmail"
+              placeholder="Buscar por email..."
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+          </div>
+          <div class="flex items-end">
+            <button 
+              onclick="clearFilters()"
+              class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium"
+            >
+              Limpiar Filtros
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Codes Table -->
+      <div class="bg-white rounded-lg shadow overflow-hidden mb-8">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900">Lista de Códigos de Invitación</h3>
+        </div>
+        
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rol</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usos</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Creado</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expira</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="codesTableBody" class="bg-white divide-y divide-gray-200">
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Users Management -->
+      <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <div>
+            <h3 class="text-lg font-medium text-gray-900">Usuarios Registrados en el Sistema</h3>
+            <p class="text-sm text-gray-500">Editar datos básicos, inhabilitar o eliminar usuarios.</p>
+          </div>
+          <div class="flex space-x-3">
+            <input
+              type="text"
+              id="userSearch"
+              placeholder="Buscar por nombre o email..."
+              class="w-64 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            >
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rol</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Creado</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody" class="bg-white divide-y divide-gray-200">
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Crear Código -->
+    <div id="createCodeModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-2/3 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-medium text-gray-900">Generar Código de Invitación</h3>
+            <button onclick="closeCreateCodeModal()" class="text-gray-400 hover:text-gray-600">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          
+          <form id="createCodeForm">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Código *</label>
+                <div class="flex">
+                  <input
+                    type="text"
+                    id="newCode"
+                    name="code"
+                    required
+                    class="flex-1 border border-gray-300 rounded-l-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="DOCTOR2025"
+                  >
+                  <button
+                    type="button"
+                    onclick="generateRandomCode()"
+                    class="bg-gray-100 hover:bg-gray-200 px-3 py-2 border border-l-0 border-gray-300 rounded-r-lg text-sm"
+                  >
+                    🎲
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Rol a Asignar *</label>
+                <select
+                  id="newRole"
+                  name="assigned_role"
+                  required
+                  class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="superadmin">Superadmin (Super Administrador)</option>
+                  <option value="staff">Staff (Personal/Usuario Estándar)</option>
+                  <option value="doctor">Doctor (Médico)</option>
+                  <option value="company">Company (Empresa)</option>
+                  <option value="admin">Admin (Administrador)</option>
+                </select>
+                <p class="mt-1 text-xs text-gray-500">El usuario registrado obtendrá este rol automáticamente</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Email (opcional)</label>
+                <input
+                  type="email"
+                  id="newEmail"
+                  name="email"
+                  class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="doctor@hospital.com"
+                >
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Máximo usos *</label>
+                <input
+                  type="number"
+                  id="newMaxUses"
+                  name="max_uses"
+                  required
+                  min="1"
+                  value="1"
+                  class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de expiración</label>
+              <input
+                type="datetime-local"
+                id="newExpiresAt"
+                name="expires_at"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+            </div>
+
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+              <textarea 
+                id="newDescription" 
+                name="description" 
+                rows="3"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Describe el propósito de este código..."
+              ></textarea>
+            </div>
+
+            <div class="flex justify-end space-x-3 pt-4">
+              <button 
+                type="button" 
+                onclick="closeCreateCodeModal()"
+                class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+              >
+                Cancelar
+              </button>
+              <button 
+                type="submit"
+                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg"
+              >
+                Generar Código
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    interface InvitationCode {
+      id: number;
+      code: string;
+      email?: string;
+      max_uses: number;
+      current_uses: number;
+      is_active: boolean;
+      created_at: string;
+      expires_at?: string;
+      used_at?: string;
+      description?: string;
+      assigned_role?: string;
+    }
+
+    interface AdminUser {
+      id: number;
+      name: string;
+      email: string;
+      role: string;
+      phone?: string;
+      is_active: boolean;
+      created_at: string;
+    }
+
+    let allCodes: InvitationCode[] = [];
+    let codes: InvitationCode[] = [];
+    let allUsers: AdminUser[] = [];
+    let filteredUsers: AdminUser[] = [];
+
+    function showAlert(type: 'success' | 'error' | 'warning' | 'info', title: string, message?: string, timer?: number) {
+      if (typeof (window as any).showSweetAlert === 'function') {
+        return (window as any).showSweetAlert(type, title, message, timer);
+      } else {
+        const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+        const fullMessage = message ? `${icon} ${title}: ${message}` : `${icon} ${title}`;
+        alert(fullMessage);
+        return Promise.resolve();
+      }
+    }
+    let filteredCodes: InvitationCode[] = [];
+
+    // Cargar códigos al cargar la página
+    document.addEventListener('DOMContentLoaded', function() {
+      loadCodes();
+      loadUsers();
+      setupEventListeners();
+    });
+
+    function setupEventListeners() {
+      // Eventos de filtros
+      document.getElementById('searchCode')?.addEventListener('input', filterCodes);
+      document.getElementById('filterStatus')?.addEventListener('change', filterCodes);
+      document.getElementById('searchEmail')?.addEventListener('input', filterCodes);
+
+      const userSearch = document.getElementById('userSearch') as HTMLInputElement | null;
+      if (userSearch) {
+        userSearch.addEventListener('input', filterUsers);
+      }
+
+      // Evento del formulario
+      document.getElementById('createCodeForm')?.addEventListener('submit', handleCreateCode);
+    }
+
+    // Cargar códigos
+    async function loadCodes() {
+      try {
+        const response = await fetch('/api/admin/invitation-codes');
+        const result = await response.json();
+        
+        if (result.success) {
+          codes = result.data;
+          filteredCodes = [...codes];
+          renderCodes();
+          updateStats();
+        }
+      } catch (error) {
+        showAlert('error', 'Error', 'No se pudieron cargar los códigos');
+      }
+    }
+
+    // Renderizar tabla de códigos
+    function renderCodes() {
+      const tbody = document.getElementById('codesTableBody');
+      if (!tbody) return;
+
+      if (filteredCodes.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" class="px-6 py-4 text-center text-gray-500">
+              No se encontraron códigos
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = filteredCodes.map(code => {
+        const isExpired = code.expires_at && new Date(code.expires_at) < new Date();
+        const isUsedUp = code.current_uses >= code.max_uses;
+        const status = isExpired ? 'expired' : isUsedUp ? 'used' : code.is_active ? 'active' : 'inactive';
+        
+        let statusBadge = '';
+        switch (status) {
+          case 'active':
+            statusBadge = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Activo</span>';
+            break;
+          case 'used':
+            statusBadge = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Usado</span>';
+            break;
+          case 'expired':
+            statusBadge = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Expirado</span>';
+            break;
+          default:
+            statusBadge = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Inactivo</span>';
+        }
+
+        const roleLabels: Record<string, string> = {
+          'superadmin': 'Superadmin',
+          'admin': 'Administrador',
+          'doctor': 'Doctor',
+          'staff': 'Staff',
+          'company': 'Empresa'
+        };
+        const roleLabel = roleLabels[code.assigned_role || 'staff'] || 'Staff';
+
+        return `
+          <tr class="hover:bg-gray-50">
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm font-medium text-gray-900">${code.code}</div>
+              ${code.description ? `<div class="text-sm text-gray-500">${code.description}</div>` : ''}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              ${roleLabel}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              ${code.email || 'Sin restricción'}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              ${code.current_uses} / ${code.max_uses}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              ${statusBadge}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              ${new Date(code.created_at).toLocaleDateString('es-CO')}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              ${code.expires_at ? new Date(code.expires_at).toLocaleDateString('es-CO') : 'Sin expiración'}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+              <button onclick="copyCode('${code.code}')" class="text-blue-600 hover:text-blue-900">
+                Copiar
+              </button>
+              <button onclick="deleteCode(${code.id})" class="text-red-600 hover:text-red-900">
+                Eliminar
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Actualizar estadísticas
+    function updateStats() {
+      const totalCodes = codes.length;
+      const activeCodes = codes.filter(c => {
+        const isExpired = c.expires_at && new Date(c.expires_at) < new Date();
+        const isUsedUp = c.current_uses >= c.max_uses;
+        return c.is_active && !isExpired && !isUsedUp;
+      }).length;
+      const usedCodes = codes.filter(c => c.current_uses >= c.max_uses).length;
+      const expiredCodes = codes.filter(c => c.expires_at && new Date(c.expires_at) < new Date()).length;
+
+      document.getElementById('totalCodes')!.textContent = totalCodes.toString();
+      document.getElementById('activeCodes')!.textContent = activeCodes.toString();
+      document.getElementById('usedCodes')!.textContent = usedCodes.toString();
+      document.getElementById('expiredCodes')!.textContent = expiredCodes.toString();
+    }
+
+    // Filtrar códigos
+    function filterCodes() {
+      const searchCode = (document.getElementById('searchCode') as HTMLInputElement)?.value.toLowerCase() || '';
+      const filterStatus = (document.getElementById('filterStatus') as HTMLSelectElement)?.value || '';
+      const searchEmail = (document.getElementById('searchEmail') as HTMLInputElement)?.value.toLowerCase() || '';
+
+      filteredCodes = codes.filter(code => {
+        const matchesCode = code.code.toLowerCase().includes(searchCode);
+        const matchesEmail = !searchEmail || (code.email && code.email.toLowerCase().includes(searchEmail));
+        
+        let matchesStatus = true;
+        if (filterStatus) {
+          const isExpired = code.expires_at && new Date(code.expires_at) < new Date();
+          const isUsedUp = code.current_uses >= code.max_uses;
+          
+          switch (filterStatus) {
+            case 'active':
+              matchesStatus = code.is_active && !isExpired && !isUsedUp;
+              break;
+            case 'used':
+              matchesStatus = isUsedUp;
+              break;
+            case 'expired':
+              matchesStatus = Boolean(isExpired);
+              break;
+          }
+        }
+
+        return matchesCode && matchesEmail && matchesStatus;
+      });
+
+      renderCodes();
+    }
+
+    // Limpiar filtros
+    function clearFilters() {
+      (document.getElementById('searchCode') as HTMLInputElement).value = '';
+      (document.getElementById('filterStatus') as HTMLSelectElement).value = '';
+      (document.getElementById('searchEmail') as HTMLInputElement).value = '';
+      filterCodes();
+    }
+
+    // Abrir modal para crear código
+    (window as any).openCreateCodeModal = () => {
+      (document.getElementById('createCodeForm') as HTMLFormElement)!.reset();
+      document.getElementById('newMaxUses')!.setAttribute('value', '1');
+      document.getElementById('createCodeModal')!.classList.remove('hidden');
+    };
+
+    // Cerrar modal - función global
+    function closeCreateCodeModal() {
+      document.getElementById('createCodeModal')!.classList.add('hidden');
+    }
+    (window as any).closeCreateCodeModal = closeCreateCodeModal;
+
+    // Generar código aleatorio
+    (window as any).generateRandomCode = () => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let result = '';
+      for (let i = 0; i < 8; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      (document.getElementById('newCode') as HTMLInputElement).value = result;
+    };
+
+    (window as any).copyCode = async (code: string) => {
+      try {
+        await navigator.clipboard.writeText(code);
+        showAlert('success', 'Copiado', `Código "${code}" copiado al portapapeles`, 2000);
+      } catch (error) {
+        showAlert('error', 'Error', 'No se pudo copiar el código');
+      }
+    };
+
+    (window as any).deleteCode = async (id: number) => {
+      const code = codes.find(c => c.id === id);
+      if (!code) return;
+
+      let confirmed = false;
+      if (typeof (window as any).showSweetConfirm === 'function') {
+        const result = await (window as any).showSweetConfirm(
+          'Eliminar código',
+          `¿Está seguro de eliminar el código "${code.code}"?`,
+          'Sí, eliminar',
+          'Cancelar'
+        );
+        confirmed = Boolean(result && result.isConfirmed);
+      } else {
+        confirmed = window.confirm(`¿Está seguro de eliminar el código "${code.code}"?`);
+      }
+
+      if (!confirmed) return;
+
+      try {
+        const response = await fetch(`/api/admin/invitation-codes/delete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id })
+        });
+        
+        const apiResult = await response.json();
+        
+        if (apiResult.success) {
+          showAlert('success', 'Eliminado', 'Código eliminado correctamente', 2000);
+          loadCodes();
+        } else {
+          showAlert('error', 'Error', apiResult.message || 'Error al eliminar código');
+        }
+      } catch (error) {
+        showAlert('error', 'Error', 'Error de conexión');
+      }
+    };
+
+    // Manejar creación de código
+    async function handleCreateCode(e: Event) {
+      e.preventDefault();
+      
+      const formData = new FormData(e.target as HTMLFormElement);
+      const formDataObj = Object.fromEntries(formData);
+      
+      try {
+        const response = await fetch('/api/admin/invitation-codes/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formDataObj)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          showAlert('success', 'Código de invitación creado correctamente');
+          closeCreateCodeModal();
+          loadCodes();
+        } else {
+          showAlert('error', 'Error al crear código', result.message);
+        }
+      } catch (error) {
+        showAlert('error', 'Error de conexión');
+      }
+    }
+
+    async function loadUsers() {
+      try {
+        const response = await fetch('/api/admin/users');
+        const result = await response.json();
+        if (result.success) {
+          allUsers = result.data.map((u: any) => ({
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            role: u.role,
+            phone: u.phone,
+            is_active: Boolean(u.is_active),
+            created_at: u.created_at
+          }));
+          filteredUsers = [...allUsers];
+          renderUsers();
+        }
+      } catch (error) {
+        showAlert('error', 'Error', 'No se pudieron cargar los usuarios');
+      }
+    }
+
+    function renderUsers() {
+      const tbody = document.getElementById('usersTableBody');
+      if (!tbody) return;
+
+      if (filteredUsers.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="px-6 py-4 text-center text-gray-500">
+              No se encontraron usuarios
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = filteredUsers.map(user => {
+        const statusBadge = user.is_active
+          ? '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Activo</span>'
+          : '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Inactivo</span>';
+
+        const created = new Date(user.created_at).toLocaleDateString('es-CO');
+
+        return `
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${user.id}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${user.name}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${user.email}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 capitalize">${user.role}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${user.phone || '-'}</td>
+            <td class="px-4 py-3 whitespace-nowrap">
+              ${statusBadge}
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${created}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm font-medium space-x-2">
+              <button onclick="openEditUserModal(${user.id})" class="text-blue-600 hover:text-blue-900">
+                Editar
+              </button>
+              <button onclick="toggleUserStatus(${user.id})" class="text-yellow-600 hover:text-yellow-900">
+                ${user.is_active ? 'Inhabilitar' : 'Activar'}
+              </button>
+              <button onclick="deleteUser(${user.id})" class="text-red-600 hover:text-red-900">
+                Eliminar
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterUsers() {
+      const input = document.getElementById('userSearch') as HTMLInputElement | null;
+      const term = input ? input.value.toLowerCase() : '';
+      if (!term) {
+        filteredUsers = [...allUsers];
+      } else {
+        filteredUsers = allUsers.filter(user => {
+          return (
+            user.name.toLowerCase().includes(term) ||
+            user.email.toLowerCase().includes(term)
+          );
+        });
+      }
+      renderUsers();
+    }
+
+    (window as any).openEditUserModal = (id: number) => {
+      const user = allUsers.find(u => u.id === id);
+      if (!user) return;
+      const name = prompt('Nombre completo', user.name);
+      if (name === null || !name.trim()) return;
+      const email = prompt('Correo electrónico', user.email);
+      if (email === null || !email.trim()) return;
+      const role = prompt('Rol (superadmin, admin, staff, doctor, company)', user.role);
+      if (role === null || !role.trim()) return;
+      const phone = prompt('Teléfono', user.phone || '');
+      updateUser({
+        id: user.id,
+        name: name.trim(),
+        email: email.trim(),
+        role: role.trim(),
+        phone: phone ? phone.trim() : undefined
+      });
+    };
+
+    async function updateUser(payload: { id: number; name: string; email: string; role: string; phone?: string }) {
+      try {
+        const response = await fetch('/api/admin/users/update', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (result.success) {
+          showAlert('success', 'Usuario actualizado correctamente');
+          loadUsers();
+        } else {
+          showAlert('error', 'Error al actualizar usuario', result.message);
+        }
+      } catch (error) {
+        showAlert('error', 'Error de conexión');
+      }
+    }
+
+    (window as any).toggleUserStatus = async (id: number) => {
+      const user = allUsers.find(u => u.id === id);
+      if (!user) return;
+
+      const title = user.is_active ? 'Inhabilitar usuario' : 'Activar usuario';
+      const text = user.is_active
+        ? `¿Seguro que desea inhabilitar al usuario ${user.name}? No podrá iniciar sesión.`
+        : `¿Seguro que desea activar nuevamente al usuario ${user.name}?`;
+
+      let confirmed = false;
+      if (typeof (window as any).showSweetConfirm === 'function') {
+        const result = await (window as any).showSweetConfirm(
+          title,
+          text,
+          user.is_active ? '⏸️ Sí, inhabilitar' : '▶️ Sí, activar',
+          'Cancelar'
+        );
+        confirmed = Boolean(result && result.isConfirmed);
+      } else {
+        confirmed = window.confirm(`${title}\n\n${text}`);
+      }
+
+      if (!confirmed) return;
+
+      try {
+        const response = await fetch('/api/admin/users/toggle-status', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ id, is_active: !user.is_active })
+        });
+        const result = await response.json();
+        if (result.success) {
+          showAlert('success', 'Estado de usuario actualizado');
+          loadUsers();
+        } else {
+          showAlert('error', 'Error al cambiar estado', result.message);
+        }
+      } catch (error) {
+        showAlert('error', 'Error de conexión');
+      }
+    };
+
+    (window as any).deleteUser = async (id: number) => {
+      const user = allUsers.find(u => u.id === id);
+      if (!user) return;
+
+      const title = 'Eliminar usuario';
+      const text = `Esta acción eliminará permanentemente al usuario ${user.name} (${user.email}). ¿Desea continuar?`;
+
+      let confirmed = false;
+      if (typeof (window as any).showSweetConfirm === 'function') {
+        const result = await (window as any).showSweetConfirm(
+          title,
+          text,
+          'Sí, eliminar',
+          'Cancelar'
+        );
+        confirmed = Boolean(result && result.isConfirmed);
+      } else {
+        confirmed = window.confirm(`${title}\n\n${text}`);
+      }
+
+      if (!confirmed) return;
+
+      try {
+        const response = await fetch('/api/admin/users/delete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ id })
+        });
+        const result = await response.json();
+        if (result.success) {
+          showAlert('success', 'Usuario eliminado correctamente');
+          loadUsers();
+        } else {
+          showAlert('error', 'Error al eliminar usuario', result.message);
+        }
+      } catch (error) {
+        showAlert('error', 'Error de conexión');
+      }
+    };
+  </script>
+
+</Layout>

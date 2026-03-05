@@ -1,0 +1,229 @@
+---
+import Layout from "../../../layouts/Layout.astro";
+
+const { code } = Astro.params;
+const { searchParams } = Astro.url;
+const certificateCode = code || searchParams.get('code');
+
+if (!certificateCode) {
+  return Astro.redirect('/certificates/verify');
+}
+
+// Construir URL de verificación
+const baseUrl = Astro.url.origin;
+const verificationUrl = `${baseUrl}/certificates/mobile?code=${encodeURIComponent(certificateCode)}`;
+---
+
+<Layout title="Código QR - Certificado">
+  <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <!-- Header -->
+    <div class="bg-white shadow-sm">
+      <div class="px-4 py-6">
+        <h1 class="text-xl font-bold text-gray-900 text-center">Código QR del Certificado</h1>
+        <p class="text-sm text-gray-600 text-center mt-1">Escanea para verificar</p>
+      </div>
+    </div>
+
+    <div class="p-4 max-w-lg mx-auto">
+      <!-- Tarjeta del QR -->
+      <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+        <!-- QR Code -->
+        <div class="p-8 text-center bg-gradient-to-br from-gray-50 to-white">
+          <div class="bg-white p-6 rounded-lg shadow-inner">
+            <img 
+              id="qrImage"
+              src={`/api/qr/generate?text=${encodeURIComponent(verificationUrl)}&size=300&mobile=true`}
+              alt="Código QR del certificado"
+              class="w-full max-w-xs mx-auto"
+              style="image-rendering: pixelated; image-rendering: -moz-crisp-edges; image-rendering: crisp-edges;"
+            />
+          </div>
+          <p class="text-sm text-gray-600 mt-4">
+            Escanea este código con la cámara de tu teléfono
+          </p>
+        </div>
+
+        <!-- Información del código -->
+        <div class="p-6 border-t bg-gray-50">
+          <div class="text-center">
+            <h3 class="font-semibold text-gray-900 mb-2">Código del certificado:</h3>
+            <div class="bg-white border rounded-lg p-3 mb-4">
+              <code class="text-sm font-mono text-gray-800 break-all">{certificateCode}</code>
+            </div>
+            
+            <!-- Botones de acción -->
+            <div class="space-y-3">
+              <a 
+                href={verificationUrl}
+                class="block w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium text-center hover:bg-blue-700 transition-colors"
+              >
+                Verificar Certificado
+              </a>
+              
+              <button 
+                id="shareBtn"
+                class="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+              >
+                Compartir QR
+              </button>
+              
+              <div class="flex gap-3">
+                <button 
+                  id="downloadBtn"
+                  class="flex-1 bg-green-600 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+                >
+                  Descargar QR
+                </button>
+                
+                <button 
+                  id="copyUrlBtn"
+                  class="flex-1 bg-orange-600 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors"
+                >
+                  Copiar Enlace
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Instrucciones -->
+      <div class="bg-white rounded-lg shadow-md mt-6 p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">¿Cómo usar este QR?</h3>
+        <div class="space-y-3 text-sm text-gray-600">
+          <div class="flex items-start gap-3">
+            <span class="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">1</span>
+            <p>Abre la aplicación de cámara de tu teléfono</p>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">2</span>
+            <p>Apunta la cámara hacia el código QR</p>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold">3</span>
+            <p>Toca la notificación que aparece para verificar el certificado</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Información adicional -->
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+        <div class="flex items-start gap-3">
+          <svg class="flex-shrink-0 w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <div class="text-sm text-blue-800">
+            <p class="font-medium mb-1">Consejo:</p>
+            <p>Si tu teléfono no reconoce automáticamente el QR, puedes usar cualquier aplicación de scanner QR o ingresar manualmente el código en la página de verificación.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" is:inline></script>
+  <script is:inline>
+    document.addEventListener('DOMContentLoaded', function() {
+      setupEventListeners();
+    });
+
+    function setupEventListeners() {
+      document.getElementById('shareBtn').addEventListener('click', shareQR);
+      document.getElementById('downloadBtn').addEventListener('click', downloadQR);
+      document.getElementById('copyUrlBtn').addEventListener('click', copyUrl);
+    }
+
+    async function shareQR() {
+      const qrImage = document.getElementById('qrImage');
+      const verificationUrl = qrImage.src.split('?text=')[1].split('&')[0];
+      const decodedUrl = decodeURIComponent(verificationUrl);
+      
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: 'Certificado de Aptitud Laboral',
+            text: 'Escanea el QR o visita el enlace para verificar el certificado',
+            url: decodedUrl
+          });
+        } catch (error) {
+          if (error.name !== 'AbortError') {
+            copyToClipboard(decodedUrl);
+          }
+        }
+      } else {
+        copyToClipboard(decodedUrl);
+      }
+    }
+
+    async function downloadQR() {
+      try {
+        const qrImage = document.getElementById('qrImage');
+        const response = await fetch(qrImage.src);
+        const blob = await response.blob();
+        
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `certificado-qr-${Date.now()}.png`;
+        
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'QR descargado',
+          text: 'El código QR se descargó correctamente',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      } catch (error) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'No se pudo descargar el código QR',
+          confirmButtonText: 'Entendido'
+        });
+      }
+    }
+
+    async function copyUrl() {
+      const qrImage = document.getElementById('qrImage');
+      const verificationUrl = qrImage.src.split('?text=')[1].split('&')[0];
+      const decodedUrl = decodeURIComponent(verificationUrl);
+      
+      copyToClipboard(decodedUrl);
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        Swal.fire({
+          icon: 'success',
+          title: 'Enlace copiado',
+          text: 'El enlace se copió al portapapeles',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      }).catch(() => {
+        // Fallback para navegadores sin soporte
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Enlace copiado',
+          text: 'El enlace se copió al portapapeles',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      });
+    }
+  </script>
+</Layout>

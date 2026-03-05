@@ -1,0 +1,618 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import { requireAuth, isSuperAdmin } from '@/lib/auth';
+
+const user = requireAuth(Astro.cookies);
+if (!user || !isSuperAdmin(user)) {
+  return Astro.redirect('/auth/login');
+}
+---
+
+<Layout title="Panel de Administración - Códigos de Invitación">
+  <div class="min-h-screen bg-gray-50 py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <!-- Header -->
+      <div class="bg-white shadow rounded-lg mb-6">
+        <div class="px-4 py-5 sm:p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <h1 class="text-2xl font-bold text-gray-900">Panel de Administración</h1>
+              <p class="mt-1 text-sm text-gray-600">Gestión de códigos de invitación y acceso al sistema</p>
+            </div>
+            <div class="flex space-x-4">
+              <a 
+                href="/dashboard" 
+                class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                ← Volver al Dashboard
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Estadísticas -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+          <div class="p-5">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <div class="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
+                  <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-3.586l6.879-6.88a6 6 0 0110.12-3.533z"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="ml-5 w-0 flex-1">
+                <dl>
+                  <dt class="text-sm font-medium text-gray-500 truncate">Códigos Activos</dt>
+                  <dd class="text-lg font-medium text-gray-900" id="activeCodes">-</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+          <div class="p-5">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <div class="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
+                  <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="ml-5 w-0 flex-1">
+                <dl>
+                  <dt class="text-sm font-medium text-gray-500 truncate">Códigos Usados</dt>
+                  <dd class="text-lg font-medium text-gray-900" id="usedCodes">-</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+          <div class="p-5">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <div class="w-8 h-8 bg-yellow-500 rounded-md flex items-center justify-center">
+                  <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="ml-5 w-0 flex-1">
+                <dl>
+                  <dt class="text-sm font-medium text-gray-500 truncate">Por Expirar</dt>
+                  <dd class="text-lg font-medium text-gray-900" id="expiringSoon">-</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+          <div class="p-5">
+            <div class="flex items-center">
+              <div class="flex-shrink-0">
+                <div class="w-8 h-8 bg-purple-500 rounded-md flex items-center justify-center">
+                  <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="ml-5 w-0 flex-1">
+                <dl>
+                  <dt class="text-sm font-medium text-gray-500 truncate">Usuarios Registrados</dt>
+                  <dd class="text-lg font-medium text-gray-900" id="totalUsers">-</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Formulario para generar códigos -->
+      <div class="bg-white shadow rounded-lg mb-6">
+        <div class="px-4 py-5 sm:p-6">
+          <h2 class="text-lg font-medium text-gray-900 mb-4">Generar Nuevo Código de Invitación</h2>
+          
+          <form id="generateCodeForm" class="grid grid-cols-1 gap-6 sm:grid-cols-3">
+            <div>
+              <label for="email" class="block text-sm font-medium text-gray-700">
+                Email específico (opcional)
+              </label>
+              <input 
+                type="email" 
+                id="email" 
+                name="email" 
+                class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                placeholder="usuario@ejemplo.com"
+              />
+              <p class="mt-1 text-xs text-gray-500">Si se especifica, solo este email podrá usar el código</p>
+            </div>
+            
+            <div>
+              <label for="description" class="block text-sm font-medium text-gray-700">
+                Descripción
+              </label>
+              <input 
+                type="text" 
+                id="description" 
+                name="description" 
+                class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                placeholder="Código para nuevo empleado"
+              />
+            </div>
+            
+            <div>
+              <label for="expiresIn" class="block text-sm font-medium text-gray-700">
+                Expira en (días)
+              </label>
+              <select 
+                id="expiresIn" 
+                name="expiresIn" 
+                class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              >
+                <option value="1">1 día</option>
+                <option value="3">3 días</option>
+                <option value="7" selected>7 días</option>
+                <option value="30">30 días</option>
+                <option value="">Sin expiración</option>
+              </select>
+            </div>
+            
+            <div class="sm:col-span-3">
+              <button 
+                type="submit" 
+                class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              >
+                <span id="generateBtnText">Generar Código</span>
+                <svg id="generateBtnLoader" class="hidden animate-spin -mr-1 ml-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Lista de códigos -->
+      <div class="bg-white shadow rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-medium text-gray-900">Códigos de Invitación</h2>
+            <button 
+              id="refreshCodes" 
+              class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+            >
+              🔄 Actualizar
+            </button>
+          </div>
+          
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expira</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="codesTableBody" class="bg-white divide-y divide-gray-200">
+                <!-- Se carga dinámicamente -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  // Función helper para mostrar alertas usando SweetAlert2
+  function showAlert(type: 'success' | 'error' | 'warning' | 'info', title: string, message?: string) {
+    if (typeof (window as any).showSweetAlert === 'function') {
+      (window as any).showSweetAlert(type, title, message);
+    } else {
+      const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+      const fullMessage = message ? `${icon} ${title}: ${message}` : `${icon} ${title}`;
+      alert(fullMessage);
+    }
+  }
+
+  // Cargar estadísticas
+  async function loadStatistics() {
+    try {
+      const response = await fetch('/api/admin/statistics');
+      const data = await response.json();
+      
+      if (data.success) {
+        document.getElementById('activeCodes')!.textContent = data.data.activeCodes;
+        document.getElementById('usedCodes')!.textContent = data.data.usedCodes;
+        document.getElementById('expiringSoon')!.textContent = data.data.expiringSoon;
+        document.getElementById('totalUsers')!.textContent = data.data.totalUsers;
+      }
+    } catch (error) {
+      // Silently fail
+    }
+  }
+
+  // Cargar códigos de invitación
+  async function loadInvitationCodes() {
+    try {
+      const response = await fetch('/api/admin/invitation-codes');
+      const data = await response.json();
+      
+      if (data.success) {
+        const tbody = document.getElementById('codesTableBody')!;
+        tbody.innerHTML = '';
+        
+        data.data.forEach((code: any) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="flex items-center">
+                <span class="text-sm font-mono font-medium text-gray-900">${code.code}</span>
+                <button onclick="copyToClipboard('${code.code}')" class="ml-2 text-gray-400 hover:text-gray-600">
+                  📋
+                </button>
+              </div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              ${code.email || '-'}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              ${getStatusBadge(code)}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              ${code.description || '-'}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              ${code.expires_at ? new Date(code.expires_at).toLocaleDateString() : 'Sin expiración'}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+              <div class="flex space-x-2">
+                ${code.is_active && code.current_uses < code.max_uses ? 
+                  `<button onclick="deactivateCodeWithSweet('${code.code}')" class="text-yellow-600 hover:text-yellow-900">⏸️ Desactivar</button>` :
+                  '<span class="text-gray-400">-</span>'
+                }
+                <button onclick="deleteCodeWithSweet('${code.id}', '${code.code}')" class="text-red-600 hover:text-red-900">🗑️ Eliminar</button>
+              </div>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+    } catch (error) {
+      // Silently fail
+    }
+  }
+
+  // Obtener badge de estado
+  function getStatusBadge(code: any) {
+    if (!code.is_active) {
+      return '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Desactivado</span>';
+    }
+    
+    if (code.current_uses >= code.max_uses) {
+      return '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Usado</span>';
+    }
+    
+    if (code.expires_at && new Date() > new Date(code.expires_at)) {
+      return '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Expirado</span>';
+    }
+    
+    return '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Activo</span>';
+  }
+
+  // Copiar código al portapapeles
+  function copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text).then(() => {
+      (window as any).showSweetAlert('success', 'Copiado', 'Código copiado al portapapeles', 1500);
+    }).catch(() => {
+      (window as any).showSweetAlert('error', 'Error', 'No se pudo copiar al portapapeles');
+    });
+  }
+
+  // Desactivar código (con confirmación)
+  async function deactivateCodeWithSweet(code: string) {
+    const result = await (window as any).showSweetConfirm(
+      'Desactivar Código',
+      `¿Estás seguro de que deseas desactivar el código ${code}?`,
+      'Sí, desactivar',
+      'Cancelar'
+    );
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const response = await fetch(`/api/admin/invitation-codes/${code}/deactivate`, {
+        method: 'POST'
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        (window as any).showSweetAlert('success', 'Desactivado', 'El código ha sido desactivado', 2000);
+        loadInvitationCodes();
+        loadStatistics();
+      } else {
+        (window as any).showSweetAlert('error', 'Error', data.message);
+      }
+    } catch (error) {
+      (window as any).showSweetAlert('error', 'Error', 'No se pudo desactivar el código');
+    }
+  }
+
+  // Eliminar código (con confirmación)
+  async function deleteCodeWithSweet(id: string, code: string) {
+    const result = await (window as any).showSweetConfirm(
+      'Eliminar Código',
+      `¿Estás seguro de que deseas eliminar permanentemente el código "${code}"?\n\nEsta acción no se puede deshacer.`,
+      'Sí, eliminar',
+      'Cancelar'
+    );
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const response = await fetch('/api/admin/invitation-codes', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        (window as any).showSweetAlert('success', 'Eliminado', 'El código ha sido eliminado correctamente', 2000);
+        loadInvitationCodes();
+        loadStatistics();
+      } else {
+        (window as any).showSweetAlert('error', 'Error', data.message);
+      }
+    } catch (error) {
+      (window as any).showSweetAlert('error', 'Error', 'No se pudo eliminar el código');
+    }
+  }
+
+  // Generar nuevo código
+  const generateForm = document.getElementById('generateCodeForm');
+  if (generateForm) {
+    generateForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const formData = new FormData(generateForm as HTMLFormElement);
+      const data = {
+        email: formData.get('email') as string || undefined,
+        description: formData.get('description') as string || undefined,
+        expiresIn: formData.get('expiresIn') ? parseInt(formData.get('expiresIn') as string) : undefined
+      };
+
+      const btnText = document.getElementById('generateBtnText');
+      const btnLoader = document.getElementById('generateBtnLoader');
+      const submitBtn = generateForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+      
+      // Estado de carga
+      submitBtn.disabled = true;
+      btnText!.textContent = 'Generando...';
+      btnLoader!.classList.remove('hidden');
+
+      try {
+        const response = await fetch('/api/admin/invitation-codes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          // Copiar al portapapeles
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(result.data.code);
+          }
+
+          // Mostrar alerta de éxito con el código generado
+          (window as any).showSweetAlert(
+            'success',
+            '¡Código Generado!',
+            `Código: ${result.data.code}\n\n✓ Copiado al portapapeles`,
+            3000
+          );
+
+          // Limpiar formulario
+          (generateForm as HTMLFormElement).reset();
+
+          // Recargar datos
+          loadInvitationCodes();
+          loadStatistics();
+        } else {
+          (window as any).showSweetAlert('error', 'Error', result.message);
+        }
+      } catch (error) {
+        (window as any).showSweetAlert('error', 'Error', 'No se pudo generar el código');
+      } finally {
+        // Restaurar estado del botón
+        submitBtn.disabled = false;
+        btnText!.textContent = 'Generar Código';
+        btnLoader!.classList.add('hidden');
+      }
+    });
+  }
+
+  // Botón de actualizar
+  const refreshBtn = document.getElementById('refreshCodes');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      loadInvitationCodes();
+      loadStatistics();
+    });
+  }
+
+  // Cargar datos al inicio
+  loadStatistics();
+  loadInvitationCodes();
+
+  // Hacer funciones globales para onclick
+  (window as any).copyToClipboard = copyToClipboard;
+  (window as any).deactivateCode = deactivateCode;
+  (window as any).deleteCode = deleteCode;
+</script>
+
+<!-- SweetAlert2 CDN -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+  // Verificar que SweetAlert2 se cargó correctamente
+  window.addEventListener('load', function() {
+    // console.log('🎨 SweetAlert2 disponible en códigos de invitación:', typeof (window as any).Swal !== 'undefined');
+  });
+
+  // Reemplazar las funciones de alerta nativas para usar SweetAlert2
+  const originalAlert = window.alert;
+  const originalConfirm = window.confirm;
+
+  // Función helper para mostrar alertas con SweetAlert2
+  function showSweetAlert(type: string, title: string, message: string, timer?: number) {
+    if (typeof (window as any).Swal === 'undefined') {
+      originalAlert.call(window, `${title}: ${message}`);
+      return;
+    }
+    
+    const config: any = {
+      icon: type,
+      title: title,
+      text: message,
+      confirmButtonColor: '#3B82F6'
+    };
+    
+    if (timer) {
+      config.timer = timer;
+      config.showConfirmButton = false;
+    }
+    
+    return (window as any).Swal.fire(config);
+  }
+
+  // Función para confirmaciones con SweetAlert2
+  function showSweetConfirm(title: string, text: string, confirmText: string = 'Sí, continuar', cancelText: string = 'Cancelar') {
+    if (typeof (window as any).Swal === 'undefined') {
+      return Promise.resolve({ isConfirmed: originalConfirm.call(window, `${title}\n\n${text}`) });
+    }
+    
+    return (window as any).Swal.fire({
+      title: title,
+      text: text,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#3B82F6',
+      cancelButtonColor: '#6B7280',
+      confirmButtonText: confirmText,
+      cancelButtonText: cancelText
+    });
+  }
+
+  // Función para mostrar códigos generados con SweetAlert2
+  function showCodeGenerated(code: string) {
+    return (window as any).Swal.fire({
+      icon: 'success',
+      title: '¡Código generado exitosamente!',
+      html: `
+        <div class="text-center">
+          <p class="mb-4">El código de invitación ha sido generado:</p>
+          <div class="bg-gray-100 p-4 rounded-lg font-mono text-lg font-bold text-blue-600">
+            ${code}
+          </div>
+          <button onclick="navigator.clipboard.writeText('${code}'); 
+                  (window as any).Swal.fire({icon: 'success', title: 'Copiado', text: 'Código copiado al portapapeles', timer: 1500, showConfirmButton: false});" 
+                  class="mt-3 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+            📋 Copiar código
+          </button>
+        </div>
+      `,
+      confirmButtonColor: '#3B82F6',
+      confirmButtonText: 'Continuar'
+    });
+  }
+
+  // Mejorar las funciones de eliminar y desactivar para usar SweetAlert2
+  async function deleteCodeWithSweet(id: string, code: string) {
+    const result = await showSweetConfirm(
+      '¿Eliminar código?',
+      `¿Estás seguro de que deseas eliminar permanentemente el código "${code}"?\n\nEsta acción no se puede deshacer.`,
+      '🗑️ Sí, eliminar',
+      '❌ Cancelar'
+    );
+
+    if (result.isConfirmed) {
+      try {
+        const response = await fetch('/api/admin/invitation-codes', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id }),
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+          showSweetAlert('success', '¡Eliminado!', 'El código ha sido eliminado correctamente', 2000);
+          (window as any).loadInvitationCodes();
+          (window as any).loadStatistics();
+        } else {
+          showSweetAlert('error', 'Error', data.message);
+        }
+      } catch (error) {
+        showSweetAlert('error', 'Error', 'No se pudo eliminar el código');
+      }
+    }
+  }
+
+  async function deactivateCodeWithSweet(code: string) {
+    const result = await showSweetConfirm(
+      '¿Desactivar código?',
+      `¿Estás seguro de que deseas desactivar el código "${code}"?`,
+      '⏸️ Sí, desactivar',
+      '❌ Cancelar'
+    );
+
+    if (result.isConfirmed) {
+      try {
+        const response = await fetch(`/api/admin/invitation-codes/${code}/deactivate`, {
+          method: 'POST'
+        });
+          
+        const data = await response.json();
+        
+        if (data.success) {
+          showSweetAlert('success', '¡Desactivado!', 'El código ha sido desactivado', 2000);
+          (window as any).loadInvitationCodes();
+          (window as any).loadStatistics();
+        } else {
+          showSweetAlert('error', 'Error', data.message);
+        }
+      } catch (error) {
+        showSweetAlert('error', 'Error', 'No se pudo desactivar el código');
+      }
+    }
+  }
+
+  // Hacer las funciones disponibles globalmente
+  (window as any).showSweetAlert = showSweetAlert;
+  (window as any).showSweetConfirm = showSweetConfirm;
+  (window as any).showCodeGenerated = showCodeGenerated;
+  (window as any).deleteCodeWithSweet = deleteCodeWithSweet;
+  (window as any).deactivateCodeWithSweet = deactivateCodeWithSweet;
+</script>

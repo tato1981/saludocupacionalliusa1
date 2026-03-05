@@ -1,0 +1,561 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { requireAuth, hasRole } from '../../../lib/auth';
+
+const user = requireAuth(Astro.cookies);
+if (!hasRole(user, 'staff')) {
+  return Astro.redirect('/auth/login');
+}
+---
+
+<Layout title="Gestión de Citas - Panel Admin">
+  <div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white shadow">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center py-4">
+          <div class="flex items-center space-x-4">
+            <a href="/dashboard" class="text-gray-500 hover:text-gray-700">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+              </svg>
+            </a>
+            <h1 class="text-2xl font-bold text-gray-900">Gestión de Citas</h1>
+          </div>
+          <div class="flex space-x-3">
+            <a 
+              href="/admin/appointments/new" 
+              class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              Nueva Cita
+            </a>
+            <a 
+              href="/admin/patients" 
+              class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+              Gestión de Pacientes
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      
+      <!-- Estadísticas rápidas -->
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
+        <div class="bg-white p-6 rounded-lg shadow">
+          <div class="flex items-center">
+            <div class="p-2 bg-blue-100 rounded-lg">
+              <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600">Total Citas</p>
+              <p class="text-2xl font-bold text-gray-900" id="totalAppointments">-</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card p-6">
+          <div class="flex items-center">
+            <div class="p-2 bg-yellow-100 rounded-lg">
+              <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600">Programadas</p>
+              <p class="text-2xl font-bold text-gray-900" id="scheduledAppointments">-</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card p-6">
+          <div class="flex items-center">
+            <div class="p-2 bg-orange-100 rounded-lg">
+              <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600">En Progreso</p>
+              <p class="text-2xl font-bold text-gray-900" id="inProgressAppointments">-</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card p-6">
+          <div class="flex items-center">
+            <div class="p-2 bg-green-100 rounded-lg">
+              <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600">Completadas</p>
+              <p class="text-2xl font-bold text-gray-900" id="completedAppointments">-</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card p-6">
+          <div class="flex items-center">
+            <div class="p-2 bg-red-100 rounded-lg">
+              <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600">Canceladas</p>
+              <p class="text-2xl font-bold text-gray-900" id="cancelledAppointments">-</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filtros y controles -->
+      <div class="card p-6 mb-6">
+        <div class="flex flex-col xl:flex-row gap-4 xl:items-center xl:justify-between">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full xl:w-auto">
+            <select id="statusFilter" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 w-full">
+              <option value="">Todos los estados</option>
+              <option value="programada">Programadas</option>
+              <option value="en_progreso">En progreso</option>
+              <option value="completada">Completadas</option>
+              <option value="cancelada">Canceladas</option>
+              <option value="no_asistio">No asistieron</option>
+            </select>
+            <select id="doctorFilter" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 w-full">
+              <option value="">Todos los doctores</option>
+              <!-- Se cargan dinámicamente -->
+            </select>
+            <select id="companyFilter" class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 w-full">
+              <option value="">Todas las empresas</option>
+              <!-- Se cargan dinámicamente -->
+            </select>
+            <input 
+              type="date" 
+              id="dateFilter"
+              class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500 w-full"
+            />
+          </div>
+          <div class="flex flex-wrap items-center gap-3 justify-end shrink-0">
+            <button 
+              id="exportCsvBtn" 
+              class="inline-flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium shadow-sm border border-gray-200 transition-colors whitespace-nowrap"
+            >
+              <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v10M16 7v10M4 7h16M4 17h16"/></svg>
+              Exportar CSV
+            </button>
+            <button 
+              id="exportPdfBtn" 
+              class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium shadow-sm transition-colors whitespace-nowrap"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              Descargar PDF
+            </button>
+            <button 
+              id="refreshBtn"
+              class="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              Actualizar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lista de todas las citas -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h2 class="text-lg font-medium text-gray-900">Todas las Citas del Sistema</h2>
+        </div>
+        
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha/Hora</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paciente</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Doctor</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Motivo</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Última Actualización</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="appointmentsTableBody" class="bg-white divide-y divide-gray-200">
+              <!-- Se carga dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Loading state -->
+        <div id="loadingState" class="text-center py-8">
+          <div class="inline-flex items-center">
+            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Cargando citas...
+          </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+          <span class="text-sm text-gray-700" id="resultsCount">Mostrando 0 resultados</span>
+          <div class="flex space-x-2">
+            <button id="prevBtn" class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50" disabled>Anterior</button>
+            <button id="nextBtn" class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50" disabled>Siguiente</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  let allAppointments: any[] = [];
+  let filteredAppointments: any[] = [];
+  let doctors: any[] = [];
+  let companies: any[] = [];
+  let currentPage = 1;
+  const itemsPerPage = 10;
+
+  // Función helper para mostrar alertas usando la función global
+  function showAlert(type: 'success' | 'error' | 'warning' | 'info', title: string, message?: string) {
+    // @ts-ignore
+    window.showAlert?.(type, title, message);
+  }
+
+  // Cargar datos iniciales
+  document.addEventListener('DOMContentLoaded', () => {
+    loadAppointments();
+    loadDoctors();
+    loadCompanies();
+    setupFilters();
+    setupExportButtons();
+  });
+
+  function setupExportButtons() {
+    document.getElementById('exportCsvBtn')?.addEventListener('click', () => exportToCsv(filteredAppointments));
+    document.getElementById('exportPdfBtn')?.addEventListener('click', () => downloadPdf());
+  }
+
+  function exportToCsv(data: any[]) {
+    const headers = [
+      'Fecha', 'Hora', 'Paciente', 'Documento', 'Empresa', 
+      'Doctor', 'Especialidad', 'Tipo Cita', 'Estado', 'Motivo'
+    ];
+    
+    const rows = data.map(app => [
+      new Date(app.appointment_date).toLocaleDateString('es-ES'),
+      app.appointment_time || new Date(app.appointment_date).toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'}),
+      app.patient_name,
+      app.patient_document,
+      app.patient_company || 'Sin empresa',
+      app.doctor_name,
+      app.doctor_specialization || 'Medicina General',
+      app.appointment_type || 'Consulta general',
+      getStatusText(app.status),
+      app.reason || '-'
+    ]);
+
+    const csvContent = [
+      headers.join(','), 
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `citas_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  function downloadPdf() {
+    const statusFilter = document.getElementById('statusFilter') as HTMLSelectElement;
+    const doctorFilter = document.getElementById('doctorFilter') as HTMLSelectElement;
+    const companyFilter = document.getElementById('companyFilter') as HTMLSelectElement;
+    const dateFilter = document.getElementById('dateFilter') as HTMLInputElement;
+
+    const params = new URLSearchParams();
+    if (statusFilter.value) params.append('status', statusFilter.value);
+    if (doctorFilter.value) params.append('doctorId', doctorFilter.value);
+    if (companyFilter.value) params.append('companyId', companyFilter.value);
+    if (dateFilter.value) params.append('date', dateFilter.value);
+
+    window.location.href = `/api/admin/appointments/export-pdf?${params.toString()}`;
+  }
+
+  function setupFilters() {
+    const statusFilter = document.getElementById('statusFilter') as HTMLSelectElement;
+    const doctorFilter = document.getElementById('doctorFilter') as HTMLSelectElement;
+    const companyFilter = document.getElementById('companyFilter') as HTMLSelectElement;
+    const dateFilter = document.getElementById('dateFilter') as HTMLInputElement;
+    const refreshBtn = document.getElementById('refreshBtn')!;
+
+    function applyFilters() {
+      const status = statusFilter.value;
+      const doctorId = doctorFilter.value;
+      const companyId = companyFilter.value;
+      const date = dateFilter.value;
+
+      filteredAppointments = allAppointments.filter(app => {
+        const matchesStatus = !status || app.status === status;
+        const matchesDoctor = !doctorId || app.doctor_id == doctorId;
+        // Check if company name matches or ID (simplified for now as we load companies list)
+        // If company filter is selected, we check against patient_company
+        const matchesCompany = !companyId || (app.patient_company && app.patient_company === getCompanyNameById(companyId));
+        
+        let matchesDate = true;
+        if (date) {
+          const appDate = new Date(app.appointment_date).toISOString().split('T')[0];
+          matchesDate = appDate === date;
+        }
+
+        return matchesStatus && matchesDoctor && matchesCompany && matchesDate;
+      });
+
+      currentPage = 1;
+      renderAppointments(filteredAppointments);
+    }
+
+    statusFilter.addEventListener('change', applyFilters);
+    doctorFilter.addEventListener('change', applyFilters);
+    companyFilter.addEventListener('change', applyFilters);
+    dateFilter.addEventListener('change', applyFilters);
+    refreshBtn.addEventListener('click', loadAppointments);
+  }
+
+  function getCompanyNameById(id: string) {
+    const company = companies.find(c => c.id == id);
+    return company ? company.name : '';
+  }
+
+  // Cargar empresas para el filtro
+  async function loadCompanies() {
+    try {
+      const response = await fetch('/api/admin/companies/list'); 
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          companies = data.data;
+          const companyFilter = document.getElementById('companyFilter') as HTMLSelectElement;
+          companyFilter.innerHTML = '<option value="">Todas las empresas</option>' +
+            companies.map(c => 
+              `<option value="${c.id}">${c.name}</option>`
+            ).join('');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading companies', error);
+    }
+  }
+
+  // Cargar citas del sistema
+  async function loadAppointments() {
+    const loadingState = document.getElementById('loadingState')!;
+    const tableBody = document.getElementById('appointmentsTableBody')!;
+    
+    loadingState.classList.remove('hidden');
+    
+    try {
+      const response = await fetch('/api/admin/appointments');
+      const data = await response.json();
+      
+      if (data.success) {
+        allAppointments = data.data;
+        filteredAppointments = [...allAppointments];
+        renderAppointments(filteredAppointments);
+        updateStatistics(allAppointments);
+      }
+    } catch (error) {
+      // Silently fail
+    } finally {
+      loadingState.classList.add('hidden');
+    }
+  }
+
+  // Cargar doctores para el filtro
+  async function loadDoctors() {
+    try {
+      const response = await fetch('/api/admin/doctors');
+      const data = await response.json();
+      
+      if (data.success) {
+        doctors = data.data;
+        const doctorFilter = document.getElementById('doctorFilter') as HTMLSelectElement;
+        doctorFilter.innerHTML = '<option value="">Todos los doctores</option>' +
+          doctors.map(doctor => 
+            `<option value="${doctor.id}">${doctor.name} - ${doctor.specialization}</option>`
+          ).join('');
+      }
+    } catch (error) {
+      // Silently fail
+    }
+  }
+
+  // Actualizar estadísticas
+  function updateStatistics(appointments: any[]) {
+    const total = appointments.length;
+    const scheduled = appointments.filter(app => app.status === 'programada').length;
+    const inProgress = appointments.filter(app => app.status === 'en_progreso').length;
+    const completed = appointments.filter(app => app.status === 'completada').length;
+    const cancelled = appointments.filter(app => app.status === 'cancelada' || app.status === 'no_asistio').length;
+    
+    document.getElementById('totalAppointments')!.textContent = total.toString();
+    document.getElementById('scheduledAppointments')!.textContent = scheduled.toString();
+    document.getElementById('inProgressAppointments')!.textContent = inProgress.toString();
+    document.getElementById('completedAppointments')!.textContent = completed.toString();
+    document.getElementById('cancelledAppointments')!.textContent = cancelled.toString();
+  }
+
+  // Renderizar tabla de citas
+  function renderAppointments(appointments: any[]) {
+    const tableBody = document.getElementById('appointmentsTableBody')!;
+    const countSpan = document.getElementById('resultsCount')!;
+    const prevBtn = document.getElementById('prevBtn') as HTMLButtonElement;
+    const nextBtn = document.getElementById('nextBtn') as HTMLButtonElement;
+    
+    // Pagination Logic
+    const totalPages = Math.ceil(appointments.length / itemsPerPage);
+    
+    // Ensure currentPage is valid
+    if (currentPage < 1) currentPage = 1;
+    if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+    
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    const paginatedItems = appointments.slice(start, end);
+
+    if (appointments.length === 0) {
+      countSpan.textContent = 'Mostrando 0 resultados';
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+            No se encontraron citas
+          </td>
+        </tr>
+      `;
+      prevBtn.disabled = true;
+      nextBtn.disabled = true;
+      return;
+    }
+
+    countSpan.textContent = `Mostrando ${start + 1}-${Math.min(end, appointments.length)} de ${appointments.length} resultados`;
+
+    // Update buttons
+    prevBtn.disabled = currentPage === 1;
+    nextBtn.disabled = currentPage === totalPages;
+
+    // Remove existing event listeners (to avoid duplicates)
+    const newPrevBtn = prevBtn.cloneNode(true);
+    const newNextBtn = nextBtn.cloneNode(true);
+    prevBtn.parentNode!.replaceChild(newPrevBtn, prevBtn);
+    nextBtn.parentNode!.replaceChild(newNextBtn, nextBtn);
+    
+    // Add event listeners
+    newPrevBtn.addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            renderAppointments(appointments);
+        }
+    });
+
+    newNextBtn.addEventListener('click', () => {
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderAppointments(appointments);
+        }
+    });
+
+    tableBody.innerHTML = paginatedItems.map(appointment => `
+      <tr class="hover:bg-gray-50">
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+          <div>
+            ${new Date(appointment.appointment_date).toLocaleDateString('es-ES')}
+          </div>
+          <div class="text-gray-500">
+            ${appointment.appointment_time || new Date(appointment.appointment_date).toLocaleTimeString('es-ES', {
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+          <div class="text-sm font-medium text-gray-900">${appointment.patient_name}</div>
+          <div class="text-sm text-gray-500">${appointment.patient_document}</div>
+          <div class="text-sm text-gray-500">${appointment.patient_company || 'Sin empresa'}</div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+          <div class="text-sm font-medium text-gray-900">${appointment.doctor_name}</div>
+          <div class="text-sm text-gray-500">${appointment.doctor_specialization || 'Medicina General'}</div>
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+          ${appointment.appointment_type || 'Consulta general'}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap">
+          <span class="px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeClass(appointment.status)}">
+            ${getStatusText(appointment.status)}
+          </span>
+        </td>
+        <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+          ${appointment.reason || '-'}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+          ${appointment.updated_at ? new Date(appointment.updated_at).toLocaleString('es-ES') : 
+            new Date(appointment.created_at).toLocaleString('es-ES')}
+        </td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+          <div class="flex space-x-2">
+            <button onclick="viewPatient(${appointment.patient_id})" class="text-blue-600 hover:text-blue-900">Ver Paciente</button>
+            <button onclick="viewDoctor(${appointment.doctor_id})" class="text-purple-600 hover:text-purple-900">Ver Doctor</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // Obtener clase CSS para el estado
+  function getStatusBadgeClass(status: string): string {
+    switch (status) {
+      case 'programada': return 'bg-blue-100 text-blue-800';
+      case 'en_progreso': return 'bg-yellow-100 text-yellow-800';
+      case 'completada': return 'bg-green-100 text-green-800';
+      case 'cancelada': return 'bg-red-100 text-red-800';
+      case 'no_asistio': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  }
+
+  // Obtener texto del estado
+  function getStatusText(status: string): string {
+    switch (status) {
+      case 'programada': return 'Programada';
+      case 'en_progreso': return 'En progreso';
+      case 'completada': return 'Completada';
+      case 'cancelada': return 'Cancelada';
+      case 'no_asistio': return 'No asistió';
+      default: return status;
+    }
+  }
+
+  // Funciones de acción
+  (window as any).viewPatient = (patientId: number) => {
+    window.location.href = `/admin/patients/${patientId}`;
+  };
+
+  (window as any).viewDoctor = (doctorId: number) => {
+    window.location.href = `/admin/doctors/${doctorId}`;
+  };
+</script>

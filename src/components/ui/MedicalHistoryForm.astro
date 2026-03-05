@@ -1,0 +1,1431 @@
+---
+// Componente de formulario para Historia Médica Ocupacional
+// Incluye cálculos automáticos y validaciones según estándares OMS
+---
+
+<div class="bg-white shadow-lg rounded-lg p-3 sm:p-4 md:p-6">
+  <form id="medicalHistoryForm" class="space-y-6 md:space-y-8">
+    <!-- Información básica -->
+    <div class="border-b border-gray-200 pb-4 md:pb-6">
+      <h3 class="text-lg md:text-xl font-semibold text-gray-900 mb-3 md:mb-4">Información de la Consulta</h3>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+        <div>
+          <label for="symptoms" class="block text-sm font-medium text-gray-700 mb-1">
+            Motivo de consulta / Síntomas principales *
+          </label>
+          <textarea 
+            id="symptoms" 
+            name="symptoms" 
+            rows="3" 
+            required
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Describa el motivo principal de la consulta..."></textarea>
+        </div>
+        
+        <div>
+          <label for="currentIllness" class="block text-sm font-medium text-gray-700 mb-1">
+            Enfermedad actual
+          </label>
+          <textarea 
+            id="currentIllness" 
+            name="currentIllness" 
+            rows="3"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Detalle la evolución de la enfermedad actual..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Antecedentes -->
+    <div class="border-b border-gray-200 pb-4 md:pb-6">
+      <h3 class="text-lg md:text-xl font-semibold text-gray-900 mb-3 md:mb-4">Antecedentes</h3>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+        <div>
+          <label for="personalHistory" class="block text-sm font-medium text-gray-700 mb-1">
+            Antecedentes personales
+          </label>
+          <textarea 
+            id="personalHistory" 
+            name="personalHistory" 
+            rows="3"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Enfermedades previas, alergias, medicamentos..."></textarea>
+        </div>
+        
+        <div>
+          <label for="familyHistory" class="block text-sm font-medium text-gray-700 mb-1">
+            Antecedentes familiares
+          </label>
+          <textarea 
+            id="familyHistory" 
+            name="familyHistory" 
+            rows="3"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Enfermedades hereditarias, factores de riesgo..."></textarea>
+        </div>
+        
+        <div>
+          <label for="surgicalHistory" class="block text-sm font-medium text-gray-700 mb-1">
+            Antecedentes quirúrgicos
+          </label>
+          <textarea 
+            id="surgicalHistory" 
+            name="surgicalHistory" 
+            rows="2"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Cirugías previas, complicaciones..."></textarea>
+        </div>
+        
+        <div>
+          <label for="occupationalHistory" class="block text-sm font-medium text-gray-700 mb-1">
+            Antecedentes ocupacionales
+          </label>
+          <textarea 
+            id="occupationalHistory" 
+            name="occupationalHistory" 
+            rows="2"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Exposiciones laborales, riesgos ocupacionales..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Signos vitales y medidas antropométricas -->
+    <div class="border-b border-gray-200 pb-4 md:pb-6">
+      <h3 class="text-lg md:text-xl font-semibold text-gray-900 mb-3 md:mb-4">Signos Vitales y Medidas Antropométricas</h3>
+      
+      <!-- Presión arterial -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
+        <div>
+          <label for="systolicPressure" class="block text-sm font-medium text-gray-700 mb-1">
+            Presión sistólica (mmHg)
+          </label>
+          <input 
+            type="number" 
+            id="systolicPressure" 
+            name="systolicPressure" 
+            min="60" 
+            max="250"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="120">
+        </div>
+        
+        <div>
+          <label for="diastolicPressure" class="block text-sm font-medium text-gray-700 mb-1">
+            Presión diastólica (mmHg)
+          </label>
+          <input 
+            type="number" 
+            id="diastolicPressure" 
+            name="diastolicPressure" 
+            min="40" 
+            max="150"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="80">
+        </div>
+        
+        <div>
+          <label for="heartRate" class="block text-sm font-medium text-gray-700 mb-1">
+            Frecuencia cardíaca (lpm)
+          </label>
+          <input 
+            type="number" 
+            id="heartRate" 
+            name="heartRate" 
+            min="30" 
+            max="200"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="72">
+        </div>
+        
+        <div>
+          <label for="respiratoryRate" class="block text-sm font-medium text-gray-700 mb-1">
+            Frecuencia respiratoria (rpm)
+          </label>
+          <input 
+            type="number" 
+            id="respiratoryRate" 
+            name="respiratoryRate" 
+            min="8" 
+            max="40"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="16">
+        </div>
+      </div>
+      
+      <!-- Alertas de presión arterial -->
+      <div id="bloodPressureAlert" class="hidden mb-3 md:mb-4 p-3 md:p-4 rounded-md">
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <svg class="h-4 w-4 md:h-5 md:w-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <div class="ml-2 md:ml-3">
+            <p class="text-xs md:text-sm font-medium" id="bloodPressureMessage"></p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Medidas antropométricas -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-4">
+        <div>
+          <label for="height" class="block text-sm font-medium text-gray-700 mb-1">
+            Estatura (cm) *
+          </label>
+          <input 
+            type="number" 
+            id="height" 
+            name="height" 
+            min="100" 
+            max="250" 
+            step="0.1"
+            required
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="170.0">
+        </div>
+        
+        <div>
+          <label for="weight" class="block text-sm font-medium text-gray-700 mb-1">
+            Peso (kg) *
+          </label>
+          <input 
+            type="number" 
+            id="weight" 
+            name="weight" 
+            min="20" 
+            max="300" 
+            step="0.1"
+            required
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="70.0">
+        </div>
+        
+        <div>
+          <label for="temperature" class="block text-sm font-medium text-gray-700 mb-1">
+            Temperatura (°C)
+          </label>
+          <input 
+            type="number" 
+            id="temperature" 
+            name="temperature" 
+            min="35" 
+            max="42" 
+            step="0.1"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="36.5">
+        </div>
+        
+        <div>
+          <label for="oxygenSaturation" class="block text-sm font-medium text-gray-700 mb-1">
+            Saturación O₂ (%)
+          </label>
+          <input 
+            type="number" 
+            id="oxygenSaturation" 
+            name="oxygenSaturation" 
+            min="70" 
+            max="100"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="98">
+        </div>
+      </div>
+      
+      <!-- Cálculo automático de IMC -->
+      <div id="bmiCalculation" class="hidden bg-blue-50 border border-blue-200 rounded-md p-3 md:p-4">
+        <h4 class="font-semibold text-blue-900 mb-2 text-sm md:text-base">Cálculo Automático de IMC</h4>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4 text-xs md:text-sm">
+          <div>
+            <span class="font-medium">IMC:</span> 
+            <span id="bmiValue" class="font-bold text-blue-600"></span>
+          </div>
+          <div>
+            <span class="font-medium">Clasificación:</span> 
+            <span id="bmiClassification" class="font-bold"></span>
+          </div>
+          <div>
+            <span class="font-medium">Riesgo:</span> 
+            <span id="bmiRisk" class="font-bold"></span>
+          </div>
+        </div>
+        <div class="mt-3">
+          <h5 class="font-medium text-blue-900 mb-1">Recomendaciones automáticas:</h5>
+          <ul id="bmiRecommendations" class="list-disc list-inside text-sm text-blue-700 space-y-1"></ul>
+        </div>
+      </div>
+
+      <!-- Estado General del Paciente -->
+      <div id="patientHealthStatus" class="hidden mt-4 md:mt-6 p-4 md:p-6 rounded-lg border-2">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
+          <h3 class="text-lg md:text-xl font-bold flex items-center">
+            <span id="statusIcon" class="mr-2 md:mr-3 text-xl md:text-2xl"></span>
+            <span id="statusTitle" class="text-sm md:text-base lg:text-lg">Estado General del Paciente</span>
+          </h3>
+          <div id="statusBadge" class="px-3 md:px-4 py-1 md:py-2 rounded-full text-xs md:text-sm font-bold self-start sm:self-auto"></div>
+        </div>
+        
+        <div id="statusDescription" class="mb-4 text-xs md:text-sm"></div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+          <div>
+            <h4 class="font-semibold mb-2 text-gray-700 text-xs md:text-sm">📊 Signos Vitales Evaluados:</h4>
+            <ul id="vitalSignsStatus" class="space-y-1 text-xs md:text-sm"></ul>
+          </div>
+          <div>
+            <h4 class="font-semibold mb-2 text-gray-700 text-xs md:text-sm">💡 Recomendaciones Prioritarias:</h4>
+            <ul id="priorityRecommendations" class="space-y-1 text-xs md:text-sm"></ul>
+          </div>
+        </div>
+        
+        <div class="mt-4 p-2 md:p-3 bg-gray-50 rounded-md">
+          <p class="text-xs md:text-sm text-gray-600">
+            <strong>Nota:</strong> Esta evaluación se basa en estándares de la OMS y debe ser interpretada por personal médico calificado.
+          </p>
+        </div>
+      </div>
+
+      <!-- Alertas Individuales de Signos Vitales -->
+      <div id="individualAlerts" class="space-y-2 md:space-y-3 mt-3 md:mt-4"></div>
+    </div>
+
+    <!-- Examen físico -->
+    <div class="border-b border-gray-200 pb-4 md:pb-6">
+      <h3 class="text-lg md:text-xl font-semibold text-gray-900 mb-3 md:mb-4">Examen Físico</h3>
+      <div>
+        <label for="physicalExam" class="block text-sm font-medium text-gray-700 mb-1">
+          Hallazgos del examen físico
+        </label>
+        <textarea 
+          id="physicalExam" 
+          name="physicalExam" 
+          rows="4"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="Describa los hallazgos del examen físico por sistemas..."></textarea>
+      </div>
+    </div>
+
+    <!-- Evaluación ocupacional -->
+    <div class="border-b border-gray-200 pb-4 md:pb-6">
+      <h3 class="text-lg md:text-xl font-semibold text-gray-900 mb-3 md:mb-4">Evaluación Ocupacional</h3>
+      
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-4">
+        <div>
+          <label for="workEnvironmentRisk" class="block text-sm font-medium text-gray-700 mb-1">
+            Riesgos del ambiente laboral
+          </label>
+          <textarea 
+            id="workEnvironmentRisk" 
+            name="workEnvironmentRisk" 
+            rows="2"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Describa los riesgos identificados en el puesto de trabajo..."></textarea>
+        </div>
+        
+        <div>
+          <label for="psychologicalStressLevel" class="block text-sm font-medium text-gray-700 mb-1">
+            Nivel de estrés psicológico
+          </label>
+          <select 
+            id="psychologicalStressLevel" 
+            name="psychologicalStressLevel"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            <option value="">Seleccionar nivel</option>
+            <option value="bajo">Bajo</option>
+            <option value="moderado">Moderado</option>
+            <option value="alto">Alto</option>
+            <option value="muy_alto">Muy alto</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-3">Exposiciones ocupacionales</label>
+          <div class="space-y-2">
+            <label class="flex items-center">
+              <input type="checkbox" id="exposureChemicals" name="exposureChemicals" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0">
+              <span class="ml-2 text-xs md:text-sm text-gray-700">Exposición a químicos</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" id="exposureNoise" name="exposureNoise" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0">
+              <span class="ml-2 text-xs md:text-sm text-gray-700">Exposición a ruido</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" id="exposureRadiation" name="exposureRadiation" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0">
+              <span class="ml-2 text-xs md:text-sm text-gray-700">Exposición a radiación</span>
+            </label>
+            <label class="flex items-center">
+              <input type="checkbox" id="ergonomicRisks" name="ergonomicRisks" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0">
+              <span class="ml-2 text-xs md:text-sm text-gray-700">Riesgos ergonómicos</span>
+            </label>
+          </div>
+        </div>
+        
+        <div>
+          <label for="fitnessForWork" class="block text-sm font-medium text-gray-700 mb-1">
+            Aptitud para el trabajo *
+          </label>
+          <select
+            id="fitnessForWork"
+            name="fitnessForWork"
+            required
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3">
+            <option value="" disabled selected>Seleccionar aptitud</option>
+            <option value="apto">Apto</option>
+            <option value="apto_con_restricciones">Apto con restricciones</option>
+            <option value="no_apto">No apto</option>
+            <option value="aplazado">Aplazado</option>
+          </select>
+          
+          <label for="workRestrictions" class="block text-sm font-medium text-gray-700 mb-1">
+            Restricciones laborales (si aplica)
+          </label>
+          <textarea 
+            id="workRestrictions" 
+            name="workRestrictions" 
+            rows="2"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Especifique las restricciones o limitaciones..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Diagnóstico y tratamiento -->
+    <div class="border-b border-gray-200 pb-4 md:pb-6">
+      <h3 class="text-lg md:text-xl font-semibold text-gray-900 mb-3 md:mb-4">Diagnóstico y Tratamiento</h3>
+      
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-4">
+        <div>
+          <label for="diagnosis" class="block text-sm font-medium text-gray-700 mb-1">
+            Diagnóstico principal *
+          </label>
+          <textarea 
+            id="diagnosis" 
+            name="diagnosis" 
+            rows="3"
+            required
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Diagnóstico principal y diferenciales..."></textarea>
+        </div>
+        
+        <div>
+          <label for="cie10Code" class="block text-sm font-medium text-gray-700 mb-1">
+            Código CIE-10
+          </label>
+          <input 
+            type="text" 
+            id="cie10Code" 
+            name="cie10Code" 
+            maxlength="20"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
+            placeholder="Ej: Z02.1 (máx. 20 caracteres)">
+          
+          <label for="treatment" class="block text-sm font-medium text-gray-700 mb-1">
+            Plan de tratamiento *
+          </label>
+          <textarea 
+            id="treatment" 
+            name="treatment" 
+            rows="2"
+            required
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Plan terapéutico y conducta a seguir..."></textarea>
+        </div>
+      </div>
+      
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+        <div>
+          <label for="medications" class="block text-sm font-medium text-gray-700 mb-1">
+            Medicamentos prescritos
+          </label>
+          <textarea 
+            id="medications" 
+            name="medications" 
+            rows="3"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Medicamentos, dosis, frecuencia y duración..."></textarea>
+        </div>
+        
+        <div>
+          <label for="manualRecommendations" class="block text-sm font-medium text-gray-700 mb-1">
+            Recomendaciones adicionales
+          </label>
+          <textarea 
+            id="manualRecommendations" 
+            name="manualRecommendations" 
+            rows="3"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Recomendaciones específicas para el paciente..."></textarea>
+          <small class="text-gray-500">Nota: Las recomendaciones automáticas basadas en signos vitales se agregarán automáticamente</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seguimiento -->
+    <div class="pb-4 md:pb-6">
+      <h3 class="text-lg md:text-xl font-semibold text-gray-900 mb-3 md:mb-4">Seguimiento</h3>
+      
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+        <div>
+          <label for="nextAppointmentDate" class="block text-sm font-medium text-gray-700 mb-1">
+            Próxima cita (si es necesaria)
+          </label>
+          <input 
+            type="date" 
+            id="nextAppointmentDate" 
+            name="nextAppointmentDate"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+        </div>
+        
+        <div>
+          <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">
+            Notas adicionales
+          </label>
+          <textarea 
+            id="notes" 
+            name="notes" 
+            rows="3"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Observaciones, comentarios o notas especiales..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Botones -->
+    <div class="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 pt-4 md:pt-6 border-t border-gray-200">
+      <button 
+        type="button" 
+        id="cancelBtn"
+        class="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 order-2 sm:order-1">
+        Cancelar
+      </button>
+      <button 
+        type="submit"
+        class="w-full sm:w-auto px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 order-1 sm:order-2">
+        <span id="submitText">Guardar Historia Médica</span>
+        <svg id="loadingSpinner" class="hidden animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+// Cálculos automáticos y validaciones
+document.addEventListener('DOMContentLoaded', function() {
+  const weightInput = document.getElementById('weight') as HTMLInputElement;
+  const heightInput = document.getElementById('height') as HTMLInputElement;
+  const systolicInput = document.getElementById('systolicPressure') as HTMLInputElement;
+  const diastolicInput = document.getElementById('diastolicPressure') as HTMLInputElement;
+  const heartRateInput = document.getElementById('heartRate') as HTMLInputElement;
+  const temperatureInput = document.getElementById('temperature') as HTMLInputElement;
+  const oxygenSaturationInput = document.getElementById('oxygenSaturation') as HTMLInputElement;
+  const respiratoryRateInput = document.getElementById('respiratoryRate') as HTMLInputElement;
+  
+  // Calcular IMC automáticamente
+  function calculateBMI() {
+    const weight = parseFloat(weightInput.value);
+    const height = parseFloat(heightInput.value);
+    
+    if (weight && height && weight > 0 && height > 0) {
+      const heightInMeters = height / 100;
+      const bmi = weight / (heightInMeters * heightInMeters);
+      
+      // Mostrar cálculo
+      const bmiCalculation = document.getElementById('bmiCalculation')!;
+      const bmiValue = document.getElementById('bmiValue')!;
+      const bmiClassification = document.getElementById('bmiClassification')!;
+      const bmiRisk = document.getElementById('bmiRisk')!;
+      const bmiRecommendations = document.getElementById('bmiRecommendations')!;
+      
+      bmiCalculation.classList.remove('hidden');
+      bmiValue.textContent = bmi.toFixed(1);
+      
+      // Clasificación según OMS
+      let classification = '';
+      let risk = '';
+      let recommendations: string[] = [];
+      let classColor = '';
+      
+      if (bmi < 18.5) {
+        classification = 'Bajo peso';
+        risk = 'Riesgo de desnutrición';
+        classColor = 'text-blue-600';
+        recommendations = [
+          'Evaluación nutricional detallada',
+          'Consulta con nutricionista',
+          'Incremento gradual de ingesta calórica'
+        ];
+      } else if (bmi >= 18.5 && bmi < 25) {
+        classification = 'Peso normal';
+        risk = 'Riesgo normal';
+        classColor = 'text-green-600';
+        recommendations = [
+          'Mantener peso actual',
+          'Dieta balanceada y ejercicio regular'
+        ];
+      } else if (bmi >= 25 && bmi < 30) {
+        classification = 'Sobrepeso';
+        risk = 'Riesgo aumentado';
+        classColor = 'text-yellow-600';
+        recommendations = [
+          'Reducción de peso gradual (5-10%)',
+          'Plan nutricional personalizado',
+          'Ejercicio aeróbico 150 min/semana'
+        ];
+      } else if (bmi >= 30 && bmi < 35) {
+        classification = 'Obesidad grado I';
+        risk = 'Riesgo alto';
+        classColor = 'text-orange-600';
+        recommendations = [
+          'Pérdida de peso estructurada (10-15%)',
+          'Intervención nutricional intensiva',
+          'Evaluación cardiovascular'
+        ];
+      } else if (bmi >= 35 && bmi < 40) {
+        classification = 'Obesidad grado II';
+        risk = 'Riesgo muy alto';
+        classColor = 'text-red-600';
+        recommendations = [
+          'Pérdida de peso significativa (15-20%)',
+          'Manejo multidisciplinario',
+          'Consideración de farmacoterapia'
+        ];
+      } else {
+        classification = 'Obesidad grado III (mórbida)';
+        risk = 'Riesgo extremo';
+        classColor = 'text-red-800';
+        recommendations = [
+          'Pérdida de peso urgente',
+          'Evaluación para cirugía bariátrica',
+          'Control estricto de comorbilidades'
+        ];
+      }
+      
+      bmiClassification.textContent = classification;
+      bmiClassification.className = `font-bold ${classColor}`;
+      bmiRisk.textContent = risk;
+      bmiRisk.className = `font-bold ${classColor}`;
+      
+      // Mostrar recomendaciones
+      bmiRecommendations.innerHTML = recommendations
+        .map(rec => `<li>${rec}</li>`)
+        .join('');
+    } else {
+      document.getElementById('bmiCalculation')!.classList.add('hidden');
+    }
+  }
+  
+  // Evaluar presión arterial
+  function evaluateBloodPressure() {
+    const systolic = parseFloat(systolicInput.value);
+    const diastolic = parseFloat(diastolicInput.value);
+    
+    if (systolic && diastolic) {
+      const alert = document.getElementById('bloodPressureAlert')!;
+      const message = document.getElementById('bloodPressureMessage')!;
+      
+      let alertClass = '';
+      let alertMessage = '';
+      
+      if (systolic < 120 && diastolic < 80) {
+        alert.classList.add('hidden');
+        return;
+      } else if ((systolic >= 120 && systolic <= 129) && diastolic < 80) {
+        alertClass = 'bg-yellow-50 text-yellow-800 border-yellow-200';
+        alertMessage = '⚠️ Presión arterial elevada - Se recomienda modificaciones de estilo de vida';
+      } else if ((systolic >= 130 && systolic <= 139) || (diastolic >= 80 && diastolic <= 89)) {
+        alertClass = 'bg-orange-50 text-orange-800 border-orange-200';
+        alertMessage = '🔶 Hipertensión estadio 1 - Requiere evaluación médica y posible tratamiento';
+      } else if (systolic >= 140 || diastolic >= 90) {
+        alertClass = 'bg-red-50 text-red-800 border-red-200';
+        alertMessage = '🚨 Hipertensión estadio 2 - Requiere tratamiento farmacológico inmediato';
+      }
+      
+      if (systolic >= 180 || diastolic >= 110) {
+        alertClass = 'bg-red-100 text-red-900 border-red-300';
+        alertMessage = '🆘 CRISIS HIPERTENSIVA - Requiere atención médica inmediata';
+      }
+      
+      if (alertMessage) {
+        alert.className = `p-4 rounded-md ${alertClass}`;
+        alert.classList.remove('hidden');
+        message.textContent = alertMessage;
+      } else {
+        alert.classList.add('hidden');
+      }
+    } else {
+      document.getElementById('bloodPressureAlert')!.classList.add('hidden');
+    }
+  }
+  
+  // Event listeners para cálculos automáticos
+  weightInput.addEventListener('input', calculateBMI);
+  heightInput.addEventListener('input', calculateBMI);
+  systolicInput.addEventListener('input', evaluateBloodPressure);
+  diastolicInput.addEventListener('input', evaluateBloodPressure);
+  
+  // Validación de frecuencia cardíaca con alertas OMS
+  heartRateInput.addEventListener('input', function() {
+    const heartRate = parseFloat(this.value);
+    if (heartRate) {
+      evaluateHeartRate(heartRate);
+    } else {
+      this.style.borderColor = '#d1d5db';
+      this.title = '';
+    }
+  });
+
+  // Función para evaluar frecuencia cardíaca según OMS
+  function evaluateHeartRate(heartRate: number) {
+    const input = heartRateInput;
+    let alertType = '';
+    let alertTitle = '';
+    let alertMessage = '';
+    let recommendations: string[] = [];
+
+    if (heartRate < 60) {
+      input.style.borderColor = '#f59e0b';
+      alertType = 'warning';
+      alertTitle = '⚠️ Bradicardia Detectada';
+      alertMessage = `Frecuencia cardíaca de ${heartRate} lpm está por debajo del rango normal (60-100 lpm).`;
+      recommendations = [
+        'Se requiere evaluación cardiológica',
+        'Realizar electrocardiograma',
+        'Evaluar medicamentos actuales',
+        'Considerar Holter de 24 horas',
+        'Restricción temporal de actividades intensas'
+      ];
+    } else if (heartRate > 100 && heartRate <= 120) {
+      input.style.borderColor = '#f59e0b';
+      alertType = 'warning';
+      alertTitle = '⚠️ Taquicardia Leve';
+      alertMessage = `Frecuencia cardíaca de ${heartRate} lpm está levemente elevada.`;
+      recommendations = [
+        'Evaluar causas subyacentes (ansiedad, cafeína)',
+        'Control de estrés',
+        'Limitación de cafeína',
+        'Evaluación tiroidea',
+        'Seguimiento médico regular'
+      ];
+    } else if (heartRate > 120) {
+      input.style.borderColor = '#ef4444';
+      alertType = 'error';
+      alertTitle = '🚨 Taquicardia Significativa';
+      alertMessage = `Frecuencia cardíaca de ${heartRate} lpm requiere evaluación inmediata.`;
+      recommendations = [
+        'Evaluación cardiológica URGENTE',
+        'Electrocardiograma inmediato',
+        'Control de signos vitales',
+        'Suspensión de esfuerzos intensos',
+        'Considerar derivación a emergencias'
+      ];
+    } else {
+      input.style.borderColor = '#10b981';
+      input.title = 'Frecuencia cardíaca normal';
+      return;
+    }
+
+    // Mostrar alerta con SweetAlert
+    if (typeof (window as any).showSweetAlert === 'function') {
+      const recommendationsText = recommendations.join('\n• ');
+      (window as any).showSweetAlert(
+        alertType, 
+        alertTitle, 
+        `${alertMessage}\n\nRecomendaciones OMS:\n• ${recommendationsText}`
+      );
+    }
+    
+    input.title = alertMessage;
+  }
+
+  // Función mejorada para evaluación de temperatura según OMS
+  temperatureInput.addEventListener('input', function() {
+    const temperature = parseFloat(this.value);
+    if (temperature) {
+      evaluateTemperature(temperature);
+    }
+  });
+
+  function evaluateTemperature(temperature: number) {
+    const input = temperatureInput;
+    let alertType = '';
+    let alertTitle = '';
+    let alertMessage = '';
+    let recommendations: string[] = [];
+
+    if (temperature < 36.0) {
+      input.style.borderColor = '#3b82f6';
+      alertType = 'info';
+      alertTitle = '🥶 Hipotermia';
+      alertMessage = `Temperatura de ${temperature}°C está por debajo del rango normal (36.1-37.2°C).`;
+      recommendations = [
+        'Investigar causas de hipotermia',
+        'Evaluar exposición a frío',
+        'Revisar función tiroidea',
+        'Monitoreo continuo de temperatura'
+      ];
+    } else if (temperature >= 37.3 && temperature < 38.0) {
+      input.style.borderColor = '#f59e0b';
+      alertType = 'warning';
+      alertTitle = '🌡️ Febrícula';
+      alertMessage = `Temperatura de ${temperature}°C indica febrícula.`;
+      recommendations = [
+        'Buscar foco infeccioso',
+        'Hidratación adecuada',
+        'Control en 4-6 horas',
+        'Evaluar síntomas asociados'
+      ];
+    } else if (temperature >= 38.0 && temperature < 39.0) {
+      input.style.borderColor = '#ef4444';
+      alertType = 'warning';
+      alertTitle = '🔥 Fiebre Moderada';
+      alertMessage = `Temperatura de ${temperature}°C indica fiebre moderada.`;
+      recommendations = [
+        'Investigación de causa infecciosa',
+        'Antipiréticos si es necesario',
+        'Hidratación abundante',
+        'Reposo laboral',
+        'Control médico en 24 horas'
+      ];
+    } else if (temperature >= 39.0) {
+      input.style.borderColor = '#dc2626';
+      alertType = 'error';
+      alertTitle = '🆘 Fiebre Alta';
+      alertMessage = `Temperatura de ${temperature}°C indica fiebre alta que requiere atención médica.`;
+      recommendations = [
+        'Evaluación médica INMEDIATA',
+        'Hemocultivos y laboratorios',
+        'Antipiréticos y medidas físicas',
+        'Suspensión temporal de actividades laborales',
+        'Posible hospitalización'
+      ];
+    } else {
+      input.style.borderColor = '#10b981';
+      return;
+    }
+
+    // Mostrar alerta con SweetAlert
+    if (typeof (window as any).showSweetAlert === 'function') {
+      const recommendationsText = recommendations.join('\n• ');
+      (window as any).showSweetAlert(
+        alertType, 
+        alertTitle, 
+        `${alertMessage}\n\nRecomendaciones OMS:\n• ${recommendationsText}`
+      );
+    }
+  }
+
+  // Función para evaluar saturación de oxígeno según OMS
+  oxygenSaturationInput.addEventListener('input', function() {
+    const saturation = parseFloat(this.value);
+    if (saturation) {
+      evaluateOxygenSaturation(saturation);
+    }
+  });
+
+  function evaluateOxygenSaturation(saturation: number) {
+    const input = oxygenSaturationInput;
+    let alertType = '';
+    let alertTitle = '';
+    let alertMessage = '';
+    let recommendations: string[] = [];
+
+    if (saturation < 90) {
+      input.style.borderColor = '#dc2626';
+      alertType = 'error';
+      alertTitle = '🆘 Hipoxemia Severa';
+      alertMessage = `Saturación de ${saturation}% indica hipoxemia severa.`;
+      recommendations = [
+        'OXÍGENO INMEDIATO',
+        'Evaluación respiratoria urgente',
+        'Gasometría arterial',
+        'Derivación a emergencias',
+        'No apto para trabajo hasta estabilización'
+      ];
+    } else if (saturation >= 90 && saturation < 95) {
+      input.style.borderColor = '#ef4444';
+      alertType = 'warning';
+      alertTitle = '⚠️ Hipoxemia Moderada';
+      alertMessage = `Saturación de ${saturation}% está por debajo del rango normal (≥95%).`;
+      recommendations = [
+        'Evaluación pulmonar completa',
+        'Radiografía de tórax',
+        'Considerar oxigenoterapia',
+        'Restricción de actividades físicas intensas',
+        'Seguimiento médico estrecho'
+      ];
+    } else if (saturation >= 95 && saturation < 98) {
+      input.style.borderColor = '#f59e0b';
+      alertType = 'info';
+      alertTitle = 'ℹ️ Saturación Limítrofe';
+      alertMessage = `Saturación de ${saturation}% está en el límite inferior normal.`;
+      recommendations = [
+        'Monitoreo respiratorio',
+        'Evaluar función pulmonar',
+        'Control en alturas o espacios confinados'
+      ];
+    } else {
+      input.style.borderColor = '#10b981';
+      return;
+    }
+
+    // Mostrar alerta con SweetAlert
+    if (typeof (window as any).showSweetAlert === 'function') {
+      const recommendationsText = recommendations.join('\n• ');
+      (window as any).showSweetAlert(
+        alertType, 
+        alertTitle, 
+        `${alertMessage}\n\nRecomendaciones OMS:\n• ${recommendationsText}`
+      );
+    }
+  }
+
+  // Función para evaluar frecuencia respiratoria según OMS
+  respiratoryRateInput.addEventListener('input', function() {
+    const respiratoryRate = parseFloat((this as HTMLInputElement).value);
+    if (respiratoryRate) {
+      evaluateRespiratoryRate(respiratoryRate);
+    }
+  });
+
+  function evaluateRespiratoryRate(respiratoryRate: number) {
+    const input = respiratoryRateInput;
+    let alertType = '';
+    let alertTitle = '';
+    let alertMessage = '';
+    let recommendations: string[] = [];
+
+    if (respiratoryRate < 12) {
+      input.style.borderColor = '#3b82f6';
+      alertType = 'warning';
+      alertTitle = '⚠️ Bradipnea';
+      alertMessage = `Frecuencia respiratoria de ${respiratoryRate} rpm está por debajo del rango normal (12-20 rpm).`;
+      recommendations = [
+        'Evaluar causas de depresión respiratoria',
+        'Revisar medicamentos sedantes',
+        'Gasometría arterial',
+        'Evaluación neurológica',
+        'Monitoreo respiratorio continuo'
+      ];
+    } else if (respiratoryRate > 20 && respiratoryRate <= 24) {
+      input.style.borderColor = '#f59e0b';
+      alertType = 'warning';
+      alertTitle = '⚠️ Taquipnea Leve';
+      alertMessage = `Frecuencia respiratoria de ${respiratoryRate} rpm está levemente elevada.`;
+      recommendations = [
+        'Evaluar causas de taquipnea',
+        'Oximetría de pulso',
+        'Radiografía de tórax',
+        'Evaluación cardiovascular',
+        'Control en 4-6 horas'
+      ];
+    } else if (respiratoryRate > 24) {
+      input.style.borderColor = '#ef4444';
+      alertType = 'error';
+      alertTitle = '🚨 Taquipnea Significativa';
+      alertMessage = `Frecuencia respiratoria de ${respiratoryRate} rpm requiere evaluación inmediata.`;
+      recommendations = [
+        'Evaluación respiratoria URGENTE',
+        'Gasometría arterial inmediata',
+        'Radiografía de tórax urgente',
+        'Evaluación de insuficiencia respiratoria',
+        'Considerar oxigenoterapia',
+        'Derivación a emergencias si > 30 rpm'
+      ];
+    } else {
+      input.style.borderColor = '#10b981';
+      return;
+    }
+
+    // Mostrar alerta con SweetAlert
+    if (typeof (window as any).showSweetAlert === 'function') {
+      const recommendationsText = recommendations.join('\n• ');
+      (window as any).showSweetAlert(
+        alertType, 
+        alertTitle, 
+        `${alertMessage}\n\nRecomendaciones OMS:\n• ${recommendationsText}`
+      );
+    }
+  }
+});
+
+// Validación de longitud de CIE-10
+(function(){
+  const cie10Input = document.getElementById('cie10Code') as HTMLInputElement | null;
+  if (cie10Input) {
+    cie10Input.addEventListener('input', function() {
+      if (this.value.length > 20) {
+        // Mostrar alerta de advertencia
+        if (typeof (window as any).showSweetAlert === 'function') {
+          (window as any).showSweetAlert('warning', 'Código CIE-10 demasiado largo', 'Máx. 20 caracteres. Se recortó automáticamente.');
+        }
+        this.value = this.value.slice(0, 20);
+      }
+    });
+  }
+})();
+
+// Envío del formulario
+(window as any).submitMedicalHistory = async function(patientId: number, doctorId: number, appointmentId: number) {
+  const form = document.getElementById('medicalHistoryForm') as HTMLFormElement;
+  const submitBtn = form.querySelector('button[type="submit"]')!;
+  const submitText = document.getElementById('submitText')!;
+  const loadingSpinner = document.getElementById('loadingSpinner')!;
+  
+  // Mostrar loading
+  submitText.textContent = 'Guardando...';
+  loadingSpinner.classList.remove('hidden');
+  submitBtn.setAttribute('disabled', 'true');
+  
+  try {
+    // Recopilar datos del formulario
+    const formData = new FormData(form);
+
+    // Validar que se haya seleccionado una aptitud
+    const fitnessForWork = formData.get('fitnessForWork');
+    if (!fitnessForWork || fitnessForWork === '') {
+      if (typeof (window as any).showSweetAlert === 'function') {
+        (window as any).showSweetAlert('error', 'Campo Requerido', 'Debe seleccionar la aptitud para el trabajo');
+      } else {
+        alert('Debe seleccionar la aptitud para el trabajo');
+      }
+      submitText.textContent = 'Guardar Historia Médica';
+      loadingSpinner.classList.add('hidden');
+      submitBtn.removeAttribute('disabled');
+      return;
+    }
+    
+    // Construir objeto de signos vitales
+    const vitalSigns: any = {};
+    
+    if (formData.get('systolicPressure')) vitalSigns.systolic_pressure = parseFloat(formData.get('systolicPressure') as string);
+    if (formData.get('diastolicPressure')) vitalSigns.diastolic_pressure = parseFloat(formData.get('diastolicPressure') as string);
+    if (formData.get('heartRate')) vitalSigns.heart_rate = parseFloat(formData.get('heartRate') as string);
+    if (formData.get('respiratoryRate')) vitalSigns.respiratory_rate = parseFloat(formData.get('respiratoryRate') as string);
+    if (formData.get('temperature')) vitalSigns.temperature = parseFloat(formData.get('temperature') as string);
+    if (formData.get('oxygenSaturation')) vitalSigns.oxygen_saturation = parseFloat(formData.get('oxygenSaturation') as string);
+    if (formData.get('height')) vitalSigns.height = parseFloat(formData.get('height') as string);
+    if (formData.get('weight')) vitalSigns.weight = parseFloat(formData.get('weight') as string);
+    
+    // Construir evaluación ocupacional
+    const occupationalAssessment: any = {};
+    
+    if (formData.get('workEnvironmentRisk')) occupationalAssessment.work_environment_risk = formData.get('workEnvironmentRisk');
+    if (formData.get('psychologicalStressLevel')) occupationalAssessment.psychological_stress_level = formData.get('psychologicalStressLevel');
+    if (formData.get('fitnessForWork')) occupationalAssessment.fitness_for_work = formData.get('fitnessForWork');
+    if (formData.get('workRestrictions')) occupationalAssessment.work_restrictions = [formData.get('workRestrictions')];
+    
+    occupationalAssessment.exposure_to_chemicals = formData.get('exposureChemicals') === 'on';
+    occupationalAssessment.exposure_to_noise = formData.get('exposureNoise') === 'on';
+    occupationalAssessment.exposure_to_radiation = formData.get('exposureRadiation') === 'on';
+    occupationalAssessment.ergonomic_risks = formData.get('ergonomicRisks') === 'on';
+    
+    // Datos principales
+    const medicalHistoryData = {
+      patient_id: patientId,
+      doctor_id: doctorId,
+      appointment_id: appointmentId,
+      symptoms: formData.get('symptoms'),
+      current_illness: formData.get('currentIllness') || null,
+      personal_history: formData.get('personalHistory') || null,
+      family_history: formData.get('familyHistory') || null,
+      surgical_history: formData.get('surgicalHistory') || null,
+      occupational_history: formData.get('occupationalHistory') || null,
+      physical_exam: formData.get('physicalExam') || null,
+      vital_signs: Object.keys(vitalSigns).length > 0 ? vitalSigns : null,
+      occupational_assessment: Object.keys(occupationalAssessment).length > 0 ? occupationalAssessment : null,
+      diagnosis: formData.get('diagnosis'),
+      cie10_code: formData.get('cie10Code') || null,
+      treatment: formData.get('treatment'),
+      medications: formData.get('medications') || null,
+      recommendations: formData.get('manualRecommendations') || null,
+      next_appointment_date: formData.get('nextAppointmentDate') || null,
+      notes: formData.get('notes') || null,
+      aptitude_status: formData.get('fitnessForWork') || null,
+      restrictions: formData.get('workRestrictions') || null
+    };
+    
+    // Enviar al servidor
+    const response = await fetch('/api/doctor/medical-history/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(medicalHistoryData),
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      // Mostrar mensaje de éxito con recomendaciones automáticas si están disponibles
+      let successMessage = 'La historia médica se ha guardado exitosamente';
+      
+      if (result.calculated_data) {
+        let recommendations = [];
+        
+        // Agregar análisis de IMC
+        if (result.calculated_data.bmi_analysis) {
+          const bmi = result.calculated_data.bmi_analysis;
+          recommendations.push(`📊 IMC: ${bmi.bmi} - ${bmi.classification}`);
+        }
+        
+        // Agregar análisis de presión arterial
+        if (result.calculated_data.blood_pressure_analysis) {
+          const bp = result.calculated_data.blood_pressure_analysis;
+          recommendations.push(`🫀 Presión arterial: ${bp.classification}`);
+          if (bp.occupational_fitness !== 'Apto para actividades normales') {
+            recommendations.push(`⚠️ Aptitud: ${bp.occupational_fitness}`);
+          }
+        }
+        
+        // Agregar análisis de frecuencia cardíaca
+        if (result.calculated_data.heart_rate_analysis) {
+          const hr = result.calculated_data.heart_rate_analysis;
+          recommendations.push(`💓 Frecuencia cardíaca: ${hr.classification}`);
+          if (hr.occupational_fitness !== 'Apto para actividades normales') {
+            recommendations.push(`⚠️ Estado cardiovascular: ${hr.occupational_fitness}`);
+          }
+        }
+        
+        if (recommendations.length > 0) {
+          successMessage += '\n\n📋 Evaluación automática OMS:\n' + recommendations.join('\n');
+        }
+      }
+      
+      if (typeof (window as any).showSweetAlert === 'function') {
+        (window as any).showSweetAlert('success', '✅ Historia Médica Guardada', successMessage, 3000);
+      } else {
+        alert('Historia médica guardada exitosamente');
+      }
+      
+      // Limpiar formulario
+      form.reset();
+      document.getElementById('bmiCalculation')!.classList.add('hidden');
+      document.getElementById('bloodPressureAlert')!.classList.add('hidden');
+      
+      // Redirigir o actualizar vista después de la alerta
+      setTimeout(() => {
+        window.location.reload();
+      }, 2200);
+    } else {
+      if (typeof (window as any).showSweetAlert === 'function') {
+        (window as any).showSweetAlert('error', 'Error al Guardar', result.message || 'No se pudo guardar la historia médica');
+      } else {
+        alert('Error al guardar la historia médica: ' + result.message);
+      }
+    }
+  } catch (error) {
+    // Silently fail
+    if (typeof (window as any).showSweetAlert === 'function') {
+      (window as any).showSweetAlert('error', 'Error de Conexión', 'No se pudo conectar con el servidor. Por favor, intente nuevamente.');
+    } else {
+      alert('Error de conexión. Por favor, intente nuevamente.');
+    }
+  } finally {
+    // Ocultar loading
+    submitText.textContent = 'Guardar Historia Médica';
+    loadingSpinner.classList.add('hidden');
+    submitBtn.removeAttribute('disabled');
+  }
+};
+
+// Sistema de alertas dinámicas y estado general del paciente
+function updatePatientHealthStatus() {
+  const statusDiv = document.getElementById('patientHealthStatus')!;
+  const statusIcon = document.getElementById('statusIcon')!;
+  const statusTitle = document.getElementById('statusTitle')!;
+  const statusBadge = document.getElementById('statusBadge')!;
+  const statusDescription = document.getElementById('statusDescription')!;
+  const vitalSignsStatus = document.getElementById('vitalSignsStatus')!;
+  const priorityRecommendations = document.getElementById('priorityRecommendations')!;
+  const individualAlerts = document.getElementById('individualAlerts')!
+
+  // Obtener valores actuales
+  const heartRate = parseFloat((document.getElementById('heartRate') as HTMLInputElement)?.value || '');
+  const temperature = parseFloat((document.getElementById('temperature') as HTMLInputElement)?.value || '');
+  const oxygenSaturation = parseFloat((document.getElementById('oxygenSaturation') as HTMLInputElement)?.value || '');
+  const respiratoryRate = parseFloat((document.getElementById('respiratoryRate') as HTMLInputElement)?.value || '');
+  const systolic = parseFloat((document.getElementById('systolicPressure') as HTMLInputElement)?.value || '');
+  const diastolic = parseFloat((document.getElementById('diastolicPressure') as HTMLInputElement)?.value || '');
+  const weight = parseFloat((document.getElementById('weight') as HTMLInputElement)?.value || '');
+  const height = parseFloat((document.getElementById('height') as HTMLInputElement)?.value || '');
+  
+  // Evaluar cada signo vital
+  const evaluations = [];
+  const alerts = [];
+  const recommendations = [];
+  let criticalCount = 0;
+  let warningCount = 0;
+  let normalCount = 0;
+
+  // Evaluar frecuencia cardíaca
+  if (heartRate) {
+    const hrEval = evaluateVitalSign('heartRate', heartRate, [
+      { min: 0, max: 59, level: 'warning', status: 'Bradicardia', recommendations: ['Evaluación cardiológica', 'ECG', 'Evaluar medicamentos'] },
+      { min: 60, max: 100, level: 'normal', status: 'Normal' },
+      { min: 101, max: 120, level: 'warning', status: 'Taquicardia leve', recommendations: ['Control de estrés', 'Limitar cafeína', 'Evaluación tiroidea'] },
+      { min: 121, max: 999, level: 'critical', status: 'Taquicardia severa', recommendations: ['Evaluación cardiológica urgente', 'ECG inmediato'] }
+    ]);
+    evaluations.push({ name: 'Frecuencia Cardíaca', value: `${heartRate} lpm`, ...hrEval });
+  }
+
+  // Evaluar temperatura
+  if (temperature) {
+    const tempEval = evaluateVitalSign('temperature', temperature, [
+      { min: 0, max: 36.0, level: 'warning', status: 'Hipotermia', recommendations: ['Evaluación médica', 'Medidas de calentamiento'] },
+      { min: 36.1, max: 37.2, level: 'normal', status: 'Normal' },
+      { min: 37.3, max: 38.0, level: 'warning', status: 'Febrícula', recommendations: ['Observación', 'Hidratación', 'Control térmico'] },
+      { min: 38.1, max: 999, level: 'critical', status: 'Fiebre', recommendations: ['Antipiréticos', 'Evaluación médica', 'Suspensión laboral'] }
+    ]);
+    evaluations.push({ name: 'Temperatura', value: `${temperature}°C`, ...tempEval });
+  }
+
+  // Evaluar saturación de oxígeno
+  if (oxygenSaturation) {
+    const satEval = evaluateVitalSign('oxygenSaturation', oxygenSaturation, [
+      { min: 0, max: 89, level: 'critical', status: 'Hipoxemia severa', recommendations: ['OXÍGENO INMEDIATO', 'Emergencia médica'] },
+      { min: 90, max: 94, level: 'warning', status: 'Hipoxemia moderada', recommendations: ['Evaluación respiratoria', 'Oxígeno suplementario'] },
+      { min: 95, max: 100, level: 'normal', status: 'Normal' }
+    ]);
+    evaluations.push({ name: 'Saturación O₂', value: `${oxygenSaturation}%`, ...satEval });
+  }
+
+  // Evaluar frecuencia respiratoria
+  if (respiratoryRate) {
+    const respEval = evaluateVitalSign('respiratoryRate', respiratoryRate, [
+      { min: 0, max: 11, level: 'warning', status: 'Bradipnea', recommendations: ['Evaluación respiratoria', 'Gasometría'] },
+      { min: 12, max: 20, level: 'normal', status: 'Normal' },
+      { min: 21, max: 24, level: 'warning', status: 'Taquipnea leve', recommendations: ['Evaluación pulmonar', 'Radiografía de tórax'] },
+      { min: 25, max: 999, level: 'critical', status: 'Taquipnea severa', recommendations: ['Evaluación respiratoria urgente', 'Oxígeno'] }
+    ]);
+    evaluations.push({ name: 'Frecuencia Respiratoria', value: `${respiratoryRate} rpm`, ...respEval });
+  }
+
+  // Evaluar presión arterial
+  if (systolic && diastolic) {
+    let bpLevel = 'normal';
+    let bpStatus = 'Normal';
+    let bpRecommendations: string[] = [];
+
+    if (systolic >= 180 || diastolic >= 110) {
+      bpLevel = 'critical';
+      bpStatus = 'Crisis hipertensiva';
+      bpRecommendations = ['ATENCIÓN MÉDICA INMEDIATA', 'Tratamiento urgente'];
+    } else if (systolic >= 140 || diastolic >= 90) {
+      bpLevel = 'critical';
+      bpStatus = 'Hipertensión estadio 2';
+      bpRecommendations = ['Tratamiento farmacológico', 'Evaluación cardiovascular'];
+    } else if ((systolic >= 130 && systolic <= 139) || (diastolic >= 80 && diastolic <= 89)) {
+      bpLevel = 'warning';
+      bpStatus = 'Hipertensión estadio 1';
+      bpRecommendations = ['Modificaciones de estilo de vida', 'Seguimiento médico'];
+    } else if ((systolic >= 120 && systolic <= 129) && diastolic < 80) {
+      bpLevel = 'warning';
+      bpStatus = 'Presión elevada';
+      bpRecommendations = ['Cambios en estilo de vida', 'Control regular'];
+    }
+
+    evaluations.push({ 
+      name: 'Presión Arterial', 
+      value: `${systolic}/${diastolic} mmHg`, 
+      level: bpLevel, 
+      status: bpStatus, 
+      recommendations: bpRecommendations 
+    });
+  }
+
+  // Evaluar IMC si hay peso y altura
+  if (weight && height) {
+    const bmi = weight / Math.pow(height / 100, 2);
+    let bmiLevel = 'normal';
+    let bmiStatus = 'Normal';
+    let bmiRecommendations: string[] = [];
+
+    if (bmi < 18.5) {
+      bmiLevel = 'warning';
+      bmiStatus = 'Bajo peso';
+      bmiRecommendations = ['Evaluación nutricional', 'Aumento de peso controlado'];
+    } else if (bmi >= 25 && bmi < 30) {
+      bmiLevel = 'warning';
+      bmiStatus = 'Sobrepeso';
+      bmiRecommendations = ['Dieta balanceada', 'Actividad física regular'];
+    } else if (bmi >= 30) {
+      bmiLevel = 'critical';
+      bmiStatus = 'Obesidad';
+      bmiRecommendations = ['Tratamiento integral', 'Evaluación médica especializada'];
+    }
+
+    evaluations.push({ 
+      name: 'IMC', 
+      value: `${bmi.toFixed(1)} kg/m²`, 
+      level: bmiLevel, 
+      status: bmiStatus, 
+      recommendations: bmiRecommendations 
+    });
+  }
+
+  // Contar niveles de alerta
+  evaluations.forEach(evaluation => {
+    if (evaluation.level === 'critical') criticalCount++;
+    else if (evaluation.level === 'warning') warningCount++;
+    else normalCount++;
+  });
+  
+  // Silently fail
+
+  // Determinar estado general
+  let overallLevel, overallStatus, overallIcon, statusClasses, badgeClasses;
+
+  if (criticalCount > 0) {
+    overallLevel = 'critical';
+    overallStatus = 'ESTADO CRÍTICO';
+    overallIcon = '🚨';
+    statusClasses = 'bg-red-50 border-red-300';
+    badgeClasses = 'bg-red-100 text-red-800';
+  } else if (warningCount > 0) {
+    overallLevel = 'warning';
+    overallStatus = 'REQUIERE ATENCIÓN';
+    overallIcon = '⚠️';
+    statusClasses = 'bg-yellow-50 border-yellow-300';
+    badgeClasses = 'bg-yellow-100 text-yellow-800';
+  } else if (normalCount > 0) {
+    overallLevel = 'normal';
+    overallStatus = 'ESTADO NORMAL';
+    overallIcon = '✅';
+    statusClasses = 'bg-green-50 border-green-300';
+    badgeClasses = 'bg-green-100 text-green-800';
+  } else {
+    statusDiv.classList.add('hidden');
+    return;
+  }
+
+  // Actualizar UI
+  statusDiv.className = `mt-6 p-6 rounded-lg border-2 ${statusClasses}`;
+  statusDiv.classList.remove('hidden');
+  statusIcon.textContent = overallIcon;
+  statusBadge.className = `px-4 py-2 rounded-full text-sm font-bold ${badgeClasses}`;
+  statusBadge.textContent = overallStatus;
+
+  // Descripción del estado
+  let description = '';
+  if (criticalCount > 0) {
+    description = `Se detectaron ${criticalCount} parámetro(s) en estado crítico que requieren atención médica inmediata.`;
+  } else if (warningCount > 0) {
+    description = `Se detectaron ${warningCount} parámetro(s) que requieren seguimiento médico y modificaciones.`;
+  } else {
+    description = `Todos los signos vitales evaluados se encuentran dentro de parámetros normales según OMS.`;
+  }
+  statusDescription.innerHTML = `<p class="font-medium">${description}</p>`;
+
+  // Lista de signos vitales
+  vitalSignsStatus.innerHTML = evaluations.map(evaluation => {
+    const icon = evaluation.level === 'critical' ? '🔴' : evaluation.level === 'warning' ? '🟡' : '🟢';
+    return `<li class="flex justify-between"><span>${icon} ${evaluation.name}:</span><span class="font-medium">${evaluation.value} - ${evaluation.status}</span></li>`;
+  }).join('');
+
+  // Recomendaciones prioritarias
+  const allRecommendations = evaluations
+    .filter(evaluation => evaluation.recommendations && evaluation.recommendations.length > 0)
+    .flatMap(evaluation => evaluation.recommendations)
+    .slice(0, 8); // Máximo 8 recomendaciones
+
+  priorityRecommendations.innerHTML = allRecommendations
+    .map(rec => `<li class="text-gray-700">• ${rec}</li>`)
+    .join('');
+
+  // Actualizar alertas individuales
+  updateIndividualAlerts(evaluations);
+}
+
+// Función auxiliar para evaluar signos vitales
+function evaluateVitalSign(type: string, value: number, ranges: any[]) {
+  for (const range of ranges) {
+    if (value >= range.min && value <= range.max) {
+      return {
+        level: range.level,
+        status: range.status,
+        recommendations: range.recommendations || []
+      };
+    }
+  }
+  return { level: 'normal', status: 'Normal', recommendations: [] };
+}
+
+// Función para actualizar alertas individuales
+function updateIndividualAlerts(evaluations: any[]) {
+  const alertsContainer = document.getElementById('individualAlerts')!;
+  alertsContainer.innerHTML = '';
+
+  evaluations
+    .filter(evaluation => evaluation.level !== 'normal')
+    .forEach((evaluation, index) => {
+      const alertClasses = evaluation.level === 'critical' 
+        ? 'bg-red-50 border-red-200 text-red-800' 
+        : 'bg-yellow-50 border-yellow-200 text-yellow-800';
+      
+      const alert = document.createElement('div');
+      alert.className = `p-3 md:p-4 rounded-md border ${alertClasses}`;
+      alert.innerHTML = `
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <span class="text-base md:text-lg">${evaluation.level === 'critical' ? '🚨' : '⚠️'}</span>
+          </div>
+          <div class="ml-2 md:ml-3 flex-1">
+            <h4 class="text-xs md:text-sm font-bold">${evaluation.name}: ${evaluation.status}</h4>
+            <p class="text-xs md:text-sm mt-1">Valor actual: ${evaluation.value}</p>
+            ${evaluation.recommendations.length > 0 ? `
+              <div class="mt-2">
+                <p class="text-xs font-medium">Recomendaciones:</p>
+                <ul class="text-xs mt-1 space-y-1">
+                  ${evaluation.recommendations.map((rec: string) => `<li>• ${rec}</li>`).join('')}
+                </ul>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+      alertsContainer.appendChild(alert);
+    });
+}
+
+// Event listeners para actualización en tiempo real
+const vitalSignInputs = [
+  document.getElementById('heartRate') as HTMLInputElement,
+  document.getElementById('temperature') as HTMLInputElement,
+  document.getElementById('oxygenSaturation') as HTMLInputElement,
+  document.getElementById('respiratoryRate') as HTMLInputElement,
+  document.getElementById('systolicPressure') as HTMLInputElement,
+  document.getElementById('diastolicPressure') as HTMLInputElement,
+  document.getElementById('weight') as HTMLInputElement,
+  document.getElementById('height') as HTMLInputElement
+];
+
+vitalSignInputs.forEach((input: HTMLInputElement | null) => {
+  if (input) {
+    input.addEventListener('input', debounce(updatePatientHealthStatus, 500) as EventListener);
+  }
+});
+
+// Función de debounce para evitar demasiadas actualizaciones
+function debounce(func: Function, wait: number): Function {
+  let timeout: NodeJS.Timeout;
+  return function executedFunction(...args: any[]) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+// Función para cancelar
+document.getElementById('cancelBtn')!.addEventListener('click', function() {
+  if (confirm('¿Está seguro de que desea cancelar? Se perderán los datos ingresados.')) {
+    window.history.back();
+  }
+});
+</script>

@@ -1,0 +1,254 @@
+---
+import DashboardLayout from '../../components/layout/DashboardLayout.astro';
+import { requireAuth, hasRole } from '../../lib/auth';
+
+const user = requireAuth(Astro.cookies);
+if (!hasRole(user, 'staff')) {
+  return Astro.redirect('/auth/login');
+}
+---
+
+<DashboardLayout title="Monitoreo de Citas - Panel Admin" user={user}>
+  <div class="mb-6">
+    <div class="flex justify-between items-center">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Monitoreo de Citas</h1>
+        <p class="text-gray-600 mt-1">Supervisión en tiempo real del flujo de atención.</p>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span class="relative flex h-3 w-3">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+        </span>
+        <span class="text-sm font-medium text-green-600">En vivo</span>
+        <span id="currentTime" class="text-sm text-gray-500 ml-2 font-mono"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Grid -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-gray-500">Total Hoy</p>
+          <p class="text-3xl font-bold text-gray-900" id="statTotal">-</p>
+        </div>
+        <div class="p-3 bg-blue-50 rounded-lg">
+          <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-gray-500">En Sala de Espera</p>
+          <p class="text-3xl font-bold text-gray-900" id="statWaiting">-</p>
+        </div>
+        <div class="p-3 bg-yellow-50 rounded-lg">
+          <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-gray-500">En Consulta</p>
+          <p class="text-3xl font-bold text-gray-900" id="statInProgress">-</p>
+        </div>
+        <div class="p-3 bg-green-50 rounded-lg">
+          <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-gray-500">Finalizadas</p>
+          <p class="text-3xl font-bold text-gray-900" id="statCompleted">-</p>
+        </div>
+        <div class="p-3 bg-gray-50 rounded-lg">
+          <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Board -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Waiting Column -->
+    <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-gray-700 flex items-center gap-2">
+          <span class="w-2 h-2 bg-yellow-400 rounded-full"></span>
+          Por Atender / Espera
+        </h3>
+        <span class="bg-white px-2 py-1 rounded-md text-xs font-bold text-gray-600 shadow-sm" id="countWaiting">0</span>
+      </div>
+      <div id="listWaiting" class="space-y-3 min-h-[200px]">
+        <!-- Cards inserted via JS -->
+      </div>
+    </div>
+
+    <!-- In Progress Column -->
+    <div class="bg-blue-50 rounded-xl p-4 border border-blue-100">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-blue-800 flex items-center gap-2">
+          <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+          En Consulta
+        </h3>
+        <span class="bg-white px-2 py-1 rounded-md text-xs font-bold text-blue-600 shadow-sm" id="countInProgress">0</span>
+      </div>
+      <div id="listInProgress" class="space-y-3 min-h-[200px]">
+        <!-- Cards inserted via JS -->
+      </div>
+    </div>
+
+    <!-- Completed Column -->
+    <div class="bg-green-50 rounded-xl p-4 border border-green-100">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-green-800 flex items-center gap-2">
+          <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+          Finalizadas Hoy
+        </h3>
+        <span class="bg-white px-2 py-1 rounded-md text-xs font-bold text-green-600 shadow-sm" id="countCompleted">0</span>
+      </div>
+      <div id="listCompleted" class="space-y-3 min-h-[200px]">
+        <!-- Cards inserted via JS -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function updateTime() {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('currentTime').textContent = timeString;
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
+
+    async function loadMonitoringData() {
+      try {
+        const response = await fetch('/api/admin/appointments');
+        const result = await response.json();
+        
+        if (result.success) {
+          const appointments = result.data;
+          const today = new Date().toISOString().split('T')[0];
+          
+          // Filter for today
+          const todaysAppointments = appointments.filter(app => {
+            if (!app.appointment_date) return false;
+            
+            // Si es string YYYY-MM-DD HH:MM:SS, usar split para evitar problemas de zona horaria
+            if (typeof app.appointment_date === 'string' && app.appointment_date.includes(' ')) {
+                return app.appointment_date.split(' ')[0] === today;
+            } else if (typeof app.appointment_date === 'string' && app.appointment_date.includes('T')) {
+                return app.appointment_date.split('T')[0] === today;
+            }
+            
+            // Fallback
+            const appDate = new Date(app.appointment_date);
+            if (isNaN(appDate.getTime())) return false;
+            const appDateString = appDate.toISOString().split('T')[0];
+            return appDateString === today;
+          });
+
+          // Stats
+          document.getElementById('statTotal').textContent = todaysAppointments.length;
+          
+          const waiting = todaysAppointments.filter(a => ['programada', 'pending', 'confirmed'].includes(a.status));
+          const inProgress = todaysAppointments.filter(a => ['en_progreso', 'in_progress'].includes(a.status)); 
+          const completed = todaysAppointments.filter(a => ['completada', 'completed'].includes(a.status));
+
+          document.getElementById('statWaiting').textContent = waiting.length;
+          document.getElementById('statInProgress').textContent = inProgress.length;
+          document.getElementById('statCompleted').textContent = completed.length;
+
+          document.getElementById('countWaiting').textContent = waiting.length;
+          document.getElementById('countInProgress').textContent = inProgress.length;
+          document.getElementById('countCompleted').textContent = completed.length;
+
+          renderCards('listWaiting', waiting);
+          renderCards('listInProgress', inProgress);
+          renderCards('listCompleted', completed);
+        }
+      } catch (error) {
+      }
+    }
+
+    function renderCards(containerId, appointments) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = '';
+
+      if (appointments.length === 0) {
+        container.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">Sin actividad</div>';
+        return;
+      }
+
+      appointments.forEach(app => {
+        let timeDisplay = '--:--';
+        
+        // Intentar obtener la hora de appointment_time si existe
+        if (app.appointment_time) {
+          timeDisplay = app.appointment_time.substring(0, 5);
+        } else if (app.appointment_date) {
+          // Fallback a la fecha si tiene hora
+          const date = new Date(app.appointment_date);
+          if (!isNaN(date.getTime())) {
+             timeDisplay = date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: false });
+          }
+        }
+
+        const card = document.createElement('div');
+        card.className = 'bg-white p-3 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow';
+        card.innerHTML = `
+          <div class="flex justify-between items-start mb-2">
+            <span class="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">${timeDisplay}</span>
+            <span class="text-xs font-medium ${getTypeColor(app.appointment_type)} px-2 py-0.5 rounded-full capitalize">${app.appointment_type}</span>
+          </div>
+          <p class="font-medium text-gray-900 truncate">${app.patient_name}</p>
+          <p class="text-xs text-gray-500 mb-2 truncate">${app.patient_company || 'Particular'}</p>
+          <div class="flex items-center gap-2 pt-2 border-t border-gray-50 mt-2">
+            <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">
+              ${getInitials(app.doctor_name)}
+            </div>
+            <p class="text-xs text-gray-600 truncate">Dr. ${app.doctor_name}</p>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function getTypeColor(type) {
+      const colors = {
+        'examen-ingreso': 'bg-blue-100 text-blue-700',
+        'examen-periodico': 'bg-green-100 text-green-700',
+        'examen-retiro': 'bg-red-100 text-red-700',
+        'consulta': 'bg-purple-100 text-purple-700'
+      };
+      return colors[type] || 'bg-gray-100 text-gray-700';
+    }
+
+    function getInitials(name) {
+      if (!name) return '?';
+      return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    }
+
+    // Initial load and polling every 30 seconds
+    loadMonitoringData();
+    setInterval(loadMonitoringData, 30000);
+  </script>
+</DashboardLayout>

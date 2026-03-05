@@ -1,0 +1,180 @@
+---
+export interface Props {
+  title?: string;
+}
+
+
+const { title = 'Sistema de Salud Ocupacional' } = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/icon.png" />
+    <title>{title}</title>
+    
+    <!-- Estilos globales para tarjetas -->
+    <style is:global>
+      .card { 
+        @apply bg-white rounded-lg shadow-lg text-gray-900 transition-colors duration-200; 
+      }
+    </style>
+    
+    <!-- Responsive meta tags -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    
+    <style>
+      /* Custom scrollbar */
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: #f1f1f1; }
+      ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+      
+      /* Mejoras responsive para móviles */
+      @media (max-width: 640px) {
+        /* Evitar zoom en inputs en iOS */
+        input[type="text"], 
+        input[type="email"], 
+        input[type="password"], 
+        input[type="tel"], 
+        input[type="number"], 
+        textarea, 
+        select {
+          font-size: 16px !important;
+        }
+        
+        /* Mejorar taps en móviles */
+        button, a, [role="button"] {
+          -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+          touch-action: manipulation;
+        }
+      }
+      
+      /* Estilos para navegación móvil */
+      .mobile-menu {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease-in-out;
+      }
+      
+      .mobile-menu.open {
+        transform: translateX(0);
+      }
+      
+      /* Overlay para modal en móvil */
+      .modal-overlay {
+        backdrop-filter: blur(4px);
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 text-gray-900 min-h-screen transition-colors duration-200">
+    <!-- SweetAlert2 CDN cargado primero -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+    
+    <!-- Script global para manejo de SweetAlert2 y errores -->
+    <script>
+      // Silenciar errores de WebSocket del desarrollo
+      window.addEventListener('error', function(e) {
+        if (e.message && (
+          e.message.includes('WebSocket') || 
+          e.message.includes('ERR_CONNECTION_REFUSED') ||
+          e.message.includes('ws://localhost')
+        )) {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+      });
+
+      // Silenciar errores no capturados relacionados con desarrollo
+      window.addEventListener('unhandledrejection', function(e) {
+        if (e.reason && e.reason.toString().includes('WebSocket')) {
+          e.preventDefault();
+          return false;
+        }
+      });
+
+      // Configurar SweetAlert2 cuando esté disponible
+      document.addEventListener('DOMContentLoaded', function() {
+        // Esperar a que SweetAlert2 se cargue
+        const checkSwal = setInterval(function() {
+          if (typeof (window as any).Swal !== 'undefined') {
+            clearInterval(checkSwal);
+            initializeSweetAlert();
+          }
+        }, 100);
+
+        // Timeout después de 5 segundos si no se carga
+        setTimeout(function() {
+          clearInterval(checkSwal);
+          if (typeof (window as any).Swal === 'undefined') {
+            initializeSweetAlert();
+          }
+        }, 5000);
+      });
+
+      function initializeSweetAlert() {
+        // Evitar múltiples inicializaciones
+        if (window.sweetAlertInitialized) {
+          return;
+        }
+        window.sweetAlertInitialized = true;
+
+        // Función para mostrar alertas
+        window.showSweetAlert = function(type, title, message, timer) {
+          if (typeof (window as any).Swal !== 'undefined') {
+            const config = {
+              icon: type,
+              title: title,
+              text: message || '',
+              confirmButtonColor: '#3B82F6'
+            };
+            
+            if (timer) {
+              config.timer = timer;
+              config.showConfirmButton = false;
+            }
+            
+            return (window as any).Swal.fire(config);
+          } else {
+            // Fallback a alerta nativa
+            const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+            const fullMessage = message ? `${icon} ${title}: ${message}` : `${icon} ${title}`;
+            alert(fullMessage);
+            return Promise.resolve();
+          }
+        };
+
+        // Función para confirmaciones
+        window.showSweetConfirm = function(title, text, confirmText, cancelText) {
+          confirmText = confirmText || 'Sí, continuar';
+          cancelText = cancelText || 'Cancelar';
+          
+          if (typeof (window as any).Swal !== 'undefined') {
+            return (window as any).Swal.fire({
+              title: title,
+              text: text,
+              icon: 'question',
+              showCancelButton: true,
+              confirmButtonColor: '#3B82F6',
+              cancelButtonColor: '#6B7280',
+              confirmButtonText: confirmText,
+              cancelButtonText: cancelText
+            });
+          } else {
+            // Fallback a confirm nativo
+            return Promise.resolve({ 
+              isConfirmed: confirm(`${title}\n\n${text}`) 
+            });
+          }
+        };
+
+      }
+    </script>
+    
+    <slot />
+  </body>
+</html>
