@@ -38,21 +38,21 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
     console.log(`🔍 Doctor Update: User ${user.email} (role: ${user.role}, id: ${user.id}) attempting to update doctor ID ${id}`);
 
     // Verificar permisos: Admin/Superadmin o el mismo doctor
-    const isAdmin = hasRole(user, 'admin');
-    const isSameDoctor = user.role.toLowerCase() === 'doctor' && String(user.id) === String(id);
+    // Importante: Normalizar roles a minúsculas para evitar problemas de case-sensitivity
+    const userRole = (user.role || '').toLowerCase();
+    const isAdmin = userRole === 'admin' || userRole === 'superadmin';
+    const isSameDoctor = userRole === 'doctor' && String(user.id) === String(id);
     const isAuthorized = isAdmin || isSameDoctor;
 
     console.log(`🔍 Authorization check: isAdmin=${isAdmin}, isSameDoctor=${isSameDoctor}, isAuthorized=${isAuthorized}`);
 
     if (!isAuthorized) {
       console.error(`❌ Doctor Update: User ${user.email} (role: ${user.role}, id: ${user.id}) is NOT authorized to update doctor ${id}`);
-      // CAMBIO TEMPORAL: Retornar 200 en lugar de 403 para asegurar que el mensaje llegue al frontend
-      // y el usuario pueda ver la razón exacta en la alerta.
       return new Response(JSON.stringify({
         success: false,
-        message: `⛔ DEBUG: Auth Fallida. Rol detectado: '${user.role}' (ID: ${user.id}). Intentando editar ID: ${id}. isAdmin: ${isAdmin}, isSameDoctor: ${isSameDoctor}.`
+        message: `No autorizado para editar este doctor`
       }), {
-        status: 200, // Usamos 200 para que el cliente lea el JSON sí o sí
+        status: 403,
         headers: { 'Content-Type': 'application/json' }
       });
     }
