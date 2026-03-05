@@ -39,7 +39,7 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
 
     // Verificar permisos: Admin/Superadmin o el mismo doctor
     const isAdmin = hasRole(user, 'admin');
-    const isSameDoctor = user.role === 'doctor' && String(user.id) === String(id);
+    const isSameDoctor = user.role.toLowerCase() === 'doctor' && String(user.id) === String(id);
     const isAuthorized = isAdmin || isSameDoctor;
 
     console.log(`🔍 Authorization check: isAdmin=${isAdmin}, isSameDoctor=${isSameDoctor}, isAuthorized=${isAuthorized}`);

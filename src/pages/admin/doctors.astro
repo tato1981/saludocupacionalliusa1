@@ -831,13 +831,24 @@ if (!hasRole(user, 'admin')) {
     // Manejar submit del formulario
     async function handleDoctorSubmit(e: Event) {
       e.preventDefault();
+      console.log('🔵 [DEBUG] handleDoctorSubmit iniciado');
 
       const formData = new FormData(e.target as HTMLFormElement);
       const doctorId = formData.get('id');
       const isEdit = doctorId && doctorId !== '';
+      
+      console.log('🔵 [DEBUG] Datos del formulario:', {
+        id: doctorId,
+        isEdit,
+        name: formData.get('name'),
+        email: formData.get('email'),
+        specialization: formData.get('specialization')
+      });
 
       const url = isEdit ? `/api/admin/doctors/update` : `/api/admin/doctors/create`;
       const method = 'POST';
+
+      console.log(`🔵 [DEBUG] Enviando petición a: ${url} con método ${method}`);
 
       try {
         // Enviar FormData directamente para soportar archivos
@@ -846,7 +857,10 @@ if (!hasRole(user, 'admin')) {
           body: formData // NO incluir Content-Type, el navegador lo configura automáticamente con boundary
         });
 
+        console.log('🔵 [DEBUG] Respuesta recibida, status:', response.status);
+
         const result = await response.json();
+        console.log('🔵 [DEBUG] Resultado JSON:', result);
 
         if (result.success) {
           showAlert('success', isEdit ? 'Doctor actualizado correctamente' : 'Doctor creado correctamente');
