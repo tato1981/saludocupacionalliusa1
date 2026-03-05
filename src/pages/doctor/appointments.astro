@@ -114,7 +114,20 @@ if (!user || user.role !== 'doctor') {
       <!-- Filtros y controles responsive -->
       <div class="bg-white p-4 sm:p-6 rounded-lg shadow mb-6">
         <div class="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
-          <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
+          <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 flex-1">
+            <div class="relative flex-1 sm:max-w-xs">
+              <input
+                type="text"
+                id="searchDocument"
+                placeholder="Buscar por documento..."
+                class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 w-full text-sm"
+              />
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
             <select id="statusFilter" class="border border-gray-300 rounded px-3 py-2 text-sm">
               <option value="">Todos los estados</option>
               <option value="programada">Programadas</option>
@@ -122,14 +135,14 @@ if (!user || user.role !== 'doctor') {
               <option value="completada">Completadas</option>
               <option value="cancelada">Canceladas</option>
             </select>
-            <input 
-              type="date" 
+            <input
+              type="date"
               id="dateFilter"
               class="border border-gray-300 rounded px-3 py-2 text-sm"
             />
           </div>
           <div class="flex justify-center sm:justify-end">
-            <button 
+            <button
               id="refreshBtn"
               class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors text-sm"
             >
@@ -163,7 +176,7 @@ if (!user || user.role !== 'doctor') {
             </tbody>
           </table>
         </div>
-        
+
         <!-- Loading state -->
         <div id="loadingState" class="text-center py-8">
           <div class="inline-flex items-center">
@@ -172,6 +185,15 @@ if (!user || user.role !== 'doctor') {
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
             Cargando citas...
+          </div>
+        </div>
+
+        <!-- Paginación -->
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <span class="text-sm text-gray-700" id="resultsCount">Mostrando 0 resultados</span>
+          <div class="flex space-x-2 justify-center sm:justify-end">
+            <button id="prevBtn" class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Anterior</button>
+            <button id="nextBtn" class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Siguiente</button>
           </div>
         </div>
       </div>
@@ -249,6 +271,8 @@ if (!user || user.role !== 'doctor') {
 <script>
   let allAppointments: any[] = [];
   let filteredAppointments: any[] = [];
+  let currentPage = 1;
+  const itemsPerPage = 10;
 
   // Función helper para mostrar alertas usando SweetAlert2 global
   function showAlert(type: 'success' | 'error' | 'warning' | 'info', title: string, message?: string) {
@@ -379,8 +403,24 @@ if (!user || user.role !== 'doctor') {
   // Renderizar tabla de citas
   function renderAppointments(appointments: any[]) {
     const tableBody = document.getElementById('appointmentsTableBody')!;
-    
+    const countSpan = document.getElementById('resultsCount')!;
+    const prevBtn = document.getElementById('prevBtn') as HTMLButtonElement;
+    const nextBtn = document.getElementById('nextBtn') as HTMLButtonElement;
+
+    // Calcular paginación
+    const totalPages = Math.ceil(appointments.length / itemsPerPage);
+
+    // Asegurar que currentPage es válido
+    if (currentPage < 1) currentPage = 1;
+    if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    const paginatedItems = appointments.slice(start, end);
+
+    // Actualizar contador
     if (appointments.length === 0) {
+      countSpan.textContent = 'Mostrando 0 resultados';
       tableBody.innerHTML = `
         <tr>
           <td colspan="6" class="px-6 py-8 text-center text-gray-500">
@@ -388,10 +428,18 @@ if (!user || user.role !== 'doctor') {
           </td>
         </tr>
       `;
+      prevBtn.disabled = true;
+      nextBtn.disabled = true;
       return;
     }
 
-    tableBody.innerHTML = appointments.map(appointment => {
+    countSpan.textContent = `Mostrando ${start + 1}-${Math.min(end, appointments.length)} de ${appointments.length} resultados`;
+
+    // Actualizar botones
+    prevBtn.disabled = currentPage === 1;
+    nextBtn.disabled = currentPage === totalPages;
+
+    tableBody.innerHTML = paginatedItems.map(appointment => {
       const status = appointment.status.toLowerCase();
       const hasCertificate = appointment.certificate_id && appointment.certificate_id > 0;
       
@@ -525,14 +573,26 @@ if (!user || user.role !== 'doctor') {
   // Filtros
   const statusFilter = document.getElementById('statusFilter') as HTMLSelectElement;
   const dateFilter = document.getElementById('dateFilter') as HTMLInputElement;
+  const searchDocument = document.getElementById('searchDocument') as HTMLInputElement;
 
   function applyFilters() {
     let filtered = [...allAppointments];
-    
+
+    // Filtro por búsqueda de documento
+    if (searchDocument.value) {
+      const searchTerm = searchDocument.value.toLowerCase();
+      filtered = filtered.filter(app =>
+        app.patient_document?.toLowerCase().includes(searchTerm) ||
+        app.patient_name?.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    // Filtro por estado
     if (statusFilter.value) {
       filtered = filtered.filter(app => app.status === statusFilter.value);
     }
-    
+
+    // Filtro por fecha
     if (dateFilter.value) {
       filtered = filtered.filter(app => {
         try {
@@ -543,13 +603,15 @@ if (!user || user.role !== 'doctor') {
         }
       });
     }
-    
+
     filteredAppointments = filtered;
+    currentPage = 1; // Resetear a la primera página
     renderAppointments(filteredAppointments);
   }
 
   statusFilter.addEventListener('change', applyFilters);
   dateFilter.addEventListener('change', applyFilters);
+  searchDocument.addEventListener('input', applyFilters);
 
   // Funciones de acción
   (window as any).startAppointment = async (appointmentId: number) => {
@@ -685,6 +747,22 @@ if (!user || user.role !== 'doctor') {
 
   // Refresh button
   document.getElementById('refreshBtn')!.addEventListener('click', loadAppointments);
+
+  // Botones de paginación
+  document.getElementById('prevBtn')!.addEventListener('click', () => {
+    if (currentPage > 1) {
+      currentPage--;
+      renderAppointments(filteredAppointments);
+    }
+  });
+
+  document.getElementById('nextBtn')!.addEventListener('click', () => {
+    const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage);
+    if (currentPage < totalPages) {
+      currentPage++;
+      renderAppointments(filteredAppointments);
+    }
+  });
 
   // Modal Functions
   (window as any).openIssueModal = function(appointmentId: number) {
