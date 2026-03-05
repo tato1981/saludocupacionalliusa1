@@ -1,7 +1,6 @@
 import type { APIRoute } from 'astro';
 import { PatientService } from '@/lib/patient-service';
 import { requireAuth, hasRole } from '@/lib/auth';
-import { R2StorageService } from '@/lib/r2-storage-service';
 
 
 export const GET: APIRoute = async ({ params, cookies }) => {

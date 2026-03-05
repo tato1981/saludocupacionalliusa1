@@ -18,7 +18,7 @@ services:
       - DB_NAME=${DB_NAME}
       # Configuración de Autenticación
       - JWT_SECRET=${JWT_SECRET}
-      # Configuración de Cloudflare R2 (Almacenamiento de imágenes)
+      # Configuración de R2 Storage
       - R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
       - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
       - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}

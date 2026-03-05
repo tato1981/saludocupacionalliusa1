@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { hasRole } from '@/lib/auth';
-import path from 'path';
 import { R2StorageService } from '@/lib/r2-storage-service';
+import path from 'path';
 
 export const POST: APIRoute = async ({ request, locals }) => {
   try {
@@ -56,24 +56,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
     // Generar nombre único para el archivo
     const timestamp = Date.now();
     const ext = path.extname(signatureFile.name);
-    // Usar estructura de carpetas por paciente
     const key = `patients/${patientId}/signature_${timestamp}${ext}`;
 
     // Convertir a buffer
     const buffer = Buffer.from(await signatureFile.arrayBuffer());
 
-    // Verificar configuración de R2 antes de intentar subir
-    console.log('🔍 Verificando configuración de R2 para firma...');
-    console.log('   R2_ACCOUNT_ID:', process.env.R2_ACCOUNT_ID ? '✅ Configurado' : '❌ No configurado');
-    console.log('   R2_BUCKET_NAME:', process.env.R2_BUCKET_NAME ? '✅ Configurado' : '❌ No configurado');
-    console.log('   R2_PUBLIC_URL:', process.env.R2_PUBLIC_URL ? '✅ Configurado' : '❌ No configurado');
-    console.log('   Key generado:', key);
-
     // Subir a R2
     const publicUrl = await R2StorageService.uploadFile(buffer, key, signatureFile.type);
-    console.log('   Public URL retornada por R2StorageService:', publicUrl);
-
-    console.log('✅ Firma subida exitosamente a R2:', publicUrl);
+    console.log(`✅ Firma subida: ${publicUrl}`);
 
     return new Response(JSON.stringify({
       success: true,

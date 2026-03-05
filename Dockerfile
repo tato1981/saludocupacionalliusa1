@@ -38,17 +38,17 @@ RUN npm ci --omit=dev && npm cache clean --force
 # Copiar los archivos construidos desde la etapa anterior
 COPY --from=builder /app/dist ./dist
 
-# Crear directorios para uploads (aunque usemos R2, pueden ser útiles para temporales o fallbacks)
+# Crear directorios para uploads
 RUN mkdir -p /app/uploads/patients /app/uploads/signatures && \
     chmod -R 755 /app/uploads
 
-# Variables de entorno para Cloudflare R2 (DOCUMENTACIÓN)
-# Estas variables DEBEN ser proporcionadas al ejecutar el contenedor
+# Variables de entorno para R2 (configurar en docker-compose.yml o al ejecutar)
 # ENV R2_ACCOUNT_ID=
 # ENV R2_ACCESS_KEY_ID=
 # ENV R2_SECRET_ACCESS_KEY=
 # ENV R2_BUCKET_NAME=
 # ENV R2_PUBLIC_URL=
+# ENV R2_IMAGE_FORMAT=webp
 
 # Configuración del servidor
 ENV HOST=0.0.0.0

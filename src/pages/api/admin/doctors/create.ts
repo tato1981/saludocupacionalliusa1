@@ -99,15 +99,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
     // Procesar firma si se subió
     if (signatureFile && signatureFile.size > 0) {
-
       // Validar tamaño (2 MB máximo)
       if (signatureFile.size > 2 * 1024 * 1024) {
-        // Nota: El doctor ya fue creado, pero falló la firma. 
-        // Podríamos eliminar el doctor o solo advertir.
-        // Por simplicidad, retornamos error pero el usuario ya existe.
-        // Idealmente usaríamos transacción.
         return new Response(JSON.stringify({
-          success: true, // Parcialmente exitoso
+          success: true,
           message: 'Doctor creado, pero la firma superó el tamaño máximo (2MB)',
           data: { id: doctorId }
         }), {
@@ -116,10 +111,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         });
       }
 
-      // Generar nombre único usando el ID
+      // Generar nombre único
       const timestamp = Date.now();
       const fileExtension = signatureFile.name.split('.').pop() || 'png';
-      // Usar estructura de carpetas por doctor (usando ID para consistencia)
       const key = `doctors/${doctorId}/signature_${timestamp}.${fileExtension}`;
 
       // Subir a R2
@@ -127,11 +121,13 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       const buffer = Buffer.from(arrayBuffer);
       signaturePath = await R2StorageService.uploadFile(buffer, key, signatureFile.type);
 
-      // Actualizar el path de la firma
+      // Actualizar path de firma
       await db.execute(
         'UPDATE users SET signature_path = ? WHERE id = ?',
         [signaturePath, doctorId]
       );
+
+      console.log(`✅ Firma de doctor subida: ${signaturePath}`);
     }
 
     return new Response(JSON.stringify({

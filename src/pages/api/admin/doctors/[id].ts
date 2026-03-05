@@ -85,6 +85,7 @@ export const DELETE: APIRoute = async ({ params, cookies }) => {
     // Eliminar firma de R2 si existe
     if (doctor.signature_path) {
       await R2StorageService.deleteFile(doctor.signature_path);
+      console.log(`✅ Firma de doctor eliminada de R2`);
     }
 
     // Eliminar el doctor

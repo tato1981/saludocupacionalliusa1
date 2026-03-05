@@ -101,22 +101,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
       });
     }
 
-    // Verificar configuración de R2 antes de intentar subir
-    console.log('🔍 Verificando configuración de R2 para foto...');
-    console.log('   R2_ACCOUNT_ID:', process.env.R2_ACCOUNT_ID ? '✅ Configurado' : '❌ No configurado');
-    console.log('   R2_BUCKET_NAME:', process.env.R2_BUCKET_NAME ? '✅ Configurado' : '❌ No configurado');
-    console.log('   R2_PUBLIC_URL:', process.env.R2_PUBLIC_URL ? '✅ Configurado' : '❌ No configurado');
-    console.log('   Key generado:', key);
-
-    // Subir a R2
+    // Subir imagen principal a R2
     const publicUrl = await R2StorageService.uploadFile(processingResult.buffer, key, 'image/webp');
-    console.log('   Public URL retornada por R2StorageService:', publicUrl);
+    console.log(`✅ Foto subida: ${publicUrl}`);
 
-    // También crear versión pequeña para certificados y subirla
+    // Crear y subir versión para certificados
     const certResult = await ImageProcessingService.processImage(originalBuffer, null, 'certificate');
     if (certResult.success && certResult.buffer) {
-        const certKey = `patients/${patientId}/certificate_${timestamp}.webp`;
-        await R2StorageService.uploadFile(certResult.buffer, certKey, 'image/webp');
+      const certKey = `patients/${patientId}/certificate_${timestamp}.webp`;
+      await R2StorageService.uploadFile(certResult.buffer, certKey, 'image/webp');
+      console.log(`✅ Versión certificado subida`);
     }
 
     return new Response(JSON.stringify({
@@ -132,6 +126,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
+
 
   } catch (error) {
     console.error('Error al subir foto:', error);

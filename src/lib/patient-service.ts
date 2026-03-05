@@ -357,46 +357,40 @@ export class PatientService {
     if (!tempUrl || !tempUrl.includes('temp_')) return tempUrl;
 
     try {
-      console.log(`🔄 Moving temp ${type} file: ${tempUrl} for patient ${patientId}`);
-      
-      // Construct destination key: patients/{id}/{type}_{timestamp}.{ext}
+      console.log(`🔄 Moviendo archivo temp ${type}: ${tempUrl} para paciente ${patientId}`);
+
       const extension = tempUrl.split('.').pop() || (type === 'photo' ? 'webp' : 'png');
       const timestamp = Date.now();
       const destinationKey = `patients/${patientId}/${type}_${timestamp}.${extension}`;
-      
-      // Copy file
+
+      // Copiar archivo
       const newUrl = await R2StorageService.copyFile(tempUrl, destinationKey);
-      
-      // Try to delete the old temp file
+
+      // Eliminar archivo temporal
       try {
         await R2StorageService.deleteFile(tempUrl);
       } catch (e) {
-        console.warn(`⚠️ Failed to delete temp file ${tempUrl}:`, e);
+        console.warn(`⚠️ No se pudo eliminar archivo temp ${tempUrl}:`, e);
       }
 
-      // If it's a photo, try to move the certificate version too
+      // Si es foto, mover también versión certificado
       if (type === 'photo' && tempUrl.endsWith('.webp')) {
         const tempCertUrl = tempUrl.replace('.webp', '_cert.webp');
         const destCertKey = destinationKey.replace('.webp', '_cert.webp');
-        
+
         try {
-          // Check if cert file exists by trying to copy it
-          // Note: copyFile will fail if source doesn't exist, so we wrap in try/catch
           await R2StorageService.copyFile(tempCertUrl, destCertKey);
-          
-          // Delete old cert file
           await R2StorageService.deleteFile(tempCertUrl);
-          console.log('✅ Certificate version moved successfully');
+          console.log('✅ Versión certificado movida exitosamente');
         } catch (e) {
-          // It's okay if cert version doesn't exist or copy fails
-          console.log('ℹ️ No certificate version found or failed to move');
+          console.log('ℹ️ No se encontró versión certificado o falló al mover');
         }
       }
-      
+
       return newUrl;
     } catch (error) {
-      console.error(`❌ Error moving temp file ${tempUrl}:`, error);
-      return tempUrl; // Return original URL if move fails
+      console.error(`❌ Error moviendo archivo temp ${tempUrl}:`, error);
+      return tempUrl;
     }
   }
 
@@ -453,24 +447,24 @@ export class PatientService {
       const hasIdentificationNumber = columns.includes('identification_number');
       const hasDocumentNumber = columns.includes('document_number');
 
-      // Verificar si hay cambios en foto o firma para eliminar archivos antiguos de R2
+      // Eliminar archivos antiguos de R2 si hay cambios
       if (patientData.photoPath && patientData.photoPath !== existingPatient.photo_path) {
         if (existingPatient.photo_path) {
-          console.log('🗑️ Eliminando foto antigua de R2 al actualizar:', existingPatient.photo_path);
           await R2StorageService.deleteFile(existingPatient.photo_path);
-          
-          // También eliminar versión certificado
+
+          // Eliminar también versión certificado
           if (existingPatient.photo_path.endsWith('.webp')) {
             const certPath = existingPatient.photo_path.replace('.webp', '_cert.webp');
             await R2StorageService.deleteFile(certPath);
           }
+          console.log(`✅ Foto antigua eliminada de R2`);
         }
       }
 
       if (patientData.signaturePath && patientData.signaturePath !== existingPatient.signature_path) {
         if (existingPatient.signature_path) {
-          console.log('🗑️ Eliminando firma antigua de R2 al actualizar:', existingPatient.signature_path);
           await R2StorageService.deleteFile(existingPatient.signature_path);
+          console.log(`✅ Firma antigua eliminada de R2`);
         }
       }
 
@@ -593,21 +587,19 @@ export class PatientService {
 
       // Eliminar archivos de R2 si existen
       if (existingPatient.photo_path) {
-        console.log('🗑️ Eliminando foto del paciente de R2:', existingPatient.photo_path);
         await R2StorageService.deleteFile(existingPatient.photo_path);
 
-        // También intentar eliminar la versión certificado (si existe)
-        // La convención es: nombre.webp -> nombre_cert.webp
+        // Eliminar también versión certificado
         if (existingPatient.photo_path.endsWith('.webp')) {
           const certPath = existingPatient.photo_path.replace('.webp', '_cert.webp');
-          console.log('🗑️ Intentando eliminar versión certificado de R2:', certPath);
           await R2StorageService.deleteFile(certPath);
         }
+        console.log(`✅ Foto del paciente eliminada de R2`);
       }
 
       if (existingPatient.signature_path) {
-        console.log('🗑️ Eliminando firma del paciente de R2:', existingPatient.signature_path);
         await R2StorageService.deleteFile(existingPatient.signature_path);
+        console.log(`✅ Firma del paciente eliminada de R2`);
       }
 
       // 4. Eliminar el paciente
