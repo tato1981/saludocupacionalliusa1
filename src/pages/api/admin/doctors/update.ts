@@ -46,11 +46,13 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
 
     if (!isAuthorized) {
       console.error(`❌ Doctor Update: User ${user.email} (role: ${user.role}, id: ${user.id}) is NOT authorized to update doctor ${id}`);
+      // CAMBIO TEMPORAL: Retornar 200 en lugar de 403 para asegurar que el mensaje llegue al frontend
+      // y el usuario pueda ver la razón exacta en la alerta.
       return new Response(JSON.stringify({
         success: false,
-        message: `No autorizado. Tu rol: ${user.role}, Tu ID: ${user.id}, Doctor a editar: ${id}, isAdmin: ${isAdmin}, isSameDoctor: ${isSameDoctor}`
+        message: `⛔ DEBUG: Auth Fallida. Rol detectado: '${user.role}' (ID: ${user.id}). Intentando editar ID: ${id}. isAdmin: ${isAdmin}, isSameDoctor: ${isSameDoctor}.`
       }), {
-        status: 403,
+        status: 200, // Usamos 200 para que el cliente lea el JSON sí o sí
         headers: { 'Content-Type': 'application/json' }
       });
     }
