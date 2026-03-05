@@ -175,7 +175,7 @@ if (!user || user.role !== 'doctor') {
   let allConcepts: any[] = [];
   let filteredConcepts: any[] = [];
   let currentPage = 1;
-  const itemsPerPage = 10;
+  const itemsPerPage = 20;
 
   // Función helper para mostrar alertas usando SweetAlert2 global
   function showAlert(type: 'success' | 'error' | 'warning' | 'info', title: string, message?: string) {
@@ -204,11 +204,12 @@ if (!user || user.role !== 'doctor') {
       const data = await response.json();
 
       if (data.success) {
-        // Filtrar solo citas completadas con certificado
+        // Filtrar SOLO citas que tienen certificado emitido
         allConcepts = data.data.filter((app: any) =>
-          app.status === 'completada' && app.certificate_id && app.certificate_id > 0
+          app.certificate_id // Solo mostrar si tiene certificado
         );
         filteredConcepts = [...allConcepts];
+        console.log('Total certificados encontrados:', allConcepts.length);
         renderConcepts(filteredConcepts);
       }
     } catch (error) {
