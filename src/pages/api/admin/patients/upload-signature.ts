@@ -7,6 +7,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
   try {
     const user = locals.user;
 
+    // Debug logs para diagnosticar problemas de autenticación en producción
+    console.log(`📝 Upload Signature Request: User=${user?.email || 'null'}, Role=${user?.role || 'null'}`);
+
     if (!user) {
       console.error('❌ Upload Signature: No authenticated user found in locals');
       return new Response(JSON.stringify({ success: false, message: 'No autenticado' }), {
@@ -61,7 +64,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     // Convertir a buffer
     const buffer = Buffer.from(await signatureFile.arrayBuffer());
 
-    // Subir a storage
+    // Subir a storage (StorageService ya maneja la conversión a base64 para ImageKit)
     const publicUrl = await StorageService.uploadFile(buffer, key, signatureFile.type);
     console.log(`✅ Firma subida: ${publicUrl}`);
 
