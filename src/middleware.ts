@@ -50,15 +50,24 @@ export const onRequest = defineMiddleware(async (context, next) => {
     // ... (lógica existente de uploads) ...
     // Decodificar la URL para manejar espacios y caracteres especiales
     const decodedPath = decodeURIComponent(url.pathname);
-    
+
     // Intentar múltiples ubicaciones en orden de prioridad
-    const possiblePaths = [
-      path.join(process.cwd(), decodedPath),                           // Opción 1: uploads/ en raíz (CWD correcto)
-      path.join(process.cwd(), 'public', decodedPath),                 // Opción 2: public/uploads/ (Desarrollo)
-      path.join(process.cwd(), 'dist', 'client', decodedPath),         // Opción 3: dist/client/uploads/ (Build estático)
-      path.resolve(process.cwd(), '..', decodedPath.replace(/^\//, '')), // Opción 4: Un nivel arriba (si CWD está en dist/)
-      path.join(process.cwd(), '..', 'public', decodedPath)            // Opción 5: Un nivel arriba en public (raro pero posible)
-    ];
+    const possiblePaths = [];
+
+    // Prioridad 1: Si existe UPLOADS_DIR (producción/Docker), usar esa ruta
+    if (process.env.UPLOADS_DIR) {
+      const relativePath = decodedPath.replace('/uploads/', '');
+      possiblePaths.push(path.join(process.env.UPLOADS_DIR, relativePath));
+    }
+
+    // Otras ubicaciones de fallback
+    possiblePaths.push(
+      path.join(process.cwd(), decodedPath),                           // Opción 2: uploads/ en raíz (CWD correcto)
+      path.join(process.cwd(), 'public', decodedPath),                 // Opción 3: public/uploads/ (Desarrollo)
+      path.join(process.cwd(), 'dist', 'client', decodedPath),         // Opción 4: dist/client/uploads/ (Build estático)
+      path.resolve(process.cwd(), '..', decodedPath.replace(/^\//, '')), // Opción 5: Un nivel arriba (si CWD está en dist/)
+      path.join(process.cwd(), '..', 'public', decodedPath)            // Opción 6: Un nivel arriba en public (raro pero posible)
+    );
 
     let filePath: string | null = null;
 

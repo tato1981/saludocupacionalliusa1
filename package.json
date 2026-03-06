@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "@astrojs/node": "^9.5.4",
-    "@imagekit/nodejs": "^7.3.0",
     "astro": "^5.18.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",

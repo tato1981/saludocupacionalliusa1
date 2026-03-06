@@ -1,98 +1,83 @@
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import { writeFile, mkdir, unlink, copyFile as fsCopyFile, access } from 'fs/promises';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
 /**
- * ImageKit Storage Service
+ * Local Storage Service
  *
  * Servicio para manejar la subida, eliminación y gestión de archivos
- * usando ImageKit CDN.
+ * usando almacenamiento local del servidor.
  *
  * @author Sistema de Salud Ocupacional
- * @version 4.0.0
+ * @version 5.0.0
  */
 
-let ImageKitInstance: any = null;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-function getImageKit() {
-  if (ImageKitInstance) {
-    return ImageKitInstance;
-  }
-
-  // Importar usando require para módulo CommonJS
-  const ImageKit = require('@imagekit/nodejs');
-
-  const publicKey = process.env.IMAGEKIT_PUBLIC_KEY;
-  const privateKey = process.env.IMAGEKIT_PRIVATE_KEY;
-  const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT;
-
-  if (!publicKey || !privateKey || !urlEndpoint) {
-    console.error('❌ ImageKit Storage: Missing environment variables');
-    console.error('publicKey:', publicKey ? 'SET' : 'MISSING');
-    console.error('privateKey:', privateKey ? 'SET' : 'MISSING');
-    console.error('urlEndpoint:', urlEndpoint ? 'SET' : 'MISSING');
-    throw new Error('ImageKit configuration is incomplete');
-  }
-
-  try {
-    // Inicialización para ImageKit Node.js SDK v7.x+
-    // Nota: NO establecer baseURL con urlEndpoint (CDN), usar el default (api.imagekit.io)
-    // urlEndpoint se pasa como propiedad adicional para generación de URLs
-    ImageKitInstance = new ImageKit({
-      publicKey: publicKey,
-      privateKey: privateKey,
-      urlEndpoint: urlEndpoint
-    });
-
-    console.log('✅ ImageKit Storage: Initialized');
-    // console.log('✅ ImageKit instance type:', typeof ImageKitInstance);
-    // console.log('✅ ImageKit methods:', Object.keys(ImageKitInstance).slice(0, 10));
-
-    return ImageKitInstance;
-  } catch (error) {
-    console.error('❌ Error initializing ImageKit:', error);
-    throw error;
-  }
-}
-
-class ImageKitStorage {
-  private urlEndpoint: string;
+class LocalStorage {
+  private uploadDir: string;
+  private publicPath: string;
+  private baseUrl: string;
 
   constructor() {
-    const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT;
-    if (!urlEndpoint) {
-      throw new Error('IMAGEKIT_URL_ENDPOINT is required');
+    // Directorio donde se guardarán los archivos
+    // Prioridad:
+    // 1. Variable de entorno UPLOADS_DIR (para producción/Docker)
+    // 2. public/uploads (para desarrollo)
+    const uploadsDir = process.env.UPLOADS_DIR;
+
+    if (uploadsDir) {
+      // Producción: usar ruta absoluta desde variable de entorno
+      this.uploadDir = uploadsDir;
+    } else {
+      // Desarrollo: usar public/uploads relativo al código fuente
+      this.uploadDir = join(__dirname, '../../public/uploads');
     }
-    this.urlEndpoint = urlEndpoint;
+
+    this.publicPath = '/uploads';
+
+    // URL base de la aplicación
+    this.baseUrl = process.env.APP_BASE_URL || 'http://localhost:4321';
+
+    // Asegurar que el directorio de uploads existe
+    this.ensureUploadDir();
   }
 
   /**
-   * Sube un archivo a ImageKit
+   * Asegura que el directorio de uploads existe
+   */
+  private async ensureUploadDir(): Promise<void> {
+    try {
+      await access(this.uploadDir);
+    } catch {
+      await mkdir(this.uploadDir, { recursive: true });
+      console.log('✅ Local Storage: Upload directory created');
+    }
+  }
+
+  /**
+   * Sube un archivo al almacenamiento local
    */
   async uploadFile(buffer: Buffer, key: string, contentType: string): Promise<string> {
     console.log(`📤 Upload Starting: key=${key}, contentType=${contentType}`);
 
     try {
-      const imagekit = getImageKit();
-
       // Normalizar key (quitar slash inicial si existe)
       const cleanKey = key.replace(/^\/+/, '');
 
-      // Extraer el nombre del archivo y la carpeta
-      const fileName = cleanKey.split('/').pop() || cleanKey;
-      const folder = cleanKey.substring(0, cleanKey.lastIndexOf('/')) || '';
+      // Ruta completa del archivo
+      const filePath = join(this.uploadDir, cleanKey);
 
-      // ImageKit Node.js SDK v7.x usa imagekit.files.upload
-      // Nota: Convertir buffer a base64 para evitar problemas con FormData en el SDK
-      const fileBase64 = buffer.toString('base64');
-      
-      const uploadResponse = await imagekit.files.upload({
-        file: fileBase64,
-        fileName: fileName,
-        folder: folder || undefined,
-        useUniqueFileName: false // Mantener el nombre del archivo
-      });
+      // Crear directorios necesarios
+      const fileDir = dirname(filePath);
+      await mkdir(fileDir, { recursive: true });
 
-      const publicUrl = uploadResponse.url;
+      // Guardar el archivo
+      await writeFile(filePath, buffer);
+
+      // URL pública del archivo
+      const publicUrl = `${this.baseUrl}${this.publicPath}/${cleanKey}`;
       console.log(`   ✅ Upload Success: ${cleanKey} -> ${publicUrl}`);
 
       return publicUrl;
@@ -103,35 +88,35 @@ class ImageKitStorage {
   }
 
   /**
-   * Elimina un archivo de ImageKit
+   * Elimina un archivo del almacenamiento local
    */
   async deleteFile(fileUrl: string): Promise<void> {
     try {
-      const imagekit = getImageKit();
-
-      // Extraer el path relativo
+      // Extraer el path relativo de la URL
       let filePath = fileUrl;
-      if (fileUrl.startsWith(this.urlEndpoint)) {
-        filePath = fileUrl.replace(this.urlEndpoint + '/', '');
+
+      if (fileUrl.startsWith(this.baseUrl)) {
+        filePath = fileUrl.replace(this.baseUrl + this.publicPath + '/', '');
+      } else if (fileUrl.startsWith(this.publicPath)) {
+        filePath = fileUrl.replace(this.publicPath + '/', '');
       } else if (fileUrl.startsWith('/')) {
         filePath = fileUrl.substring(1);
       }
 
       console.log(`🗑️ Deleting file: ${filePath}`);
 
-      // Primero, buscar el archivo para obtener su fileId
-      // ImageKit Node.js SDK v7.x usa imagekit.assets.list para listar archivos
-      const listResponse = await imagekit.assets.list({
-        path: filePath
-      });
+      // Ruta completa del archivo
+      const fullPath = join(this.uploadDir, filePath);
 
-      if (listResponse && listResponse.length > 0) {
-        const fileId = listResponse[0].fileId;
-        // ImageKit Node.js SDK v7.x usa imagekit.files.delete
-        await imagekit.files.delete(fileId);
+      try {
+        await unlink(fullPath);
         console.log(`   ✅ Delete Success: ${filePath}`);
-      } else {
-        console.log(`   ⚠️ File not found: ${filePath}`);
+      } catch (error: any) {
+        if (error.code === 'ENOENT') {
+          console.log(`   ⚠️ File not found: ${filePath}`);
+        } else {
+          throw error;
+        }
       }
     } catch (error: any) {
       console.error(`   ❌ Delete Error for url="${fileUrl}":`, error);
@@ -140,118 +125,41 @@ class ImageKitStorage {
   }
 
   /**
-   * Copia un archivo en ImageKit (usado para mover de temp a permanente)
+   * Copia un archivo en el almacenamiento local (usado para mover de temp a permanente)
    */
   async copyFile(sourceUrl: string, destinationKey: string): Promise<string> {
     try {
-      const imagekit = getImageKit();
-
+      // Extraer path de origen
       let sourcePath = sourceUrl;
-      if (sourceUrl.startsWith(this.urlEndpoint)) {
-        sourcePath = sourceUrl.replace(this.urlEndpoint + '/', '');
+
+      if (sourceUrl.startsWith(this.baseUrl)) {
+        sourcePath = sourceUrl.replace(this.baseUrl + this.publicPath + '/', '');
+      } else if (sourceUrl.startsWith(this.publicPath)) {
+        sourcePath = sourceUrl.replace(this.publicPath + '/', '');
+      } else if (sourceUrl.startsWith('/')) {
+        sourcePath = sourceUrl.substring(1);
       }
 
       const cleanDestKey = destinationKey.replace(/^\/+/, '');
 
       console.log(`📋 Copying: ${sourcePath} -> ${cleanDestKey}`);
 
-      // Buscar el archivo de origen para obtener su fileId
-      console.log(`🔍 Searching for source file: ${sourcePath}`);
-      
-      let sourceFilePath = '';
+      // Rutas completas
+      const sourceFullPath = join(this.uploadDir, sourcePath);
+      const destFullPath = join(this.uploadDir, cleanDestKey);
 
-      try {
-        const listResponse = await imagekit.assets.list({
-          path: sourcePath
-        });
-        
-        if (listResponse && listResponse.length > 0) {
-          // Encontrado directamente
-          sourceFilePath = listResponse[0].filePath;
-          console.log(`✅ File found direct: ${sourceFilePath}`);
-        }
-      } catch (err) {
-        console.warn(`⚠️ Direct lookup threw error, proceeding to search fallback:`, err);
-      }
-      
-      if (!sourceFilePath) {
-        // Fallback: Intentar buscar por nombre de archivo y carpeta contenedora
-        const fileName = sourcePath.split('/').pop();
-        // Asegurar que folderPath comience y termine correctamente para ImageKit
-        // ImageKit a veces prefiere paths sin slash inicial en queries, o con él.
-        let folderPath = sourcePath.substring(0, sourcePath.lastIndexOf('/')) || '/';
-        
-        console.log(`⚠️ Direct lookup failed for ${sourcePath}, trying search by name: "${fileName}" in folder "${folderPath}"`);
-        
-        // ImageKit search query syntax
-        // Nota: searchQuery usa sintaxis específica de ImageKit
-        console.log(`🔎 Executing search: name="${fileName}" in path="${folderPath}"`);
-        
-        try {
-            const searchResponse = await imagekit.assets.list({
-            searchQuery: `name="${fileName}"`,
-            path: folderPath
-            });
-            
-            console.log(`🔎 Search results: ${JSON.stringify(searchResponse)}`);
+      // Crear directorios necesarios
+      const destDir = dirname(destFullPath);
+      await mkdir(destDir, { recursive: true });
 
-            if (searchResponse && searchResponse.length > 0) {
-            // Buscar coincidencia exacta porque la búsqueda puede devolver parciales
-            const exactMatch = searchResponse.find(f => f.name === fileName);
-            if (exactMatch) {
-                sourceFilePath = exactMatch.filePath;
-                console.log(`✅ File found via search (exact match): ${sourceFilePath}`);
-            } else {
-                // Si no hay exacta, usar la primera
-                sourceFilePath = searchResponse[0].filePath;
-                console.log(`⚠️ File found via search (best guess): ${sourceFilePath}`);
-            }
-            }
-        } catch (searchErr) {
-             console.warn(`⚠️ Folder search threw error:`, searchErr);
-        }
+      // Copiar archivo
+      await fsCopyFile(sourceFullPath, destFullPath);
 
-        if (!sourceFilePath) {
-           // INTENTO FINAL: Buscar sin restringir el path, solo por nombre
-           // Esto es costoso pero necesario si el path está mal
-           console.log(`⚠️ Search in folder failed, trying global search for name: "${fileName}"`);
-           try {
-                const globalSearchResponse = await imagekit.assets.list({
-                    searchQuery: `name="${fileName}"`
-                });
-                
-                if (globalSearchResponse && globalSearchResponse.length > 0) {
-                    sourceFilePath = globalSearchResponse[0].filePath;
-                    console.log(`✅ File found via global search: ${sourceFilePath}`);
-                } else {
-                    console.error(`❌ File absolutely not found: ${sourcePath}`);
-                    throw new Error(`Source file not found: ${sourcePath}`);
-                }
-           } catch (globalErr: any) {
-               console.error(`❌ Global search failed:`, globalErr);
-               throw new Error(`Source file not found (after global search): ${sourcePath}`);
-           }
-        }
-      }
-
-      // cleanDestKey ya fue declarado arriba
-      // const cleanDestKey = destinationKey.replace(/^\/+/, '');
-      const folder = cleanDestKey.substring(0, cleanDestKey.lastIndexOf('/')) || '';
-
-      // Copiar archivo usando la función de copia de ImageKit
-      // ImageKit Node.js SDK v7.x usa imagekit.files.copy
-      console.log(`📋 Executing copy: ${sourceFilePath} -> /${cleanDestKey}`);
-      
-      const copyResponse = await imagekit.files.copy({
-        sourceFilePath: sourceFilePath,
-        destinationPath: folder ? `/${folder}` : '/',
-        includeFileVersions: false
-      });
-
-      const publicUrl = `${this.urlEndpoint}/${cleanDestKey}`;
+      // URL pública del archivo copiado
+      const publicUrl = `${this.baseUrl}${this.publicPath}/${cleanDestKey}`;
       console.log(`   ✅ Copy Success: ${publicUrl}`);
-      return publicUrl;
 
+      return publicUrl;
     } catch (error: any) {
       console.error('❌ Copy Error:', error);
       throw new Error(`Error al copiar archivo: ${error.message}`);
@@ -263,12 +171,8 @@ class ImageKitStorage {
    */
   async getImageUrl(filePath: string): Promise<string | null> {
     try {
-      const imagekit = getImageKit();
-
-      let path = filePath;
-
-      // Si es una URL completa de ImageKit, retornarla
-      if (filePath.startsWith(this.urlEndpoint)) {
+      // Si es una URL completa que empieza con la base URL, retornarla
+      if (filePath.startsWith(this.baseUrl)) {
         return filePath;
       }
 
@@ -278,20 +182,22 @@ class ImageKitStorage {
       }
 
       // Limpiar el path
-      if (filePath.startsWith('/')) {
+      let path = filePath;
+      if (filePath.startsWith(this.publicPath)) {
+        path = filePath.replace(this.publicPath + '/', '');
+      } else if (filePath.startsWith('/')) {
         path = filePath.substring(1);
       }
 
-      // Buscar el archivo en ImageKit
-      const listResponse = await imagekit.assets.list({
-        path: path
-      });
+      // Verificar si el archivo existe
+      const fullPath = join(this.uploadDir, path);
 
-      if (listResponse && listResponse.length > 0) {
-        return listResponse[0].url;
+      try {
+        await access(fullPath);
+        return `${this.baseUrl}${this.publicPath}/${path}`;
+      } catch {
+        return null;
       }
-
-      return null;
     } catch (e) {
       return null;
     }
@@ -300,10 +206,12 @@ class ImageKitStorage {
   getStatus() {
     return {
       configured: true,
-      urlEndpoint: this.urlEndpoint,
-      type: 'ImageKit'
+      uploadDir: this.uploadDir,
+      publicPath: this.publicPath,
+      baseUrl: this.baseUrl,
+      type: 'LocalStorage'
     };
   }
 }
 
-export const StorageService = new ImageKitStorage();
+export const StorageService = new LocalStorage();

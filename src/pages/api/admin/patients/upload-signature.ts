@@ -65,7 +65,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     // Convertir a buffer
     const buffer = Buffer.from(await signatureFile.arrayBuffer());
 
-    // Subir a storage (StorageService ya maneja la conversión a base64 para ImageKit)
+    // Subir a storage local
     // Asegurar que key no tenga slashes iniciales duplicados
     const cleanKey = key.replace(/^\/+/, '');
     const publicUrl = await StorageService.uploadFile(buffer, cleanKey, signatureFile.type);

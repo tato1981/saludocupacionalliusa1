@@ -18,9 +18,12 @@ services:
       - DB_NAME=${DB_NAME}
       # Configuración de Autenticación
       - JWT_SECRET=${JWT_SECRET}
-
       # URL Base de la aplicación
       - APP_BASE_URL=${APP_BASE_URL}
+      # Directorio de uploads (bind mount)
+      - UPLOADS_DIR=/data/uploads
     volumes:
-      # Persistencia opcional para uploads locales (si fuera necesario)
-      - ./uploads:/app/uploads
+      # BIND MOUNT: Persistencia de imágenes subidas
+      # Los archivos se guardan en ./data/uploads del host
+      # y se mapean a /data/uploads dentro del contenedor
+      - ./data/uploads:/data/uploads

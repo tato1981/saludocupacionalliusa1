@@ -36,6 +36,10 @@ public/uploads/**/*
 !public/uploads/signatures/.gitkeep
 uploads/
 
+# Data directory para bind mount de Docker
+data/
+!data/.gitkeep
+
 # Build and temp
 dist/
 .astro/

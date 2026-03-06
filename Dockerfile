@@ -38,15 +38,19 @@ RUN npm ci --omit=dev && npm cache clean --force
 # Copiar los archivos construidos desde la etapa anterior
 COPY --from=builder /app/dist ./dist
 
-# Crear directorios para uploads
-RUN mkdir -p /app/uploads/patients /app/uploads/signatures && \
-    chmod -R 755 /app/uploads
-
+# Crear directorio para uploads persistentes (se montará con bind mount)
+# Usamos /data/uploads como ubicación estándar para datos persistentes
+RUN mkdir -p /data/uploads/patients && \
+    chmod -R 755 /data
 
 # Configuración del servidor
 ENV HOST=0.0.0.0
 ENV PORT=4321
 ENV NODE_ENV=production
+ENV UPLOADS_DIR=/data/uploads
+
+# Volumen para datos persistentes (bind mount)
+VOLUME ["/data/uploads"]
 
 EXPOSE 4321
 
