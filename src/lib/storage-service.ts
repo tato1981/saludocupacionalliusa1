@@ -158,35 +158,79 @@ class ImageKitStorage {
       // Buscar el archivo de origen para obtener su fileId
       console.log(`🔍 Searching for source file: ${sourcePath}`);
       
-      const listResponse = await imagekit.assets.list({
-        path: sourcePath
-      });
-      
       let sourceFilePath = '';
 
-      if (listResponse && listResponse.length > 0) {
-        // Encontrado directamente
-        sourceFilePath = listResponse[0].filePath;
-        console.log(`✅ File found direct: ${sourceFilePath}`);
-      } else {
+      try {
+        const listResponse = await imagekit.assets.list({
+          path: sourcePath
+        });
+        
+        if (listResponse && listResponse.length > 0) {
+          // Encontrado directamente
+          sourceFilePath = listResponse[0].filePath;
+          console.log(`✅ File found direct: ${sourceFilePath}`);
+        }
+      } catch (err) {
+        console.warn(`⚠️ Direct lookup threw error, proceeding to search fallback:`, err);
+      }
+      
+      if (!sourceFilePath) {
         // Fallback: Intentar buscar por nombre de archivo y carpeta contenedora
         const fileName = sourcePath.split('/').pop();
-        const folderPath = sourcePath.substring(0, sourcePath.lastIndexOf('/')) || '/';
+        // Asegurar que folderPath comience y termine correctamente para ImageKit
+        // ImageKit a veces prefiere paths sin slash inicial en queries, o con él.
+        let folderPath = sourcePath.substring(0, sourcePath.lastIndexOf('/')) || '/';
         
         console.log(`⚠️ Direct lookup failed for ${sourcePath}, trying search by name: "${fileName}" in folder "${folderPath}"`);
         
         // ImageKit search query syntax
-        const searchResponse = await imagekit.assets.list({
-          searchQuery: `name="${fileName}"`,
-          path: folderPath
-        });
+        // Nota: searchQuery usa sintaxis específica de ImageKit
+        console.log(`🔎 Executing search: name="${fileName}" in path="${folderPath}"`);
+        
+        try {
+            const searchResponse = await imagekit.assets.list({
+            searchQuery: `name="${fileName}"`,
+            path: folderPath
+            });
+            
+            console.log(`🔎 Search results: ${JSON.stringify(searchResponse)}`);
 
-        if (searchResponse && searchResponse.length > 0) {
-           sourceFilePath = searchResponse[0].filePath;
-           console.log(`✅ File found via search: ${sourceFilePath}`);
-        } else {
-           console.error(`❌ File absolutely not found: ${sourcePath}`);
-           throw new Error(`Source file not found: ${sourcePath}`);
+            if (searchResponse && searchResponse.length > 0) {
+            // Buscar coincidencia exacta porque la búsqueda puede devolver parciales
+            const exactMatch = searchResponse.find(f => f.name === fileName);
+            if (exactMatch) {
+                sourceFilePath = exactMatch.filePath;
+                console.log(`✅ File found via search (exact match): ${sourceFilePath}`);
+            } else {
+                // Si no hay exacta, usar la primera
+                sourceFilePath = searchResponse[0].filePath;
+                console.log(`⚠️ File found via search (best guess): ${sourceFilePath}`);
+            }
+            }
+        } catch (searchErr) {
+             console.warn(`⚠️ Folder search threw error:`, searchErr);
+        }
+
+        if (!sourceFilePath) {
+           // INTENTO FINAL: Buscar sin restringir el path, solo por nombre
+           // Esto es costoso pero necesario si el path está mal
+           console.log(`⚠️ Search in folder failed, trying global search for name: "${fileName}"`);
+           try {
+                const globalSearchResponse = await imagekit.assets.list({
+                    searchQuery: `name="${fileName}"`
+                });
+                
+                if (globalSearchResponse && globalSearchResponse.length > 0) {
+                    sourceFilePath = globalSearchResponse[0].filePath;
+                    console.log(`✅ File found via global search: ${sourceFilePath}`);
+                } else {
+                    console.error(`❌ File absolutely not found: ${sourcePath}`);
+                    throw new Error(`Source file not found: ${sourcePath}`);
+                }
+           } catch (globalErr: any) {
+               console.error(`❌ Global search failed:`, globalErr);
+               throw new Error(`Source file not found (after global search): ${sourcePath}`);
+           }
         }
       }
 
