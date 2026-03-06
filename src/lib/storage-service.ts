@@ -156,25 +156,50 @@ class ImageKitStorage {
       console.log(`📋 Copying: ${sourcePath} -> ${cleanDestKey}`);
 
       // Buscar el archivo de origen para obtener su fileId
+      console.log(`🔍 Searching for source file: ${sourcePath}`);
+      
       const listResponse = await imagekit.assets.list({
         path: sourcePath
       });
+      
+      let sourceFilePath = '';
 
-      if (!listResponse || listResponse.length === 0) {
-        throw new Error(`Source file not found: ${sourcePath}`);
+      if (listResponse && listResponse.length > 0) {
+        // Encontrado directamente
+        sourceFilePath = listResponse[0].filePath;
+        console.log(`✅ File found direct: ${sourceFilePath}`);
+      } else {
+        // Fallback: Intentar buscar por nombre de archivo y carpeta contenedora
+        const fileName = sourcePath.split('/').pop();
+        const folderPath = sourcePath.substring(0, sourcePath.lastIndexOf('/')) || '/';
+        
+        console.log(`⚠️ Direct lookup failed for ${sourcePath}, trying search by name: "${fileName}" in folder "${folderPath}"`);
+        
+        // ImageKit search query syntax
+        const searchResponse = await imagekit.assets.list({
+          searchQuery: `name="${fileName}"`,
+          path: folderPath
+        });
+
+        if (searchResponse && searchResponse.length > 0) {
+           sourceFilePath = searchResponse[0].filePath;
+           console.log(`✅ File found via search: ${sourceFilePath}`);
+        } else {
+           console.error(`❌ File absolutely not found: ${sourcePath}`);
+           throw new Error(`Source file not found: ${sourcePath}`);
+        }
       }
 
-      // No necesitamos fileId para copy, pero verificamos que existe
-      // const sourceFileId = listResponse[0].fileId;
-
-      // Extraer el nombre del archivo y la carpeta de destino
-      const fileName = cleanDestKey.split('/').pop() || cleanDestKey;
+      // cleanDestKey ya fue declarado arriba
+      // const cleanDestKey = destinationKey.replace(/^\/+/, '');
       const folder = cleanDestKey.substring(0, cleanDestKey.lastIndexOf('/')) || '';
 
       // Copiar archivo usando la función de copia de ImageKit
       // ImageKit Node.js SDK v7.x usa imagekit.files.copy
+      console.log(`📋 Executing copy: ${sourceFilePath} -> /${cleanDestKey}`);
+      
       const copyResponse = await imagekit.files.copy({
-        sourceFilePath: sourcePath,
+        sourceFilePath: sourceFilePath,
         destinationPath: folder ? `/${folder}` : '/',
         includeFileVersions: false
       });

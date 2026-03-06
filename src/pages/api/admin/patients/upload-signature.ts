@@ -59,13 +59,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
     // Generar nombre único para el archivo
     const timestamp = Date.now();
     const ext = path.extname(signatureFile.name);
+    // Asegurar que no haya slashes dobles
     const key = `patients/${patientId}/signature_${timestamp}${ext}`;
 
     // Convertir a buffer
     const buffer = Buffer.from(await signatureFile.arrayBuffer());
 
     // Subir a storage (StorageService ya maneja la conversión a base64 para ImageKit)
-    const publicUrl = await StorageService.uploadFile(buffer, key, signatureFile.type);
+    // Asegurar que key no tenga slashes iniciales duplicados
+    const cleanKey = key.replace(/^\/+/, '');
+    const publicUrl = await StorageService.uploadFile(buffer, cleanKey, signatureFile.type);
     console.log(`✅ Firma subida: ${publicUrl}`);
 
     return new Response(JSON.stringify({

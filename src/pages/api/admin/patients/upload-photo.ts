@@ -101,8 +101,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
       });
     }
 
-    // Subir imagen principal a storage
-    const publicUrl = await StorageService.uploadFile(processingResult.buffer, key, 'image/webp');
+    // Subir imagen principal a storage (StorageService ya maneja la conversión a base64 para ImageKit)
+    // Asegurar que key no tenga slashes iniciales duplicados
+    const cleanKey = key.replace(/^\/+/, '');
+    const publicUrl = await StorageService.uploadFile(processingResult.buffer, cleanKey, 'image/webp');
     console.log(`✅ Foto subida: ${publicUrl}`);
 
     // Crear y subir versión para certificados
