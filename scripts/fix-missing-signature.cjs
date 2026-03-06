@@ -70,7 +70,7 @@ async function fixMissingSignature() {
 
     // 2. Si tiene una referencia a firma que parece estar rota
     if (doctor.signature_path && doctor.signature_path.includes('signature_31656315')) {
-      console.log('\n⚠️ La firma actual parece estar rota (archivo no existe en R2).');
+      console.log('\n⚠️ La firma actual parece estar rota (archivo no existe en Storage).');
       console.log('🧹 Limpiando referencia de firma...');
 
       await connection.execute(

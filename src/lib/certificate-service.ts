@@ -124,7 +124,7 @@ export class CertificateService {
     try {
       console.log('📁 Intentando cargar imagen desde:', imagePath);
 
-      // Manejar URLs remotas (R2)
+      // Manejar URLs remotas (Storage)
       if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
         console.log('🌐 Descargando imagen remota:', imagePath);
         const response = await fetch(imagePath);

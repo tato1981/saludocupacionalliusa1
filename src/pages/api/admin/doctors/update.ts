@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { db } from '../../../../lib/database';
 import { hasRole, hashPassword, requireAuth } from '../../../../lib/auth';
 import { MigrationService } from '../../../../lib/migration-service';
-import { R2StorageService } from '../../../../lib/r2-storage-service';
+import { StorageService } from '../../../../lib/storage-service';
 
 export const POST: APIRoute = async ({ request, locals, cookies }) => {
   try {
@@ -134,12 +134,17 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
 
     // Si se solicita eliminar la firma
     if (removeSignature && existingSignaturePath) {
-      await R2StorageService.deleteFile(existingSignaturePath);
-      signaturePath = null;
-      console.log(`✅ Firma de doctor eliminada`);
+      try {
+        await StorageService.deleteFile(existingSignaturePath);
+        signaturePath = null;
+        console.log(`✅ Firma de doctor eliminada: ${existingSignaturePath}`);
+      } catch (error) {
+        console.error(`Error al eliminar firma anterior: ${existingSignaturePath}`, error);
+      }
     }
+
     // Si se subió una nueva firma
-    else if (signatureFile && signatureFile.size > 0) {
+    if (signatureFile && signatureFile.size > 0) {
       // Validar tamaño (2 MB máximo)
       if (signatureFile.size > 2 * 1024 * 1024) {
         return new Response(JSON.stringify({
@@ -151,21 +156,24 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
         });
       }
 
-      // Eliminar firma anterior si existe
-      if (existingSignaturePath) {
-        await R2StorageService.deleteFile(existingSignaturePath);
+      // Eliminar firma anterior si existe y no se ha eliminado ya
+      if (existingSignaturePath && signaturePath !== null) {
+        try {
+          await StorageService.deleteFile(existingSignaturePath);
+        } catch (error) {
+          console.error(`Error al eliminar firma anterior antes de actualización: ${existingSignaturePath}`, error);
+        }
       }
 
-      // Subir nueva firma
       const timestamp = Date.now();
       const fileExtension = signatureFile.name.split('.').pop() || 'png';
       const key = `doctors/${id}/signature_${timestamp}.${fileExtension}`;
 
       const arrayBuffer = await signatureFile.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
-      signaturePath = await R2StorageService.uploadFile(buffer, key, signatureFile.type);
-
-      console.log(`✅ Firma de doctor actualizada: ${signaturePath}`);
+      
+      signaturePath = await StorageService.uploadFile(buffer, key, signatureFile.type);
+      console.log(`✅ Nueva firma guardada en: ${signaturePath}`);
     }
 
     // Preparar la actualización

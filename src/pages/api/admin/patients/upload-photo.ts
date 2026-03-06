@@ -1,7 +1,7 @@
 
 import type { APIRoute } from 'astro';
 import { ImageProcessingService } from '@/lib/image-processing-service';
-import { R2StorageService } from '@/lib/r2-storage-service';
+import { StorageService } from '@/lib/storage-service';
 import { hasRole } from '@/lib/auth';
 
 export const POST: APIRoute = async ({ request, locals }) => {
@@ -101,15 +101,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
       });
     }
 
-    // Subir imagen principal a R2
-    const publicUrl = await R2StorageService.uploadFile(processingResult.buffer, key, 'image/webp');
+    // Subir imagen principal a storage
+    const publicUrl = await StorageService.uploadFile(processingResult.buffer, key, 'image/webp');
     console.log(`✅ Foto subida: ${publicUrl}`);
 
     // Crear y subir versión para certificados
     const certResult = await ImageProcessingService.processImage(originalBuffer, null, 'certificate');
     if (certResult.success && certResult.buffer) {
       const certKey = `patients/${patientId}/certificate_${timestamp}.webp`;
-      await R2StorageService.uploadFile(certResult.buffer, certKey, 'image/webp');
+      await StorageService.uploadFile(certResult.buffer, certKey, 'image/webp');
       console.log(`✅ Versión certificado subida`);
     }
 

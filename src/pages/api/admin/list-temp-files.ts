@@ -1,5 +1,5 @@
 /**
- * Endpoint para listar archivos temporales en R2
+ * Endpoint para listar archivos temporales en almacenamiento local
  *
  * Permite ver qué archivos temporales existen, su antigüedad,
  * y si están siendo usados en la base de datos.
@@ -10,7 +10,9 @@
 import type { APIRoute } from 'astro';
 import { requireAuth, hasRole } from '@/lib/auth';
 import { db } from '@/lib/database';
-import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { StorageService } from '@/lib/storage-service';
+import fs from 'fs';
+import path from 'path';
 
 export const GET: APIRoute = async ({ request, cookies }) => {
   try {
@@ -26,46 +28,70 @@ export const GET: APIRoute = async ({ request, cookies }) => {
       });
     }
 
-    // Verificar configuración de R2
-    const accountId = process.env.R2_ACCOUNT_ID;
-    const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-    const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-    const bucketName = process.env.R2_BUCKET_NAME;
-    const publicUrl = process.env.R2_PUBLIC_URL;
+    const uploadDir = StorageService.getUploadDir();
+    const publicUrlBase = '/uploads';
 
-    if (!accountId || !accessKeyId || !secretAccessKey || !bucketName || !publicUrl) {
-      return new Response(JSON.stringify({
-        success: false,
-        message: 'R2 no está configurado correctamente'
+    if (!fs.existsSync(uploadDir)) {
+       return new Response(JSON.stringify({
+        success: true,
+        message: 'No existe el directorio de uploads',
+        files: [],
+        stats: { total: 0, inUse: 0, orphan: 0, oldOrphan: 0 }
       }), {
-        status: 503,
+        status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    // Crear cliente S3
-    const client = new S3Client({
-      region: 'auto',
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
-    });
+    // Listar archivos temporales en raíz y en subdirectorios de pacientes
+    let tempFiles: any[] = [];
+    
+    // 1. Buscar en raíz (uploads/)
+    if (fs.existsSync(uploadDir)) {
+      const rootFiles = fs.readdirSync(uploadDir);
+      const rootTempFiles = rootFiles
+        .filter(file => file.startsWith('temp_') && fs.statSync(path.join(uploadDir, file)).isFile())
+        .map(file => {
+          const filePath = path.join(uploadDir, file);
+          const stats = fs.statSync(filePath);
+          return {
+            Key: file,
+            LastModified: stats.mtime,
+            Size: stats.size
+          };
+        });
+      tempFiles = [...tempFiles, ...rootTempFiles];
+    }
 
-    // Listar archivos temporales
-    const listCommand = new ListObjectsV2Command({
-      Bucket: bucketName,
-      Prefix: 'temp_',
-    });
-
-    const listResponse = await client.send(listCommand);
-    const tempFiles = listResponse.Contents || [];
+    // 2. Buscar en patients/ (uploads/patients/)
+    const patientsDir = path.join(uploadDir, 'patients');
+    if (fs.existsSync(patientsDir)) {
+      const patientFolders = fs.readdirSync(patientsDir);
+      
+      patientFolders.forEach(folder => {
+        // Buscar carpetas que empiecen con temp_
+        if (folder.startsWith('temp_')) {
+          const folderPath = path.join(patientsDir, folder);
+          if (fs.statSync(folderPath).isDirectory()) {
+             const files = fs.readdirSync(folderPath);
+             files.forEach(file => {
+               const filePath = path.join(folderPath, file);
+               const stats = fs.statSync(filePath);
+               tempFiles.push({
+                 Key: `patients/${folder}/${file}`,
+                 LastModified: stats.mtime,
+                 Size: stats.size
+               });
+             });
+          }
+        }
+      });
+    }
 
     if (tempFiles.length === 0) {
       return new Response(JSON.stringify({
         success: true,
-        message: '✅ No hay archivos temporales en R2',
+        message: '✅ No hay archivos temporales',
         files: [],
         stats: {
           total: 0,
@@ -93,9 +119,14 @@ export const GET: APIRoute = async ({ request, cookies }) => {
 
     const filesInUseMap = new Map<string, any>();
 
+    const normalizeKey = (url: string) => {
+        if (!url) return '';
+        return url.replace(`${publicUrlBase}/`, '').replace(/^\//, '');
+    };
+
     (patientFiles as any[]).forEach(row => {
       if (row.photo_path && row.photo_path.includes('temp_')) {
-        const key = row.photo_path.replace(`${publicUrl}/`, '');
+        const key = normalizeKey(row.photo_path);
         filesInUseMap.set(key, {
           type: 'patient_photo',
           recordId: row.id,
@@ -104,7 +135,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
         });
       }
       if (row.signature_path && row.signature_path.includes('temp_')) {
-        const key = row.signature_path.replace(`${publicUrl}/`, '');
+        const key = normalizeKey(row.signature_path);
         filesInUseMap.set(key, {
           type: 'patient_signature',
           recordId: row.id,
@@ -116,7 +147,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
 
     (doctorFiles as any[]).forEach(row => {
       if (row.signature_path && row.signature_path.includes('temp_')) {
-        const key = row.signature_path.replace(`${publicUrl}/`, '');
+        const key = normalizeKey(row.signature_path);
         filesInUseMap.set(key, {
           type: 'doctor_signature',
           recordId: row.id,
@@ -155,7 +186,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
 
       return {
         key: file.Key,
-        url: `${publicUrl}/${file.Key}`,
+        url: `${publicUrlBase}/${file.Key}`,
         size: file.Size,
         sizeKB: file.Size ? Math.round(file.Size / 1024) : 0,
         lastModified: file.LastModified,
@@ -198,14 +229,14 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     });
 
   } catch (error: any) {
-    console.error('Error listando archivos temporales:', error);
-    return new Response(JSON.stringify({
-      success: false,
-      message: 'Error listando archivos',
-      error: error.message
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+      console.error('Error listing temp files:', error);
+      return new Response(JSON.stringify({
+        success: false,
+        message: 'Error al listar archivos',
+        error: error.message
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
   }
 };

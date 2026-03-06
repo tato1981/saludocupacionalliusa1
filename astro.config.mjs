@@ -22,11 +22,6 @@ export default defineConfig({
       'process.env.DB_PASSWORD': JSON.stringify(process.env.DB_PASSWORD),
       'process.env.DB_NAME': JSON.stringify(process.env.DB_NAME),
       'process.env.JWT_SECRET': JSON.stringify(process.env.JWT_SECRET),
-      'process.env.R2_PUBLIC_URL': JSON.stringify(process.env.R2_PUBLIC_URL),
-      'process.env.R2_BUCKET_NAME': JSON.stringify(process.env.R2_BUCKET_NAME),
-      'process.env.R2_ACCOUNT_ID': JSON.stringify(process.env.R2_ACCOUNT_ID),
-      'process.env.R2_ACCESS_KEY_ID': JSON.stringify(process.env.R2_ACCESS_KEY_ID),
-      'process.env.R2_SECRET_ACCESS_KEY': JSON.stringify(process.env.R2_SECRET_ACCESS_KEY),
     },
     server: {
       // Servir archivos de la carpeta uploads en desarrollo

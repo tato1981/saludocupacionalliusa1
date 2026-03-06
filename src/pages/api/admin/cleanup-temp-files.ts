@@ -1,10 +1,8 @@
 /**
- * Endpoint de limpieza de archivos temporales en R2
+ * Endpoint de limpieza de archivos temporales locales
  *
  * Este script elimina archivos temporales huérfanos (sin referencias en BD)
  * con más de 24 horas de antigüedad.
- *
- * IMPORTANTE: NO elimina archivos permanentes en patients/ o doctors/
  *
  * Acceso: GET /api/admin/cleanup-temp-files
  */
@@ -12,7 +10,9 @@
 import type { APIRoute } from 'astro';
 import { requireAuth, hasRole } from '@/lib/auth';
 import { db } from '@/lib/database';
-import { S3Client, ListObjectsV2Command, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { StorageService } from '@/lib/storage-service';
+import fs from 'fs';
+import path from 'path';
 
 export const GET: APIRoute = async ({ request, cookies }) => {
   try {
@@ -28,41 +28,62 @@ export const GET: APIRoute = async ({ request, cookies }) => {
       });
     }
 
-    // Verificar configuración de R2
-    const accountId = process.env.R2_ACCOUNT_ID;
-    const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-    const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-    const bucketName = process.env.R2_BUCKET_NAME;
-    const publicUrl = process.env.R2_PUBLIC_URL;
+    const uploadDir = StorageService.getUploadDir();
+    const publicUrlBase = '/uploads';
 
-    if (!accountId || !accessKeyId || !secretAccessKey || !bucketName || !publicUrl) {
-      return new Response(JSON.stringify({
-        success: false,
-        message: 'R2 no está configurado correctamente'
+    if (!fs.existsSync(uploadDir)) {
+       return new Response(JSON.stringify({
+        success: true,
+        message: 'No hay directorio de uploads para limpiar',
+        stats: { found: 0, deleted: 0 }
       }), {
-        status: 503,
+        status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    // Crear cliente S3
-    const client = new S3Client({
-      region: 'auto',
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
-    });
+    // Listar archivos temporales en raíz y en subdirectorios de pacientes
+    let tempFiles: any[] = [];
 
-    // Listar todos los objetos que empiecen con "temp_"
-    const listCommand = new ListObjectsV2Command({
-      Bucket: bucketName,
-      Prefix: 'temp_',
-    });
+    // 1. Buscar en raíz (uploads/)
+    if (fs.existsSync(uploadDir)) {
+      const rootFiles = fs.readdirSync(uploadDir);
+      const rootTempFiles = rootFiles
+        .filter(file => file.startsWith('temp_') && fs.statSync(path.join(uploadDir, file)).isFile())
+        .map(file => {
+          const filePath = path.join(uploadDir, file);
+          const stats = fs.statSync(filePath);
+          return {
+            Key: file,
+            LastModified: stats.mtime
+          };
+        });
+      tempFiles = [...tempFiles, ...rootTempFiles];
+    }
 
-    const listResponse = await client.send(listCommand);
-    const tempFiles = listResponse.Contents || [];
+    // 2. Buscar en patients/ (uploads/patients/)
+    const patientsDir = path.join(uploadDir, 'patients');
+    if (fs.existsSync(patientsDir)) {
+      const patientFolders = fs.readdirSync(patientsDir);
+      
+      patientFolders.forEach(folder => {
+        // Buscar carpetas que empiecen con temp_
+        if (folder.startsWith('temp_')) {
+          const folderPath = path.join(patientsDir, folder);
+          if (fs.statSync(folderPath).isDirectory()) {
+             const files = fs.readdirSync(folderPath);
+             files.forEach(file => {
+               const filePath = path.join(folderPath, file);
+               const stats = fs.statSync(filePath);
+               tempFiles.push({
+                 Key: `patients/${folder}/${file}`,
+                 LastModified: stats.mtime
+               });
+             });
+          }
+        }
+      });
+    }
 
     if (tempFiles.length === 0) {
       return new Response(JSON.stringify({
@@ -89,18 +110,23 @@ export const GET: APIRoute = async ({ request, cookies }) => {
       'SELECT signature_path FROM users WHERE role = "doctor" AND signature_path LIKE "%temp_%"'
     );
 
+    const normalizeKey = (url: string) => {
+        if (!url) return '';
+        return url.replace(`${publicUrlBase}/`, '').replace(/^\//, '');
+    };
+
     const filesInUse = new Set<string>();
     (patientPhotos as any[]).forEach(row => {
       if (row.photo_path && row.photo_path.includes('temp_')) {
-        filesInUse.add(row.photo_path.replace(`${publicUrl}/`, ''));
+        filesInUse.add(normalizeKey(row.photo_path));
       }
       if (row.signature_path && row.signature_path.includes('temp_')) {
-        filesInUse.add(row.signature_path.replace(`${publicUrl}/`, ''));
+        filesInUse.add(normalizeKey(row.signature_path));
       }
     });
     (doctorSignatures as any[]).forEach(row => {
       if (row.signature_path && row.signature_path.includes('temp_')) {
-        filesInUse.add(row.signature_path.replace(`${publicUrl}/`, ''));
+        filesInUse.add(normalizeKey(row.signature_path));
       }
     });
 
@@ -145,11 +171,8 @@ export const GET: APIRoute = async ({ request, cookies }) => {
 
       // Eliminar archivo temporal huérfano
       try {
-        const deleteCommand = new DeleteObjectCommand({
-          Bucket: bucketName,
-          Key: file.Key,
-        });
-        await client.send(deleteCommand);
+        const filePath = path.join(uploadDir, file.Key);
+        fs.unlinkSync(filePath);
 
         stats.deleted++;
         deletedFiles.push(file.Key);

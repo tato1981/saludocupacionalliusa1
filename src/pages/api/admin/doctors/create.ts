@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { db } from '../../../../lib/database';
 import { requireAuth, hasRole, hashPassword } from '../../../../lib/auth';
 import { MigrationService } from '../../../../lib/migration-service';
-import { R2StorageService } from '@/lib/r2-storage-service';
+import { StorageService } from '@/lib/storage-service';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
@@ -116,10 +116,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       const fileExtension = signatureFile.name.split('.').pop() || 'png';
       const key = `doctors/${doctorId}/signature_${timestamp}.${fileExtension}`;
 
-      // Subir a R2
+      // Subir a storage local
       const arrayBuffer = await signatureFile.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
-      signaturePath = await R2StorageService.uploadFile(buffer, key, signatureFile.type);
+      signaturePath = await StorageService.uploadFile(buffer, key, signatureFile.type);
 
       // Actualizar path de firma
       await db.execute(

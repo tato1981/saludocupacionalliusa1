@@ -42,13 +42,6 @@ COPY --from=builder /app/dist ./dist
 RUN mkdir -p /app/uploads/patients /app/uploads/signatures && \
     chmod -R 755 /app/uploads
 
-# Variables de entorno para R2 (configurar en docker-compose.yml o al ejecutar)
-# ENV R2_ACCOUNT_ID=
-# ENV R2_ACCESS_KEY_ID=
-# ENV R2_SECRET_ACCESS_KEY=
-# ENV R2_BUCKET_NAME=
-# ENV R2_PUBLIC_URL=
-# ENV R2_IMAGE_FORMAT=webp
 
 # Configuración del servidor
 ENV HOST=0.0.0.0

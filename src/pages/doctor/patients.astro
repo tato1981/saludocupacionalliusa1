@@ -377,7 +377,7 @@ if (!user || user.role !== 'doctor') {
     function getPhotoUrl(path) {
       if (!path) return null;
       let photoUrl = path;
-      // Si ya es una URL completa (R2), usarla tal cual
+      // Si ya es una URL completa (Storage), usarla tal cual
       if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) {
         return photoUrl;
       }

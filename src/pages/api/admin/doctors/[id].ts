@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { requireAuth, hasRole } from '../../../../lib/auth';
 import { db } from '../../../../lib/database';
-import { R2StorageService } from '@/lib/r2-storage-service';
+import { StorageService } from '@/lib/storage-service';
 
 export const DELETE: APIRoute = async ({ params, cookies }) => {
   try {
@@ -82,10 +82,10 @@ export const DELETE: APIRoute = async ({ params, cookies }) => {
       });
     }
 
-    // Eliminar firma de R2 si existe
+    // Eliminar firma de storage si existe
     if (doctor.signature_path) {
-      await R2StorageService.deleteFile(doctor.signature_path);
-      console.log(`✅ Firma de doctor eliminada de R2`);
+      await StorageService.deleteFile(doctor.signature_path);
+      console.log(`✅ Firma de doctor eliminada de storage`);
     }
 
     // Eliminar el doctor

@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { hasRole } from '@/lib/auth';
-import { R2StorageService } from '@/lib/r2-storage-service';
+import { StorageService } from '@/lib/storage-service';
 import path from 'path';
 
 export const POST: APIRoute = async ({ request, locals }) => {
@@ -61,8 +61,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
     // Convertir a buffer
     const buffer = Buffer.from(await signatureFile.arrayBuffer());
 
-    // Subir a R2
-    const publicUrl = await R2StorageService.uploadFile(buffer, key, signatureFile.type);
+    // Subir a storage
+    const publicUrl = await StorageService.uploadFile(buffer, key, signatureFile.type);
     console.log(`✅ Firma subida: ${publicUrl}`);
 
     return new Response(JSON.stringify({
@@ -77,7 +77,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (error: any) {
-    console.error('❌ Error subiendo firma a R2:', error);
+    console.error('❌ Error subiendo firma a storage:', error);
     console.error('   Error message:', error?.message);
     console.error('   Error stack:', error?.stack);
     return new Response(JSON.stringify({

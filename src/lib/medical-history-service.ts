@@ -1,6 +1,7 @@
 // Servicio para manejo de Historias Médicas Ocupacionales
 // Basado en estándares de la OMS para Salud Ocupacional
 import { db } from './database.js';
+import { StorageService } from './storage-service.js';
 import dayjs from 'dayjs';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
@@ -128,11 +129,16 @@ function baseUrl(): string {
 
 export class MedicalHistoryService {
 
-  private static resolvePublicPath(relativePath: string): string {
+  private static async resolvePublicPath(relativePath: string): Promise<string> {
     if (!relativePath) return '';
     
-    // Si ya es una URL completa (http/https), retornarla tal cual
+    // Si ya es una URL completa (http/https), verificar con StorageService
     if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+      const verifiedUrl = await StorageService.getImageUrl(relativePath);
+      if (verifiedUrl) {
+        return verifiedUrl;
+      }
+      console.warn(`⚠️ URL remota no verificada en R2: ${relativePath}`);
       return relativePath;
     }
 
@@ -161,7 +167,7 @@ export class MedicalHistoryService {
     try {
       console.log('📁 Intentando cargar imagen desde:', imagePath);
 
-      // Manejar URLs remotas (R2)
+      // Manejar URLs remotas (Storage)
       if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
         console.log('🌐 Descargando imagen remota:', imagePath);
         const response = await fetch(imagePath);
@@ -1211,16 +1217,35 @@ export class MedicalHistoryService {
     // SECCIÓN DE FIRMAS COMPACTA
     doc.moveDown(0.05);
     const signatureY = doc.y + 8;
-    const fullPageWidth = doc.page.width;
 
     doc.font('Helvetica').fontSize(8.5);
 
     // Firma Izquierda: Profesional (compacta)
     const leftSigX = 40;
+    let doctorSigUrl = null;
+
+    // Intentar obtener firma del doctor
     if (doctor.signature_path) {
+      doctorSigUrl = await this.resolvePublicPath(doctor.signature_path);
+    }
+
+    // Si no tiene path o no se pudo resolver, intentar buscar por convención en R2
+    // Adapta para doctor con búsqueda por ID en doctors/
+    if (!doctorSigUrl || (doctorSigUrl && !doctorSigUrl.startsWith('http') && !fs.existsSync(doctorSigUrl))) {
+      const storageStatus = StorageService.getStatus();
+      if (storageStatus.publicUrl) {
+         // Intentar con signature.webp (formato estándar)
+         const defaultUrl = `${storageStatus.publicUrl}/doctors/${doctor.id}/signature.webp`;
+         const verified = await StorageService.getImageUrl(defaultUrl);
+         if (verified) {
+           doctorSigUrl = verified;
+         }
+      }
+    }
+
+    if (doctorSigUrl) {
       try {
-        const signaturePath = this.resolvePublicPath(doctor.signature_path);
-        const signBuffer = await this.convertImageForPDF(signaturePath);
+        const signBuffer = await this.convertImageForPDF(doctorSigUrl);
         if (signBuffer) {
           doc.image(signBuffer, leftSigX, signatureY - 8, { width: 110, height: 28, align: 'left' });
           doc.text(cleanText(doctor.name), leftSigX, signatureY + 24, { width: 110 });
@@ -1247,7 +1272,7 @@ export class MedicalHistoryService {
 
     if (patient.signature_path) {
       try {
-        const patientSignaturePath = this.resolvePublicPath(patient.signature_path);
+        const patientSignaturePath = await this.resolvePublicPath(patient.signature_path);
         const patientSigBuffer = await this.convertImageForPDF(patientSignaturePath);
         if (patientSigBuffer) {
           doc.image(patientSigBuffer, rightSigX, signatureY - 8, { width: 110, height: 28, align: 'left' });
