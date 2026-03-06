@@ -1,61 +1,98 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, CopyObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 /**
- * Cloudflare R2 Storage Service
+ * ImageKit Storage Service
  *
  * Servicio para manejar la subida, eliminación y gestión de archivos
- * en Cloudflare R2 (S3-compatible).
+ * usando ImageKit CDN.
  *
  * @author Sistema de Salud Ocupacional
- * @version 2.0.0
+ * @version 4.0.0
  */
-class R2Storage {
-  private s3: S3Client;
-  private bucket: string;
-  private publicUrlBase: string;
+
+let ImageKitInstance: any = null;
+
+function getImageKit() {
+  if (ImageKitInstance) {
+    return ImageKitInstance;
+  }
+
+  // Importar usando require para módulo CommonJS
+  const ImageKit = require('@imagekit/nodejs');
+
+  const publicKey = process.env.IMAGEKIT_PUBLIC_KEY;
+  const privateKey = process.env.IMAGEKIT_PRIVATE_KEY;
+  const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT;
+
+  if (!publicKey || !privateKey || !urlEndpoint) {
+    console.error('❌ ImageKit Storage: Missing environment variables');
+    console.error('publicKey:', publicKey ? 'SET' : 'MISSING');
+    console.error('privateKey:', privateKey ? 'SET' : 'MISSING');
+    console.error('urlEndpoint:', urlEndpoint ? 'SET' : 'MISSING');
+    throw new Error('ImageKit configuration is incomplete');
+  }
+
+  try {
+    // Inicialización para ImageKit Node.js SDK v7.x+
+    // Nota: NO establecer baseURL con urlEndpoint (CDN), usar el default (api.imagekit.io)
+    // urlEndpoint se pasa como propiedad adicional para generación de URLs
+    ImageKitInstance = new ImageKit({
+      publicKey: publicKey,
+      privateKey: privateKey,
+      urlEndpoint: urlEndpoint
+    });
+
+    console.log('✅ ImageKit Storage: Initialized');
+    // console.log('✅ ImageKit instance type:', typeof ImageKitInstance);
+    // console.log('✅ ImageKit methods:', Object.keys(ImageKitInstance).slice(0, 10));
+
+    return ImageKitInstance;
+  } catch (error) {
+    console.error('❌ Error initializing ImageKit:', error);
+    throw error;
+  }
+}
+
+class ImageKitStorage {
+  private urlEndpoint: string;
 
   constructor() {
-    const accountId = import.meta.env.R2_ACCOUNT_ID;
-    const accessKeyId = import.meta.env.R2_ACCESS_KEY_ID;
-    const secretAccessKey = import.meta.env.R2_SECRET_ACCESS_KEY;
-    
-    this.bucket = import.meta.env.R2_BUCKET_NAME;
-    this.publicUrlBase = import.meta.env.R2_PUBLIC_URL;
-
-    if (!accountId || !accessKeyId || !secretAccessKey || !this.bucket || !this.publicUrlBase) {
-      console.error('❌ R2 Storage: Missing environment variables');
+    const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT;
+    if (!urlEndpoint) {
+      throw new Error('IMAGEKIT_URL_ENDPOINT is required');
     }
-
-    this.s3 = new S3Client({
-      region: 'auto',
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-      credentials: {
-        accessKeyId: accessKeyId!,
-        secretAccessKey: secretAccessKey!
-      }
-    });
-    
-    console.log('✅ R2 Storage: Initialized');
+    this.urlEndpoint = urlEndpoint;
   }
 
   /**
-   * Sube un archivo a R2
+   * Sube un archivo a ImageKit
    */
   async uploadFile(buffer: Buffer, key: string, contentType: string): Promise<string> {
     console.log(`📤 Upload Starting: key=${key}, contentType=${contentType}`);
 
     try {
+      const imagekit = getImageKit();
+
       // Normalizar key (quitar slash inicial si existe)
       const cleanKey = key.replace(/^\/+/, '');
 
-      await this.s3.send(new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: cleanKey,
-        Body: buffer,
-        ContentType: contentType
-      }));
+      // Extraer el nombre del archivo y la carpeta
+      const fileName = cleanKey.split('/').pop() || cleanKey;
+      const folder = cleanKey.substring(0, cleanKey.lastIndexOf('/')) || '';
 
-      const publicUrl = `${this.publicUrlBase}/${cleanKey}`;
+      // ImageKit Node.js SDK v7.x usa imagekit.files.upload
+      // Nota: Convertir buffer a base64 para evitar problemas con FormData en el SDK
+      const fileBase64 = buffer.toString('base64');
+      
+      const uploadResponse = await imagekit.files.upload({
+        file: fileBase64,
+        fileName: fileName,
+        folder: folder || undefined,
+        useUniqueFileName: false // Mantener el nombre del archivo
+      });
+
+      const publicUrl = uploadResponse.url;
       console.log(`   ✅ Upload Success: ${cleanKey} -> ${publicUrl}`);
 
       return publicUrl;
@@ -66,32 +103,36 @@ class R2Storage {
   }
 
   /**
-   * Elimina un archivo de R2
+   * Elimina un archivo de ImageKit
    */
   async deleteFile(fileUrl: string): Promise<void> {
     try {
-      let key = fileUrl;
-      // Remover el prefijo de URL pública si existe
-      if (fileUrl.startsWith(this.publicUrlBase)) {
-        key = fileUrl.replace(`${this.publicUrlBase}/`, '');
-      } else if (fileUrl.startsWith('/')) {
-        key = fileUrl.substring(1);
-      }
-      
-      // Remover 'uploads/' si está al inicio (por si acaso se pasa así de la versión anterior)
-      // Aunque en R2 no usaremos 'uploads/' como prefijo obligatorio, si la key lo trae, lo mantenemos o quitamos según estructura?
-      // La estructura pedida es "patients/..." o "doctors/...". 
-      // Si viene "uploads/patients/...", tal vez deberíamos limpiarlo si migramos de local.
-      // Pero asumiremos que las keys nuevas ya vienen limpias.
-      
-      console.log(`🗑️ Deleting file: ${key}`);
+      const imagekit = getImageKit();
 
-      await this.s3.send(new DeleteObjectCommand({
-        Bucket: this.bucket,
-        Key: key
-      }));
-      
-      console.log(`   ✅ Delete Success: ${key}`);
+      // Extraer el path relativo
+      let filePath = fileUrl;
+      if (fileUrl.startsWith(this.urlEndpoint)) {
+        filePath = fileUrl.replace(this.urlEndpoint + '/', '');
+      } else if (fileUrl.startsWith('/')) {
+        filePath = fileUrl.substring(1);
+      }
+
+      console.log(`🗑️ Deleting file: ${filePath}`);
+
+      // Primero, buscar el archivo para obtener su fileId
+      // ImageKit Node.js SDK v7.x usa imagekit.assets.list para listar archivos
+      const listResponse = await imagekit.assets.list({
+        path: filePath
+      });
+
+      if (listResponse && listResponse.length > 0) {
+        const fileId = listResponse[0].fileId;
+        // ImageKit Node.js SDK v7.x usa imagekit.files.delete
+        await imagekit.files.delete(fileId);
+        console.log(`   ✅ Delete Success: ${filePath}`);
+      } else {
+        console.log(`   ⚠️ File not found: ${filePath}`);
+      }
     } catch (error: any) {
       console.error(`   ❌ Delete Error for url="${fileUrl}":`, error);
       // No lanzamos error para no romper flujos si el archivo ya no existe
@@ -99,50 +140,89 @@ class R2Storage {
   }
 
   /**
-   * Copia un archivo en R2 (usado para mover de temp a permanente)
+   * Copia un archivo en ImageKit (usado para mover de temp a permanente)
    */
   async copyFile(sourceUrl: string, destinationKey: string): Promise<string> {
     try {
-       let sourceKey = sourceUrl;
-       if (sourceUrl.startsWith(this.publicUrlBase)) {
-         sourceKey = sourceUrl.replace(`${this.publicUrlBase}/`, '');
-       }
-       
-       const cleanDestKey = destinationKey.replace(/^\/+/, '');
+      const imagekit = getImageKit();
 
-       console.log(`📋 Copying: ${sourceKey} -> ${cleanDestKey}`);
+      let sourcePath = sourceUrl;
+      if (sourceUrl.startsWith(this.urlEndpoint)) {
+        sourcePath = sourceUrl.replace(this.urlEndpoint + '/', '');
+      }
 
-       // CopyObjectCommand requiere el source como "Bucket/Key"
-       // Ojo: En algunos SDK/providers, CopySource debe ser "bucket/key"
-       // En AWS S3 standard es así. En R2 debería ser igual.
-       
-       await this.s3.send(new CopyObjectCommand({
-         Bucket: this.bucket,
-         CopySource: `${this.bucket}/${sourceKey}`,
-         Key: cleanDestKey
-       }));
+      const cleanDestKey = destinationKey.replace(/^\/+/, '');
 
-       const publicUrl = `${this.publicUrlBase}/${cleanDestKey}`;
-       console.log(`   ✅ Copy Success: ${publicUrl}`);
-       return publicUrl;
+      console.log(`📋 Copying: ${sourcePath} -> ${cleanDestKey}`);
+
+      // Buscar el archivo de origen para obtener su fileId
+      const listResponse = await imagekit.assets.list({
+        path: sourcePath
+      });
+
+      if (!listResponse || listResponse.length === 0) {
+        throw new Error(`Source file not found: ${sourcePath}`);
+      }
+
+      // No necesitamos fileId para copy, pero verificamos que existe
+      // const sourceFileId = listResponse[0].fileId;
+
+      // Extraer el nombre del archivo y la carpeta de destino
+      const fileName = cleanDestKey.split('/').pop() || cleanDestKey;
+      const folder = cleanDestKey.substring(0, cleanDestKey.lastIndexOf('/')) || '';
+
+      // Copiar archivo usando la función de copia de ImageKit
+      // ImageKit Node.js SDK v7.x usa imagekit.files.copy
+      const copyResponse = await imagekit.files.copy({
+        sourceFilePath: sourcePath,
+        destinationPath: folder ? `/${folder}` : '/',
+        includeFileVersions: false
+      });
+
+      const publicUrl = `${this.urlEndpoint}/${cleanDestKey}`;
+      console.log(`   ✅ Copy Success: ${publicUrl}`);
+      return publicUrl;
 
     } catch (error: any) {
       console.error('❌ Copy Error:', error);
       throw new Error(`Error al copiar archivo: ${error.message}`);
     }
   }
-  
+
   /**
    * Verifica si un archivo existe y retorna su URL pública
    */
-  async getImageUrl(path: string): Promise<string | null> {
+  async getImageUrl(filePath: string): Promise<string | null> {
     try {
-      const key = path.replace(this.publicUrlBase + '/', '');
-      await this.s3.send(new HeadObjectCommand({ 
-        Bucket: this.bucket, 
-        Key: key 
-      }));
-      return path;
+      const imagekit = getImageKit();
+
+      let path = filePath;
+
+      // Si es una URL completa de ImageKit, retornarla
+      if (filePath.startsWith(this.urlEndpoint)) {
+        return filePath;
+      }
+
+      // Si es una URL completa de otro origen, retornarla
+      if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+        return filePath;
+      }
+
+      // Limpiar el path
+      if (filePath.startsWith('/')) {
+        path = filePath.substring(1);
+      }
+
+      // Buscar el archivo en ImageKit
+      const listResponse = await imagekit.assets.list({
+        path: path
+      });
+
+      if (listResponse && listResponse.length > 0) {
+        return listResponse[0].url;
+      }
+
+      return null;
     } catch (e) {
       return null;
     }
@@ -151,11 +231,10 @@ class R2Storage {
   getStatus() {
     return {
       configured: true,
-      bucket: this.bucket,
-      publicUrl: this.publicUrlBase,
-      type: 'R2'
+      urlEndpoint: this.urlEndpoint,
+      type: 'ImageKit'
     };
   }
 }
 
-export const StorageService = new R2Storage();
+export const StorageService = new ImageKitStorage();

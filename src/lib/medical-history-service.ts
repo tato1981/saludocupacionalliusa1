@@ -131,36 +131,29 @@ export class MedicalHistoryService {
 
   private static async resolvePublicPath(relativePath: string): Promise<string> {
     if (!relativePath) return '';
-    
-    // Si ya es una URL completa (http/https), verificar con StorageService
+
+    // Si ya es una URL completa, retornarla tal cual
     if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
-      const verifiedUrl = await StorageService.getImageUrl(relativePath);
-      if (verifiedUrl) {
-        return verifiedUrl;
-      }
-      console.warn(`⚠️ URL remota no verificada en R2: ${relativePath}`);
       return relativePath;
     }
 
+    // Intentar resolver como archivo local
     const cleanPath = relativePath.startsWith('/') ? relativePath.slice(1) : relativePath;
-
     const possiblePaths = [
       path.join(process.cwd(), cleanPath),
       path.join(process.cwd(), 'dist', 'client', cleanPath),
       path.join(process.cwd(), 'public', cleanPath),
-      path.join(process.cwd(), '..', cleanPath),
     ];
 
     for (const possiblePath of possiblePaths) {
       if (fs.existsSync(possiblePath)) {
-        console.log('✅ Archivo encontrado en:', possiblePath);
+        console.log('✅ Archivo encontrado localmente en:', possiblePath);
         return possiblePath;
       }
     }
 
-    console.error('❌ Archivo no encontrado en ninguna ubicación:');
-    possiblePaths.forEach(p => console.error('   -', p));
-    return possiblePaths[0];
+    console.warn(`⚠️ Archivo no encontrado localmente: ${relativePath}`);
+    return relativePath;
   }
 
   private static async convertImageForPDF(imagePath: string): Promise<Buffer | null> {
@@ -1229,17 +1222,13 @@ export class MedicalHistoryService {
       doctorSigUrl = await this.resolvePublicPath(doctor.signature_path);
     }
 
-    // Si no tiene path o no se pudo resolver, intentar buscar por convención en R2
-    // Adapta para doctor con búsqueda por ID en doctors/
+    // Si no tiene path o no se pudo resolver, intentar buscar por convención local
     if (!doctorSigUrl || (doctorSigUrl && !doctorSigUrl.startsWith('http') && !fs.existsSync(doctorSigUrl))) {
-      const storageStatus = StorageService.getStatus();
-      if (storageStatus.publicUrl) {
-         // Intentar con signature.webp (formato estándar)
-         const defaultUrl = `${storageStatus.publicUrl}/doctors/${doctor.id}/signature.webp`;
-         const verified = await StorageService.getImageUrl(defaultUrl);
-         if (verified) {
-           doctorSigUrl = verified;
-         }
+      // Intentar con signature.webp (formato estándar) en directorio local
+      const defaultPath = `/uploads/doctors/${doctor.id}/signature.webp`;
+      const verified = await StorageService.getImageUrl(defaultPath);
+      if (verified) {
+        doctorSigUrl = await this.resolvePublicPath(verified);
       }
     }
 
