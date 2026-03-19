@@ -3,6 +3,8 @@
 import { db } from './database.js';
 import dayjs from 'dayjs';
 import PDFDocument from 'pdfkit';
+import sharp from 'sharp';
+import { getObjectFromR2 } from './r2-storage.js';
 
 export interface VitalSigns {
   // Signos vitales básicos
@@ -123,6 +125,39 @@ function baseUrl(): string {
 }
 
 export class MedicalHistoryService {
+
+  private static r2KeyFromStoredValue(storedValue: any): string | null {
+    const raw = typeof storedValue === 'string' ? storedValue.trim() : '';
+    if (!raw) return null;
+    if (raw.startsWith('blob:') || raw.startsWith('data:')) return null;
+
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      try {
+        const u = new URL(raw);
+        const key = u.pathname.replace(/^\/+/, '');
+        return key || null;
+      } catch {
+        return null;
+      }
+    }
+
+    const key = raw.replace(/^\/+/, '');
+    return key || null;
+  }
+
+  private static async signaturePngFromR2(storedValue: any): Promise<Buffer | null> {
+    try {
+      const key = this.r2KeyFromStoredValue(storedValue);
+      if (!key) return null;
+      if (!(key.startsWith('patients/') || key.startsWith('doctors/'))) return null;
+      if (key.includes('..') || key.includes('\\')) return null;
+
+      const obj = await getObjectFromR2({ key });
+      return await sharp(obj.buffer).rotate().png().toBuffer();
+    } catch {
+      return null;
+    }
+  }
   
   // Calcular IMC y clasificación según OMS
   static calculateBMI(weight: number, height: number): { bmi: number; classification: string; risk: string; recommendations: string[] } {
@@ -1125,22 +1160,34 @@ export class MedicalHistoryService {
 
     // SECCIÓN DE FIRMAS COMPACTA
     doc.moveDown(0.05);
-    const signatureY = doc.y + 8;
+    const signatureBlockTop = doc.y + 2;
+    const signatureLineY = signatureBlockTop + 45;
+    const signatureImageY = signatureBlockTop;
+    const [doctorSignaturePng, patientSignaturePng] = await Promise.all([
+      this.signaturePngFromR2(doctor.signature_url),
+      this.signaturePngFromR2(patient.signature_url),
+    ]);
 
     doc.font('Helvetica').fontSize(8.5);
 
     // Firma Izquierda: Profesional (compacta)
     const leftSigX = 40;
-    doc.text('_______________________', leftSigX, signatureY);
-    doc.text(cleanText(doctor.name), leftSigX, signatureY + 10, { width: 110 });
-    doc.fontSize(7.5).text(cleanText(`Reg: ${doctor.professional_license || 'N/A'}`), leftSigX, signatureY + 18);
+    if (doctorSignaturePng) {
+      doc.image(doctorSignaturePng, leftSigX, signatureImageY, { fit: [130, 40] });
+    }
+    doc.text('_______________________', leftSigX, signatureLineY);
+    doc.text(cleanText(doctor.name), leftSigX, signatureLineY + 10, { width: 110 });
+    doc.fontSize(7.5).text(cleanText(`Reg: ${doctor.professional_license || 'N/A'}`), leftSigX, signatureLineY + 18);
 
     // Firma Derecha: Paciente (compacta)
     const rightSigX = 350;
     doc.fontSize(8.5);
-    doc.text('_______________________', rightSigX, signatureY);
-    doc.text(cleanText(patient.name), rightSigX, signatureY + 10, { width: 110 });
-    doc.fontSize(7.5).text(cleanText('Paciente'), rightSigX, signatureY + 18);
+    if (patientSignaturePng) {
+      doc.image(patientSignaturePng, rightSigX, signatureImageY, { fit: [130, 40] });
+    }
+    doc.text('_______________________', rightSigX, signatureLineY);
+    doc.text(cleanText(patient.name), rightSigX, signatureLineY + 10, { width: 110 });
+    doc.fontSize(7.5).text(cleanText('Paciente'), rightSigX, signatureLineY + 18);
 
     doc.fillColor('#000000');
   }

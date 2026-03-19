@@ -15,6 +15,7 @@ export interface Patient {
   email?: string;
   phone?: string;
   profile_photo_url?: string;
+  signature_url?: string;
   document_type: 'cedula' | 'pasaporte' | 'tarjeta_identidad';
   document_number: string;
   date_of_birth: Date;

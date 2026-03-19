@@ -14,7 +14,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
     const formData = await request.formData();
     const signature = formData.get('signature');
-    const patientId = String(formData.get('patientId') || 'temp');
+    const rawEntity = String(formData.get('entity') || 'patients').toLowerCase();
+    const entityPrefix = rawEntity === 'doctor' || rawEntity === 'doctors' ? 'doctors' : 'patients';
+    const entityId = String(formData.get('entityId') || formData.get('patientId') || 'temp');
 
     if (!(signature instanceof File)) {
       return new Response(JSON.stringify({ success: false, message: 'Archivo de firma requerido' }), {
@@ -39,7 +41,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
     const buffer = Buffer.from(await signature.arrayBuffer());
     const upload = await uploadImageToR2({
-      folder: `patients/${patientId}/signatures`,
+      folder: `${entityPrefix}/${entityId}/signatures`,
       filenameBase: 'signature',
       input: { buffer, contentType: signature.type || undefined, originalName: signature.name || undefined },
     });

@@ -65,6 +65,7 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
     const professional_license = formData.get('professional_license') as string;
     const password = formData.get('password') as string;
     const is_active = formData.get('is_active') === '1';
+    const signatureUrl = formData.get('signatureUrl') as string;
 
     // Validaciones
     if (!id || !name || !email || !document_number) {
@@ -144,6 +145,14 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
       professional_license || null,
       is_active ? 1 : 0
     ];
+
+    const [signatureColumn] = await db.execute('SHOW COLUMNS FROM users WHERE Field = "signature_url"');
+    const hasSignatureUrl = Array.isArray(signatureColumn) && signatureColumn.length > 0;
+    if (hasSignatureUrl) {
+      updateQuery += ', signature_url = ?';
+      updateParams.push(signatureUrl || null);
+    }
+
     // Si se proporcionó una nueva contraseña, incluirla en la actualización
     if (password && password.trim() !== '') {
       const passwordHash = await hashPassword(password);

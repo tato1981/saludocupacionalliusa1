@@ -37,7 +37,14 @@ export const GET: APIRoute = async ({ url, cookies }) => {
       });
     }
 
-    if (!key.startsWith('patients/')) {
+    if (key.includes('..') || key.includes('\\')) {
+      return new Response(JSON.stringify({ success: false, message: 'Key inválido' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!(key.startsWith('patients/') || key.startsWith('doctors/'))) {
       return new Response(JSON.stringify({ success: false, message: 'Key no permitido' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },

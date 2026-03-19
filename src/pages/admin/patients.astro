@@ -1,6 +1,7 @@
 ---
 import DashboardLayout from '@/components/layout/DashboardLayout.astro';
 import CameraCapture from '@/components/ui/CameraCapture.astro';
+import SignaturePad from '@/components/ui/SignaturePad.astro';
 import { requireAuth, hasRole } from '@/lib/auth';
 
 // Verificar autenticación y rol de admin o staff
@@ -184,6 +185,7 @@ if (!hasRole(user, 'staff')) {
         
         <form id="patientForm" class="space-y-4">
           <input type="hidden" name="profilePhotoUrl" id="profilePhotoUrl" />
+          <input type="hidden" name="signatureUrl" id="signatureUrl" />
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
             <div class="flex items-center gap-4">
               <div class="h-16 w-16 rounded-full bg-gray-200 border border-gray-300 overflow-hidden flex items-center justify-center">
@@ -202,6 +204,26 @@ if (!hasRole(user, 'staff')) {
             </div>
             <div class="lg:col-span-2">
               <CameraCapture className="mt-1" />
+            </div>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+            <div class="flex items-start gap-4">
+              <div class="h-16 w-28 rounded bg-gray-200 border border-gray-300 overflow-hidden flex items-center justify-center">
+                <img id="signaturePreview" class="h-full w-full object-contain hidden" alt="Firma del paciente" />
+                <span id="signatureFallback" class="text-xs font-medium text-gray-600 px-2 text-center">Sin firma</span>
+              </div>
+              <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Firma del Paciente (opcional)</label>
+                <input id="signatureFile" type="file" accept="image/*" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                <div class="mt-2 flex gap-2">
+                  <button type="button" id="removeSignatureBtn" class="px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm">
+                    Quitar firma
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="lg:col-span-2">
+              <SignaturePad className="mt-1" />
             </div>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -579,6 +601,11 @@ if (!hasRole(user, 'staff')) {
   const profilePhotoPreview = document.getElementById('profilePhotoPreview') as HTMLImageElement;
   const profilePhotoFallback = document.getElementById('profilePhotoFallback') as HTMLSpanElement;
   const removeProfilePhotoBtn = document.getElementById('removeProfilePhotoBtn') as HTMLButtonElement;
+  const signatureUrlInput = document.getElementById('signatureUrl') as HTMLInputElement;
+  const signatureFileInput = document.getElementById('signatureFile') as HTMLInputElement;
+  const signaturePreview = document.getElementById('signaturePreview') as HTMLImageElement;
+  const signatureFallback = document.getElementById('signatureFallback') as HTMLSpanElement;
+  const removeSignatureBtn = document.getElementById('removeSignatureBtn') as HTMLButtonElement;
 
   function getNameInitial(name: string | null | undefined): string {
     const ch = (name || '').trim().charAt(0);
@@ -586,6 +613,10 @@ if (!hasRole(user, 'staff')) {
   }
 
   function resolveProfilePhotoSrc(value: string): string {
+    return r2ProxyUrlForStoredValue(value);
+  }
+
+  function resolveSignatureSrc(value: string): string {
     return r2ProxyUrlForStoredValue(value);
   }
 
@@ -619,6 +650,34 @@ if (!hasRole(user, 'staff')) {
     profilePhotoPreview.src = localUrl;
     profilePhotoPreview.classList.remove('hidden');
     profilePhotoFallback.classList.add('hidden');
+  }
+
+  function setSignaturePreview(storedValue: string | null) {
+    const cleaned = (storedValue || '').trim();
+    if (!cleaned || cleaned.startsWith('blob:') || cleaned.startsWith('data:')) {
+      signatureUrlInput.value = '';
+      signaturePreview.src = '';
+      signaturePreview.classList.add('hidden');
+      signatureFallback.classList.remove('hidden');
+      return;
+    }
+
+    signatureUrlInput.value = cleaned;
+    signaturePreview.src = resolveSignatureSrc(cleaned);
+    signaturePreview.classList.remove('hidden');
+    signatureFallback.classList.add('hidden');
+  }
+
+  function setLocalSignaturePreview(localUrl: string | null) {
+    if (!localUrl) {
+      signaturePreview.src = '';
+      signaturePreview.classList.add('hidden');
+      signatureFallback.classList.remove('hidden');
+      return;
+    }
+    signaturePreview.src = localUrl;
+    signaturePreview.classList.remove('hidden');
+    signatureFallback.classList.add('hidden');
   }
 
   function fileExtensionFromMime(mime: string): string {
@@ -674,6 +733,42 @@ if (!hasRole(user, 'staff')) {
     return String(result.data?.key || result.data?.url || result.data?.path || '');
   }
 
+  async function uploadSignatureToServer(blob: Blob, filename: string) {
+    const file = normalizeToFile(blob, filename);
+    const formData = new FormData();
+    formData.append('signature', file);
+    formData.append('patientId', patientForm.dataset.patientId || `temp_${Date.now()}`);
+
+    const response = await fetch('/api/admin/patients/upload-signature', {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    let result: any = null;
+    if (contentType.includes('application/json')) {
+      try {
+        result = await response.json();
+      } catch {
+        result = null;
+      }
+    }
+
+    if (!response.ok) {
+      if (result && typeof result === 'object') {
+        throw new Error(String(result.message || result.error || 'Error al subir firma'));
+      }
+      const text = await response.text().catch(() => '');
+      throw new Error(text || 'Error al subir firma');
+    }
+
+    if (!result || typeof result !== 'object' || !result.success) {
+      throw new Error(String(result?.message || result?.error || 'Error al subir firma'));
+    }
+    return String(result.data?.key || result.data?.url || result.data?.path || '');
+  }
+
   profilePhotoFileInput.addEventListener('change', async () => {
     const file = profilePhotoFileInput.files?.[0];
     if (!file) return;
@@ -695,6 +790,33 @@ if (!hasRole(user, 'staff')) {
   removeProfilePhotoBtn.addEventListener('click', () => {
     profilePhotoFileInput.value = '';
     setProfilePhotoPreview(null, (document.querySelector('input[name="name"]') as HTMLInputElement | null)?.value);
+  });
+
+  signatureFileInput.addEventListener('change', async () => {
+    const file = signatureFileInput.files?.[0];
+    if (!file) return;
+
+    const localPreviewUrl = URL.createObjectURL(file);
+    setLocalSignaturePreview(localPreviewUrl);
+
+    try {
+      const uploadedKey = await uploadSignatureToServer(file, file.name || 'signature');
+      setSignaturePreview(uploadedKey);
+    } catch (error: any) {
+      setSignaturePreview(null);
+      showAlert('error', 'Error', error?.message || 'No se pudo subir la firma');
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(localPreviewUrl), 2000);
+    }
+  });
+
+  removeSignatureBtn.addEventListener('click', () => {
+    signatureFileInput.value = '';
+    setSignaturePreview(null);
+    try {
+      const signaturePad = (window as any).signaturePad;
+      signaturePad?.clearSignature?.();
+    } catch {}
   });
 
   const nameInput = document.querySelector('input[name="name"]') as HTMLInputElement | null;
@@ -721,6 +843,21 @@ if (!hasRole(user, 'staff')) {
     }
   };
 
+  (window as any).onSignatureCapture = async (signatureBlob: Blob) => {
+    const localPreviewUrl = URL.createObjectURL(signatureBlob);
+    setLocalSignaturePreview(localPreviewUrl);
+
+    try {
+      const uploadedKey = await uploadSignatureToServer(signatureBlob, 'signature');
+      setSignaturePreview(uploadedKey);
+    } catch (error: any) {
+      setSignaturePreview(null);
+      showAlert('error', 'Error', error?.message || 'No se pudo subir la firma');
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(localPreviewUrl), 2000);
+    }
+  };
+
   function openModal() {
     modal.classList.remove('hidden');
     patientForm.reset();
@@ -730,6 +867,12 @@ if (!hasRole(user, 'staff')) {
     document.getElementById('modalTitle')!.textContent = 'Nuevo Paciente';
     document.getElementById('submitBtnText')!.textContent = 'Guardar Paciente';
     setProfilePhotoPreview(null, (document.querySelector('input[name="name"]') as HTMLInputElement | null)?.value);
+    signatureFileInput.value = '';
+    setSignaturePreview(null);
+    try {
+      const signaturePad = (window as any).signaturePad;
+      signaturePad?.clearSignature?.();
+    } catch {}
 
     // Cargar empresas para el selector
     loadCompaniesIntoSelect('');
@@ -745,6 +888,10 @@ if (!hasRole(user, 'staff')) {
       }
     } catch {
     }
+    try {
+      const signaturePad = (window as any).signaturePad;
+      signaturePad?.clearSignature?.();
+    } catch {}
   }
 
   // Cargar empresas en el selector de empresa
@@ -983,6 +1130,12 @@ if (!hasRole(user, 'staff')) {
         (document.querySelector('input[name="phone"]') as HTMLInputElement).value = patient.phone || '';
         profilePhotoFileInput.value = '';
         setProfilePhotoPreview(patient.profile_photo_url || null, patient.name || '');
+        signatureFileInput.value = '';
+        setSignaturePreview(patient.signature_url || null);
+        try {
+          const signaturePad = (window as any).signaturePad;
+          signaturePad?.clearSignature?.();
+        } catch {}
         (document.querySelector('select[name="documentType"]') as HTMLSelectElement).value = patient.document_type || '';
         (document.querySelector('input[name="documentNumber"]') as HTMLInputElement).value = patient.document_number || '';
 

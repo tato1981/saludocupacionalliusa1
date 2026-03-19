@@ -215,6 +215,40 @@ export class MigrationService {
     }
   }
 
+  static async addPatientSignatureUrlColumn(): Promise<boolean> {
+    try {
+      const exists = await this.columnExists('patients', 'signature_url');
+      if (exists) return true;
+
+      await db.execute(`
+        ALTER TABLE patients
+        ADD COLUMN signature_url VARCHAR(500) NULL AFTER profile_photo_url
+      `);
+
+      return true;
+    } catch (error) {
+      console.error('❌ Error agregando columna signature_url:', error);
+      return false;
+    }
+  }
+
+  static async addUserSignatureUrlColumn(): Promise<boolean> {
+    try {
+      const exists = await this.columnExists('users', 'signature_url');
+      if (exists) return true;
+
+      await db.execute(`
+        ALTER TABLE users
+        ADD COLUMN signature_url VARCHAR(500) NULL AFTER professional_license
+      `);
+
+      return true;
+    } catch (error) {
+      console.error('❌ Error agregando columna users.signature_url:', error);
+      return false;
+    }
+  }
+
   // Ejecutar todas las migraciones necesarias
   static async runMigrations(): Promise<void> {
     try {
@@ -230,6 +264,10 @@ export class MigrationService {
       await this.addProfessionalLicenseColumn();
       // Migración 5: Agregar foto de perfil a patients
       await this.addPatientProfilePhotoUrlColumn();
+      // Migración 6: Agregar firma a patients
+      await this.addPatientSignatureUrlColumn();
+      // Migración 7: Agregar firma a users (doctores)
+      await this.addUserSignatureUrlColumn();
       
     } catch (error) {
       console.error('❌ Error ejecutando migraciones:', error);

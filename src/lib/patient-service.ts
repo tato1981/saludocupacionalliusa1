@@ -10,6 +10,7 @@ export class PatientService {
     email?: string;
     phone?: string;
     profilePhotoUrl?: string;
+    signatureUrl?: string;
     documentType: string;
     documentNumber: string;
     dateOfBirth: string;
@@ -61,6 +62,11 @@ export class PatientService {
         'SHOW COLUMNS FROM patients WHERE Field = "profile_photo_url"'
       );
       const hasProfilePhotoUrl = Array.isArray(photoColumn) && photoColumn.length > 0;
+
+      const [signatureColumn] = await db.execute(
+        'SHOW COLUMNS FROM patients WHERE Field = "signature_url"'
+      );
+      const hasSignatureUrl = Array.isArray(signatureColumn) && signatureColumn.length > 0;
       
       console.log(`📋 Campo identification_number existe: ${hasIdentificationNumber ? '✅ SÍ' : '❌ NO'}`);
 
@@ -71,11 +77,11 @@ export class PatientService {
         console.log('📝 Insertando en ambos campos (document_number e identification_number)');
         query = `
           INSERT INTO patients (
-            name, email, phone${hasProfilePhotoUrl ? ', profile_photo_url' : ''}, document_type, document_number, identification_number,
+            name, email, phone${hasProfilePhotoUrl ? ', profile_photo_url' : ''}${hasSignatureUrl ? ', signature_url' : ''}, document_type, document_number, identification_number,
             date_of_birth, gender, address, emergency_contact_name, emergency_contact_phone,
             occupation, company, company_id, blood_type, allergies, medications,
             medical_conditions, created_by_user_id
-          ) VALUES (?, ?, ?${hasProfilePhotoUrl ? ', ?' : ''}, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?${hasProfilePhotoUrl ? ', ?' : ''}${hasSignatureUrl ? ', ?' : ''}, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         values = [
@@ -83,6 +89,7 @@ export class PatientService {
           patientData.email || null,
           patientData.phone || null,
           ...(hasProfilePhotoUrl ? [patientData.profilePhotoUrl || null] : []),
+          ...(hasSignatureUrl ? [patientData.signatureUrl || null] : []),
           patientData.documentType,
           patientData.documentNumber,
           patientData.documentNumber, // Mismo valor para identification_number
@@ -104,11 +111,11 @@ export class PatientService {
         console.log('📝 Insertando solo en document_number');
         query = `
           INSERT INTO patients (
-            name, email, phone${hasProfilePhotoUrl ? ', profile_photo_url' : ''}, document_type, document_number, date_of_birth,
+            name, email, phone${hasProfilePhotoUrl ? ', profile_photo_url' : ''}${hasSignatureUrl ? ', signature_url' : ''}, document_type, document_number, date_of_birth,
             gender, address, emergency_contact_name, emergency_contact_phone,
             occupation, company, company_id, blood_type, allergies, medications,
             medical_conditions, created_by_user_id
-          ) VALUES (?, ?, ?${hasProfilePhotoUrl ? ', ?' : ''}, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?${hasProfilePhotoUrl ? ', ?' : ''}${hasSignatureUrl ? ', ?' : ''}, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         values = [
@@ -116,6 +123,7 @@ export class PatientService {
           patientData.email || null,
           patientData.phone || null,
           ...(hasProfilePhotoUrl ? [patientData.profilePhotoUrl || null] : []),
+          ...(hasSignatureUrl ? [patientData.signatureUrl || null] : []),
           patientData.documentType,
           patientData.documentNumber,
           patientData.dateOfBirth,
@@ -359,6 +367,7 @@ export class PatientService {
     email?: string;
     phone?: string;
     profilePhotoUrl?: string;
+    signatureUrl?: string;
     documentType: string;
     documentNumber: string;
     dateOfBirth: string;
@@ -400,11 +409,12 @@ export class PatientService {
       }
 
       // Verificar si la tabla tiene el campo identification_number
-      const [tableStructure] = await db.execute('SHOW COLUMNS FROM patients WHERE Field IN ("identification_number", "document_number", "profile_photo_url")');
+      const [tableStructure] = await db.execute('SHOW COLUMNS FROM patients WHERE Field IN ("identification_number", "document_number", "profile_photo_url", "signature_url")');
       const columns = (tableStructure as any[]).map(row => row.Field);
       const hasIdentificationNumber = columns.includes('identification_number');
       const hasDocumentNumber = columns.includes('document_number');
       const hasProfilePhotoUrl = columns.includes('profile_photo_url');
+      const hasSignatureUrl = columns.includes('signature_url');
 
       console.log('🏗️ Estructura de tabla para UPDATE:', { hasIdentificationNumber, hasDocumentNumber });
       console.log('🏢 Company Info para UPDATE - ID:', patientData.companyId, 'Text:', patientData.company);
@@ -444,6 +454,11 @@ export class PatientService {
       if (hasProfilePhotoUrl && typeof patientData.profilePhotoUrl !== 'undefined') {
         query += `, profile_photo_url = ?`;
         params.push(patientData.profilePhotoUrl || null);
+      }
+
+      if (hasSignatureUrl && typeof patientData.signatureUrl !== 'undefined') {
+        query += `, signature_url = ?`;
+        params.push(patientData.signatureUrl || null);
       }
 
       // Agregar campos de documento según la estructura de la tabla

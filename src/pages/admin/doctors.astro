@@ -183,6 +183,7 @@ if (!hasRole(user, 'admin')) {
           
           <form id="doctorForm">
             <input type="hidden" id="doctorId" name="id">
+            <input type="hidden" id="doctorSignatureUrl" name="signatureUrl">
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
@@ -272,6 +273,24 @@ if (!hasRole(user, 'admin')) {
               </div>
             </div>
 
+            <div class="space-y-3 mb-4">
+              <label class="block text-sm font-medium text-gray-700 leading-snug">Firma del Doctor (opcional)</label>
+              <div class="flex items-start gap-4">
+                <div class="h-16 w-28 rounded bg-gray-200 border border-gray-300 overflow-hidden flex items-center justify-center">
+                  <img id="doctorSignaturePreview" class="h-full w-full object-contain hidden" alt="Firma del doctor" />
+                  <span id="doctorSignatureFallback" class="text-xs font-medium text-gray-600 px-2 text-center">Sin firma</span>
+                </div>
+                <div class="flex-1 min-w-0 space-y-2">
+                  <input id="doctorSignatureFile" type="file" accept="image/*" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                  <div class="flex flex-col sm:flex-row gap-2">
+                    <button type="button" id="removeDoctorSignatureBtn" class="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm whitespace-nowrap">
+                      Quitar firma
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {user.role === 'superadmin' && (
               <div class="mb-4" id="passwordSection">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
@@ -327,6 +346,7 @@ if (!hasRole(user, 'admin')) {
       phone?: string;
       specialization?: string;
       professional_license?: string;
+      signature_url?: string | null;
       is_active: boolean;
       patient_count?: number;
     }
@@ -361,6 +381,116 @@ if (!hasRole(user, 'admin')) {
       }
     }
 
+    const doctorForm = document.getElementById('doctorForm') as HTMLFormElement | null;
+    const doctorSignatureUrlInput = document.getElementById('doctorSignatureUrl') as HTMLInputElement | null;
+    const doctorSignaturePreview = document.getElementById('doctorSignaturePreview') as HTMLImageElement | null;
+    const doctorSignatureFallback = document.getElementById('doctorSignatureFallback') as HTMLSpanElement | null;
+    const doctorSignatureFileInput = document.getElementById('doctorSignatureFile') as HTMLInputElement | null;
+    const removeDoctorSignatureBtn = document.getElementById('removeDoctorSignatureBtn') as HTMLButtonElement | null;
+
+    function r2ProxyUrlForStoredValue(value: string): string {
+      if (!value) return '';
+      if (value.startsWith('blob:') || value.startsWith('data:')) return '';
+      if (value.startsWith('http://') || value.startsWith('https://')) {
+        try {
+          const u = new URL(value);
+          if (u.hostname.endsWith('r2.dev') && u.pathname && u.pathname !== '/') {
+            return `/api/files/r2?key=${encodeURIComponent(u.pathname.replace(/^\/+/, ''))}`;
+          }
+        } catch {}
+        return value;
+      }
+      return `/api/files/r2?key=${encodeURIComponent(value)}`;
+    }
+
+    function resolveDoctorSignatureSrc(value: string): string {
+      return r2ProxyUrlForStoredValue(value);
+    }
+
+    function setDoctorSignaturePreview(storedValue: string | null) {
+      if (!doctorSignatureUrlInput || !doctorSignaturePreview || !doctorSignatureFallback) return;
+      const cleaned = (storedValue || '').trim();
+      if (!cleaned || cleaned.startsWith('blob:') || cleaned.startsWith('data:')) {
+        doctorSignatureUrlInput.value = '';
+        doctorSignaturePreview.src = '';
+        doctorSignaturePreview.classList.add('hidden');
+        doctorSignatureFallback.classList.remove('hidden');
+        return;
+      }
+
+      doctorSignatureUrlInput.value = cleaned;
+      doctorSignaturePreview.src = resolveDoctorSignatureSrc(cleaned);
+      doctorSignaturePreview.classList.remove('hidden');
+      doctorSignatureFallback.classList.add('hidden');
+    }
+
+    function setLocalDoctorSignaturePreview(localUrl: string | null) {
+      if (!doctorSignaturePreview || !doctorSignatureFallback) return;
+      if (!localUrl) {
+        doctorSignaturePreview.src = '';
+        doctorSignaturePreview.classList.add('hidden');
+        doctorSignatureFallback.classList.remove('hidden');
+        return;
+      }
+      doctorSignaturePreview.src = localUrl;
+      doctorSignaturePreview.classList.remove('hidden');
+      doctorSignatureFallback.classList.add('hidden');
+    }
+
+    function fileExtensionFromMime(mime: string): string {
+      const m = (mime || '').toLowerCase();
+      if (m.includes('webp')) return 'webp';
+      if (m.includes('png')) return 'png';
+      if (m.includes('jpeg') || m.includes('jpg')) return 'jpg';
+      if (m.includes('avif')) return 'avif';
+      return 'jpg';
+    }
+
+    function normalizeToFile(blob: Blob, filenameBase: string): File {
+      if (blob instanceof File) return blob;
+      const type = blob.type || 'image/jpeg';
+      const ext = fileExtensionFromMime(type);
+      const name = filenameBase.includes('.') ? filenameBase : `${filenameBase}.${ext}`;
+      return new File([blob], name, { type });
+    }
+
+    async function uploadDoctorSignatureToServer(blob: Blob, filename: string) {
+      const file = normalizeToFile(blob, filename);
+      const formData = new FormData();
+      formData.append('signature', file);
+      formData.append('entity', 'doctors');
+      formData.append('entityId', doctorForm?.dataset.doctorId || `temp_${Date.now()}`);
+
+      const response = await fetch('/api/admin/patients/upload-signature', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+
+      const contentType = response.headers.get('content-type') || '';
+      let result: any = null;
+      if (contentType.includes('application/json')) {
+        try {
+          result = await response.json();
+        } catch {
+          result = null;
+        }
+      }
+
+      if (!response.ok) {
+        if (result && typeof result === 'object') {
+          throw new Error(String(result.message || result.error || 'Error al subir firma'));
+        }
+        const text = await response.text().catch(() => '');
+        throw new Error(text || 'Error al subir firma');
+      }
+
+      if (!result || typeof result !== 'object' || !result.success) {
+        throw new Error(String(result?.message || result?.error || 'Error al subir firma'));
+      }
+      return String(result.data?.key || result.data?.url || result.data?.path || '');
+    }
+
     // Cargar doctores al cargar la página
     document.addEventListener('DOMContentLoaded', function() {
       // Evitar múltiples inicializaciones
@@ -381,6 +511,29 @@ if (!hasRole(user, 'admin')) {
 
       // Evento del formulario
       document.getElementById('doctorForm')?.addEventListener('submit', handleDoctorSubmit);
+
+      doctorSignatureFileInput?.addEventListener('change', async () => {
+        const file = doctorSignatureFileInput.files?.[0];
+        if (!file) return;
+
+        const localPreviewUrl = URL.createObjectURL(file);
+        setLocalDoctorSignaturePreview(localPreviewUrl);
+
+        try {
+          const uploadedKey = await uploadDoctorSignatureToServer(file, file.name || 'signature');
+          setDoctorSignaturePreview(uploadedKey);
+        } catch (error: any) {
+          setDoctorSignaturePreview(null);
+          showAlert('error', 'Error', error?.message || 'No se pudo subir la firma');
+        } finally {
+          setTimeout(() => URL.revokeObjectURL(localPreviewUrl), 2000);
+        }
+      });
+
+      removeDoctorSignatureBtn?.addEventListener('click', () => {
+        if (doctorSignatureFileInput) doctorSignatureFileInput.value = '';
+        setDoctorSignaturePreview(null);
+      });
     }
 
     // Cargar doctores
@@ -648,6 +801,11 @@ if (!hasRole(user, 'admin')) {
       document.getElementById('modalTitle')!.textContent = 'Agregar Doctor';
       (document.getElementById('doctorForm') as HTMLFormElement).reset();
       document.getElementById('doctorId')!.setAttribute('value', '');
+      if (doctorForm) {
+        delete doctorForm.dataset.doctorId;
+      }
+      if (doctorSignatureFileInput) doctorSignatureFileInput.value = '';
+      setDoctorSignaturePreview(null);
       const passwordSection = document.getElementById('passwordSection');
       const passwordInput = document.getElementById('doctorPassword') as HTMLInputElement | null;
       if (passwordSection) {
@@ -667,6 +825,9 @@ if (!hasRole(user, 'admin')) {
 
       document.getElementById('modalTitle')!.textContent = 'Editar Doctor';
       document.getElementById('doctorId')!.setAttribute('value', id.toString());
+      if (doctorForm) {
+        doctorForm.dataset.doctorId = String(id);
+      }
       (document.getElementById('doctorName') as HTMLInputElement).value = doctor.name;
       (document.getElementById('doctorEmail') as HTMLInputElement).value = doctor.email;
       (document.getElementById('doctorDocument') as HTMLInputElement).value = doctor.document_number || '';
@@ -674,6 +835,8 @@ if (!hasRole(user, 'admin')) {
       (document.getElementById('doctorSpecialization') as HTMLInputElement).value = doctor.specialization || '';
       (document.getElementById('doctorLicense') as HTMLInputElement).value = doctor.professional_license || '';
       (document.getElementById('doctorStatus') as HTMLSelectElement).value = doctor.is_active ? '1' : '0';
+      if (doctorSignatureFileInput) doctorSignatureFileInput.value = '';
+      setDoctorSignaturePreview(doctor.signature_url || null);
 
       const passwordSection = document.getElementById('passwordSection');
       const passwordInput = document.getElementById('doctorPassword') as HTMLInputElement | null;

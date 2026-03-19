@@ -27,6 +27,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     const professional_license = formData.get('professional_license') as string;
     const password = formData.get('password') as string;
     const is_active = formData.get('is_active') === '1';
+    const signatureUrl = formData.get('signatureUrl') as string;
 
     // Validaciones
     if (!name || !email || !document_number || !password) {
@@ -74,12 +75,15 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     // Hash de la contraseña
     const passwordHash = await hashPassword(password);
 
+    const [signatureColumn] = await db.execute('SHOW COLUMNS FROM users WHERE Field = "signature_url"');
+    const hasSignatureUrl = Array.isArray(signatureColumn) && signatureColumn.length > 0;
+
     // Insertar nuevo doctor primero para obtener ID
     const [result] = await db.execute(
       `INSERT INTO users (
         name, email, password_hash, document_number, phone,
-        specialization, professional_license, role, is_active
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'doctor', ?)`,
+        specialization, professional_license${hasSignatureUrl ? ', signature_url' : ''}, role, is_active
+      ) VALUES (?, ?, ?, ?, ?, ?, ?${hasSignatureUrl ? ', ?' : ''}, 'doctor', ?)`,
       [
         name,
         email,
@@ -88,6 +92,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         phone || null,
         specialization || 'Medicina General',
         professional_license || null,
+        ...(hasSignatureUrl ? [signatureUrl || null] : []),
         is_active ? 1 : 0
       ]
     );

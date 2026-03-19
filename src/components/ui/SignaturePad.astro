@@ -1,18 +1,24 @@
 ---
 interface Props {
   className?: string;
+  label?: string;
+  helperText?: string;
 }
 
-const { className = '' } = Astro.props;
+const {
+  className = '',
+  label = '✍️ Firma del Paciente',
+  helperText = 'Dibuje su firma en el recuadro usando el mouse o el dedo (en dispositivos táctiles)',
+} = Astro.props;
 ---
 
 <div class={`signature-pad-container ${className}`}>
   <div class="signature-controls mb-3">
     <label class="block text-sm font-medium text-gray-700 mb-2">
-      ✍️ Firma del Paciente
+      {label}
     </label>
     <p class="text-xs text-gray-500 mb-3">
-      Dibuje su firma en el recuadro usando el mouse o el dedo (en dispositivos táctiles)
+      {helperText}
     </p>
   </div>
 
@@ -52,12 +58,6 @@ const { className = '' } = Astro.props;
       <span id="signatureStatusText" class="text-gray-500">Sin firma</span>
     </div>
   </div>
-
-  <!-- Preview de firma confirmada -->
-  <div id="signaturePreviewContainer" class="hidden mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-    <p class="text-xs text-gray-600 mb-2">Firma guardada:</p>
-    <img id="signaturePreview" src="" alt="Firma" class="border border-gray-300 rounded bg-white" style="max-height: 100px;" />
-  </div>
 </div>
 
 <script>
@@ -68,7 +68,6 @@ const { className = '' } = Astro.props;
     lastX: number;
     lastY: number;
     signatureBlob: Blob | null;
-    signaturePath: string | null;
   }
 
   const state: SignaturePadState = {
@@ -78,7 +77,6 @@ const { className = '' } = Astro.props;
     lastX: 0,
     lastY: 0,
     signatureBlob: null,
-    signaturePath: null
   };
 
   function initSignaturePad() {
@@ -187,13 +185,6 @@ const { className = '' } = Astro.props;
 
     state.ctx.clearRect(0, 0, state.canvas.width, state.canvas.height);
     state.signatureBlob = null;
-    state.signaturePath = null;
-
-    // Ocultar preview
-    const previewContainer = document.getElementById('signaturePreviewContainer');
-    if (previewContainer) {
-      previewContainer.classList.add('hidden');
-    }
 
     // Actualizar estado
     updateSignatureStatus('Sin firma', 'text-gray-500');
@@ -214,52 +205,17 @@ const { className = '' } = Astro.props;
 
         state.signatureBlob = blob;
 
-        // Mostrar preview
-        const previewImg = document.getElementById('signaturePreview') as HTMLImageElement;
-        const previewContainer = document.getElementById('signaturePreviewContainer');
-
-        if (previewImg && previewContainer) {
-          previewImg.src = URL.createObjectURL(blob);
-          previewContainer.classList.remove('hidden');
-        }
-
-        // Subir firma al servidor
-        await uploadSignature(blob);
-
         updateSignatureStatus('✓ Firma confirmada', 'text-green-600');
 
         // Llamar callback global si existe
         if (typeof (window as any).onSignatureCapture === 'function') {
-          (window as any).onSignatureCapture(state.signatureBlob, state.signaturePath);
+          (window as any).onSignatureCapture(state.signatureBlob);
         }
       } catch (error) {
         updateSignatureStatus('Error al guardar firma', 'text-red-600');
       }
     } else {
       alert('Por favor, dibuje su firma antes de confirmar');
-    }
-  }
-
-  async function uploadSignature(blob: Blob) {
-    try {
-      const formData = new FormData();
-      formData.append('signature', blob, 'signature.png');
-      formData.append('patientId', 'temp_' + Date.now());
-
-      const response = await fetch('/api/admin/patients/upload-signature', {
-        method: 'POST',
-        body: formData
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        state.signaturePath = result.data.path;
-      } else {
-        throw new Error(result.message);
-      }
-    } catch (error) {
-      throw error;
     }
   }
 
@@ -289,7 +245,6 @@ const { className = '' } = Astro.props;
   // Exponer funciones globalmente para uso externo
   (window as any).signaturePad = {
     getSignatureBlob: () => state.signatureBlob,
-    getSignaturePath: () => state.signaturePath,
     clearSignature,
     isCanvasBlank
   };

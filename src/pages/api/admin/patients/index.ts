@@ -122,6 +122,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       email: body.email || undefined,
       phone: body.phone || undefined,
       profilePhotoUrl: body.profilePhotoUrl || undefined,
+      signatureUrl: body.signatureUrl || undefined,
       documentType: body.documentType,
       documentNumber: body.documentNumber, // Ya está correcto
       dateOfBirth: formattedBirthDate, // Usar la fecha formateada

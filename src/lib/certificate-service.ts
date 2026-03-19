@@ -2,6 +2,8 @@ import { db } from './database.js';
 import dayjs from 'dayjs';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
+import sharp from 'sharp';
+import { getObjectFromR2 } from './r2-storage.js';
 
 export type AptitudeStatus = 'apto' | 'apto_con_restricciones' | 'apto_manipulacion_alimentos' | 'apto_trabajo_alturas' | 'apto_espacios_confinados' | 'apto_conduccion';
 
@@ -75,6 +77,39 @@ function cleanText(text: string): string {
 }
 
 export class CertificateService {
+  private static r2KeyFromStoredValue(storedValue: any): string | null {
+    const raw = typeof storedValue === 'string' ? storedValue.trim() : '';
+    if (!raw) return null;
+    if (raw.startsWith('blob:') || raw.startsWith('data:')) return null;
+
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      try {
+        const u = new URL(raw);
+        const key = u.pathname.replace(/^\/+/, '');
+        return key || null;
+      } catch {
+        return null;
+      }
+    }
+
+    const key = raw.replace(/^\/+/, '');
+    return key || null;
+  }
+
+  private static async signaturePngFromR2(storedValue: any): Promise<Buffer | null> {
+    try {
+      const key = this.r2KeyFromStoredValue(storedValue);
+      if (!key) return null;
+      if (!(key.startsWith('patients/') || key.startsWith('doctors/'))) return null;
+      if (key.includes('..') || key.includes('\\')) return null;
+
+      const obj = await getObjectFromR2({ key });
+      return await sharp(obj.buffer).rotate().png().toBuffer();
+    } catch {
+      return null;
+    }
+  }
+
   private static addGeneralObservations(doc: PDFKit.PDFDocument, contentWidth: number) {
     const startX = 50;
 
@@ -160,7 +195,7 @@ export class CertificateService {
 
   static async getPatientSummary(patientId: number) {
     const [rows] = await db.execute(
-      `SELECT p.id, p.name, p.document_type, p.document_number, p.email, p.phone, p.occupation, COALESCE(c.name, p.company) as company, c.responsible_name as company_responsible, p.date_of_birth
+      `SELECT p.id, p.name, p.document_type, p.document_number, p.email, p.phone, p.occupation, COALESCE(c.name, p.company) as company, c.responsible_name as company_responsible, p.date_of_birth, p.signature_url
        FROM patients p
        LEFT JOIN companies c ON p.company_id = c.id
        WHERE p.id = ?`,
@@ -172,7 +207,7 @@ export class CertificateService {
 
   static async getDoctorSummary(doctorId: number) {
     const [rows] = await db.execute(
-      `SELECT u.id, u.name, u.email, u.phone, u.role, u.specialization, u.professional_license, u.document_number
+      `SELECT u.id, u.name, u.email, u.phone, u.role, u.specialization, u.professional_license, u.document_number, u.signature_url
        FROM users u WHERE u.id = ?`,
       [doctorId]
     );
@@ -602,27 +637,39 @@ export class CertificateService {
       doc.fillColor('#000000');
 
       // SECCIÓN DE FIRMAS - Diseño moderno
-      const signatureY = doc.y + 20;
+      const signatureBlockTop = doc.y + 10;
+      const signatureLineY = signatureBlockTop + 55;
+      const signatureImageY = signatureBlockTop + 5;
       const fullPageWidth = doc.page.width;
+      const [doctorSignaturePng, patientSignaturePng] = await Promise.all([
+        this.signaturePngFromR2(doctor.signature_url),
+        this.signaturePngFromR2(patient.signature_url),
+      ]);
 
       // Firma Izquierda: Profesional
       doc.font('Helvetica').fontSize(8);
 
-      doc.text('____________________________', 60, signatureY);
-      doc.text(cleanText(doctor.name), 60, signatureY + 15);
-      doc.text(cleanText(`C.C. ${doctor.document_number || 'N/A'}`), 60, signatureY + 28);
-      doc.text(cleanText(`Registro No: ${doctor.professional_license || 'N/A'}`), 60, signatureY + 41);
+      if (doctorSignaturePng) {
+        doc.image(doctorSignaturePng, 60, signatureImageY, { fit: [180, 45] });
+      }
+      doc.text('____________________________', 60, signatureLineY);
+      doc.text(cleanText(doctor.name), 60, signatureLineY + 15);
+      doc.text(cleanText(`C.C. ${doctor.document_number || 'N/A'}`), 60, signatureLineY + 28);
+      doc.text(cleanText(`Registro No: ${doctor.professional_license || 'N/A'}`), 60, signatureLineY + 41);
       
       // Firma Derecha: Firma del Paciente
       const rightSigX = fullPageWidth - 250;
 
-      doc.text('____________________________', rightSigX, signatureY);
-      doc.text(cleanText(patient.name), rightSigX, signatureY + 15);
-      doc.text(cleanText(`${patient.document_type || 'C.C.'} ${patient.document_number || 'N/A'}`), rightSigX, signatureY + 28);
-      doc.text(cleanText('Paciente'), rightSigX, signatureY + 41);
+      if (patientSignaturePng) {
+        doc.image(patientSignaturePng, rightSigX, signatureImageY, { fit: [180, 45] });
+      }
+      doc.text('____________________________', rightSigX, signatureLineY);
+      doc.text(cleanText(patient.name), rightSigX, signatureLineY + 15);
+      doc.text(cleanText(`${patient.document_type || 'C.C.'} ${patient.document_number || 'N/A'}`), rightSigX, signatureLineY + 28);
+      doc.text(cleanText('Paciente'), rightSigX, signatureLineY + 41);
 
       // CÓDIGO QR Y VERIFICACIÓN - Diseño moderno
-      doc.y = signatureY + 110;
+      doc.y = signatureLineY + 70;
 
       const qrSectionY = doc.y;
 
@@ -1007,27 +1054,39 @@ export class CertificateService {
       doc.fillColor('#000000');
 
       // SECCIÓN DE FIRMAS - Diseño moderno
-      const signatureY = doc.y + 20;
+      const signatureBlockTop = doc.y + 10;
+      const signatureLineY = signatureBlockTop + 55;
+      const signatureImageY = signatureBlockTop + 5;
       const fullPageWidth = doc.page.width;
+      const [doctorSignaturePng, patientSignaturePng] = await Promise.all([
+        this.signaturePngFromR2(doctor?.signature_url),
+        this.signaturePngFromR2(patient?.signature_url),
+      ]);
 
       // Firma Izquierda: Profesional
       doc.font('Helvetica').fontSize(8);
 
-      doc.text('____________________________', 60, signatureY);
-      doc.text(cleanText(doctor?.name || ''), 60, signatureY + 15);
-      doc.text(cleanText(`C.C. ${doctor?.document_number || 'N/A'}`), 60, signatureY + 28);
-      doc.text(cleanText(`Registro No: ${doctor?.professional_license || 'N/A'}`), 60, signatureY + 41);
+      if (doctorSignaturePng) {
+        doc.image(doctorSignaturePng, 60, signatureImageY, { fit: [180, 45] });
+      }
+      doc.text('____________________________', 60, signatureLineY);
+      doc.text(cleanText(doctor?.name || ''), 60, signatureLineY + 15);
+      doc.text(cleanText(`C.C. ${doctor?.document_number || 'N/A'}`), 60, signatureLineY + 28);
+      doc.text(cleanText(`Registro No: ${doctor?.professional_license || 'N/A'}`), 60, signatureLineY + 41);
 
       // Firma Derecha: Firma del Paciente
       const rightSigX = fullPageWidth - 250;
 
-      doc.text('____________________________', rightSigX, signatureY);
-      doc.text(cleanText(patient?.name || ''), rightSigX, signatureY + 15);
-      doc.text(cleanText(`${patient?.document_type || 'C.C.'} ${patient?.document_number || 'N/A'}`), rightSigX, signatureY + 28);
-      doc.text(cleanText('Paciente'), rightSigX, signatureY + 41);
+      if (patientSignaturePng) {
+        doc.image(patientSignaturePng, rightSigX, signatureImageY, { fit: [180, 45] });
+      }
+      doc.text('____________________________', rightSigX, signatureLineY);
+      doc.text(cleanText(patient?.name || ''), rightSigX, signatureLineY + 15);
+      doc.text(cleanText(`${patient?.document_type || 'C.C.'} ${patient?.document_number || 'N/A'}`), rightSigX, signatureLineY + 28);
+      doc.text(cleanText('Paciente'), rightSigX, signatureLineY + 41);
 
       // CÓDIGO QR Y VERIFICACIÓN - Diseño moderno
-      doc.y = signatureY + 110;
+      doc.y = signatureLineY + 70;
 
       const qrSectionY = doc.y;
 

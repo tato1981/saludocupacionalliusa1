@@ -142,6 +142,7 @@ export const PUT: APIRoute = async ({ params, request, cookies }) => {
       email: body.email || undefined,
       phone: body.phone || undefined,
       profilePhotoUrl: body.profilePhotoUrl || undefined,
+      signatureUrl: body.signatureUrl || undefined,
       documentType: body.documentType,
       documentNumber: body.documentNumber,
       dateOfBirth: formattedBirthDate,
