@@ -629,11 +629,29 @@ if (!hasRole(user, 'staff')) {
     const response = await fetch('/api/admin/patients/upload-photo', {
       method: 'POST',
       body: formData,
+      credentials: 'include',
     });
 
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.message || 'Error al subir foto');
+    const contentType = response.headers.get('content-type') || '';
+    let result: any = null;
+    if (contentType.includes('application/json')) {
+      try {
+        result = await response.json();
+      } catch {
+        result = null;
+      }
+    }
+
+    if (!response.ok) {
+      if (result && typeof result === 'object') {
+        throw new Error(String(result.message || result.error || 'Error al subir foto'));
+      }
+      const text = await response.text().catch(() => '');
+      throw new Error(text || 'Error al subir foto');
+    }
+
+    if (!result || typeof result !== 'object' || !result.success) {
+      throw new Error(String(result?.message || result?.error || 'Error al subir foto'));
     }
     return String(result.data?.key || result.data?.url || result.data?.path || '');
   }

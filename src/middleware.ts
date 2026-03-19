@@ -9,11 +9,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // 1. Manejo de CORS (Prepara headers pero NO retorna aún, salvo OPTIONS)
   let corsHeaders: Record<string, string> = {};
   const isApiRoute = url.pathname.startsWith('/api/');
+  let allowedOrigins: string[] = [];
   
   if (isApiRoute) {
     const origin = request.headers.get('Origin');
-    const allowedOrigins = [
+    allowedOrigins = [
       'https://saludocupacional.online',
+      'https://www.saludocupacional.online',
       'http://localhost:4321',
       'http://localhost:3000'
     ];
@@ -38,6 +40,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
         status: 204,
         headers: corsHeaders
       });
+    }
+
+    const method = request.method.toUpperCase();
+    const originHeader = origin;
+    const isStateChanging = method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE';
+    if (isStateChanging && originHeader && !allowedOrigins.includes(originHeader)) {
+      const response = new Response(JSON.stringify({ success: false, message: 'Origen no permitido' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      });
+      Object.entries(corsHeaders).forEach(([key, value]) => response.headers.set(key, value));
+      return response;
     }
   }
 
