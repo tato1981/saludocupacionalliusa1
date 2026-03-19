@@ -175,7 +175,7 @@ if (!user || user.role !== 'doctor') {
   let allConcepts: any[] = [];
   let filteredConcepts: any[] = [];
   let currentPage = 1;
-  const itemsPerPage = 5000;
+  const itemsPerPage = 10;
 
   // Función helper para mostrar alertas usando SweetAlert2 global
   function showAlert(type: 'success' | 'error' | 'warning' | 'info', title: string, message?: string) {
@@ -250,7 +250,7 @@ if (!user || user.role !== 'doctor') {
     };
 
     // Lógica para mostrar 1, 2, 3, ..., última página
-    if (totalPages <= 5) {
+    if (totalPages <= 4) {
       for (let i = 1; i <= totalPages; i++) {
         pageNumbersContainer.appendChild(createPageButton(i, i === currentPage));
       }
