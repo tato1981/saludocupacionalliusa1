@@ -1,4 +1,4 @@
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import crypto from 'node:crypto';
 import sharp from 'sharp';
 
@@ -57,7 +57,7 @@ export async function uploadImageToR2(opts: {
   input: { buffer: Buffer; contentType?: string; originalName?: string };
 }): Promise<{ key: string; url: string; contentType: string }> {
   const bucket = requireEnv('R2_BUCKET_NAME');
-  const publicUrlBase = requireEnv('R2_PUBLIC_URL').replace(/\/+$/, '');
+  const publicUrlBase = (process.env.R2_PUBLIC_URL || '').replace(/\/+$/, '');
 
   const format = getImageFormat();
   const outputContentType = contentTypeForFormat(format);
@@ -80,5 +80,40 @@ export async function uploadImageToR2(opts: {
     }),
   );
 
-  return { key, url: `${publicUrlBase}/${key}`, contentType: outputContentType };
+  return { key, url: publicUrlBase ? `${publicUrlBase}/${key}` : '', contentType: outputContentType };
+}
+
+async function streamToBuffer(stream: any): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
+
+export async function getObjectFromR2(opts: { key: string }): Promise<{
+  buffer: Buffer;
+  contentType?: string;
+  cacheControl?: string;
+}> {
+  const bucket = requireEnv('R2_BUCKET_NAME');
+  const client = getR2Client();
+
+  const result = await client.send(
+    new GetObjectCommand({
+      Bucket: bucket,
+      Key: opts.key,
+    }),
+  );
+
+  if (!result.Body) {
+    throw new Error('Objeto sin contenido');
+  }
+
+  const buffer = await streamToBuffer(result.Body as any);
+  return {
+    buffer,
+    contentType: result.ContentType,
+    cacheControl: result.CacheControl,
+  };
 }

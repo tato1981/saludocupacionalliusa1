@@ -704,10 +704,13 @@ if (!patientId) {
     if (photoEl && initialEl) {
       const initial = (patient.name || '').trim().charAt(0)?.toUpperCase() || '?';
       const url = patient.profile_photo_url ? String(patient.profile_photo_url) : '';
+      const src = url
+        ? (url.startsWith('http://') || url.startsWith('https://') ? url : `/api/files/r2?key=${encodeURIComponent(url)}`)
+        : '';
 
       initialEl.textContent = initial;
 
-      if (!url) {
+      if (!src) {
         photoEl.src = '';
         photoEl.classList.add('hidden');
         initialEl.classList.remove('hidden');
@@ -721,7 +724,7 @@ if (!patientId) {
           photoEl.classList.add('hidden');
           initialEl.classList.remove('hidden');
         };
-        photoEl.src = url;
+        photoEl.src = src;
       }
     }
   }

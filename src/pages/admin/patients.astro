@@ -460,7 +460,7 @@ if (!hasRole(user, 'staff')) {
           <div class="flex items-center">
             <div class="flex-shrink-0 h-10 w-10">
               ${patient.profile_photo_url ? `
-                <img src="${patient.profile_photo_url}" alt="" class="h-10 w-10 rounded-full object-cover border border-gray-200 bg-gray-100" />
+                <img src="${(String(patient.profile_photo_url).startsWith('http://') || String(patient.profile_photo_url).startsWith('https://')) ? String(patient.profile_photo_url) : `/api/files/r2?key=${encodeURIComponent(String(patient.profile_photo_url))}`}" alt="" class="h-10 w-10 rounded-full object-cover border border-gray-200 bg-gray-100" />
               ` : `
                 <div class="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center border border-gray-200">
                   <span class="text-sm font-medium text-gray-700">${patient.name.charAt(0).toUpperCase()}</span>
@@ -570,9 +570,16 @@ if (!hasRole(user, 'staff')) {
     return ch ? ch.toUpperCase() : '?';
   }
 
-  function setProfilePhotoPreview(url: string | null, nameForFallback?: string) {
+  function resolveProfilePhotoSrc(value: string): string {
+    if (!value) return '';
+    if (value.startsWith('http://') || value.startsWith('https://')) return value;
+    if (value.startsWith('blob:') || value.startsWith('data:')) return value;
+    return `/api/files/r2?key=${encodeURIComponent(value)}`;
+  }
+
+  function setProfilePhotoPreview(storedValue: string | null, nameForFallback?: string) {
     const initial = getNameInitial(nameForFallback);
-    if (!url) {
+    if (!storedValue) {
       profilePhotoUrlInput.value = '';
       profilePhotoPreview.src = '';
       profilePhotoPreview.classList.add('hidden');
@@ -581,8 +588,10 @@ if (!hasRole(user, 'staff')) {
       return;
     }
 
-    profilePhotoUrlInput.value = url;
-    profilePhotoPreview.src = url;
+    if (!storedValue.startsWith('blob:') && !storedValue.startsWith('data:')) {
+      profilePhotoUrlInput.value = storedValue;
+    }
+    profilePhotoPreview.src = resolveProfilePhotoSrc(storedValue);
     profilePhotoPreview.classList.remove('hidden');
     profilePhotoFallback.classList.add('hidden');
   }
@@ -601,7 +610,7 @@ if (!hasRole(user, 'staff')) {
     if (!result.success) {
       throw new Error(result.message || 'Error al subir foto');
     }
-    return String(result.data?.url || result.data?.path || '');
+    return String(result.data?.key || result.data?.url || result.data?.path || '');
   }
 
   profilePhotoFileInput.addEventListener('change', async () => {
