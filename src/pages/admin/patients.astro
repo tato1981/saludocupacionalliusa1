@@ -327,7 +327,7 @@ if (!hasRole(user, 'staff')) {
 
   function r2ProxyUrlForStoredValue(value: string): string {
     if (!value) return '';
-    if (value.startsWith('blob:') || value.startsWith('data:')) return value;
+    if (value.startsWith('blob:') || value.startsWith('data:')) return '';
     if (value.startsWith('http://') || value.startsWith('https://')) {
       try {
         const u = new URL(value);
@@ -590,8 +590,9 @@ if (!hasRole(user, 'staff')) {
   }
 
   function setProfilePhotoPreview(storedValue: string | null, nameForFallback?: string) {
+    const cleaned = (storedValue || '').trim();
     const initial = getNameInitial(nameForFallback);
-    if (!storedValue) {
+    if (!cleaned || cleaned.startsWith('blob:') || cleaned.startsWith('data:')) {
       profilePhotoUrlInput.value = '';
       profilePhotoPreview.src = '';
       profilePhotoPreview.classList.add('hidden');
@@ -600,10 +601,22 @@ if (!hasRole(user, 'staff')) {
       return;
     }
 
-    if (!storedValue.startsWith('blob:') && !storedValue.startsWith('data:')) {
-      profilePhotoUrlInput.value = storedValue;
+    profilePhotoUrlInput.value = cleaned;
+    profilePhotoPreview.src = resolveProfilePhotoSrc(cleaned);
+    profilePhotoPreview.classList.remove('hidden');
+    profilePhotoFallback.classList.add('hidden');
+  }
+
+  function setLocalProfilePhotoPreview(localUrl: string | null, nameForFallback?: string) {
+    const initial = getNameInitial(nameForFallback);
+    if (!localUrl) {
+      profilePhotoPreview.src = '';
+      profilePhotoPreview.classList.add('hidden');
+      profilePhotoFallback.textContent = initial;
+      profilePhotoFallback.classList.remove('hidden');
+      return;
     }
-    profilePhotoPreview.src = resolveProfilePhotoSrc(storedValue);
+    profilePhotoPreview.src = localUrl;
     profilePhotoPreview.classList.remove('hidden');
     profilePhotoFallback.classList.add('hidden');
   }
@@ -630,16 +643,16 @@ if (!hasRole(user, 'staff')) {
     if (!file) return;
 
     const localPreviewUrl = URL.createObjectURL(file);
-    setProfilePhotoPreview(localPreviewUrl, (document.querySelector('input[name="name"]') as HTMLInputElement | null)?.value);
+    setLocalProfilePhotoPreview(localPreviewUrl, (document.querySelector('input[name="name"]') as HTMLInputElement | null)?.value);
 
     try {
       const uploadedUrl = await uploadProfilePhotoToServer(file, file.name || 'profile-photo');
       setProfilePhotoPreview(uploadedUrl, (document.querySelector('input[name="name"]') as HTMLInputElement | null)?.value);
-      URL.revokeObjectURL(localPreviewUrl);
     } catch (error: any) {
       setProfilePhotoPreview(null, (document.querySelector('input[name="name"]') as HTMLInputElement | null)?.value);
-      URL.revokeObjectURL(localPreviewUrl);
       showAlert('error', 'Error', error?.message || 'No se pudo subir la foto');
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(localPreviewUrl), 2000);
     }
   });
 
@@ -659,16 +672,16 @@ if (!hasRole(user, 'staff')) {
 
   (window as any).onPhotoCapture = async (photoBlob: Blob) => {
     const localPreviewUrl = URL.createObjectURL(photoBlob);
-    setProfilePhotoPreview(localPreviewUrl, (document.querySelector('input[name="name"]') as HTMLInputElement | null)?.value);
+    setLocalProfilePhotoPreview(localPreviewUrl, (document.querySelector('input[name="name"]') as HTMLInputElement | null)?.value);
 
     try {
       const uploadedUrl = await uploadProfilePhotoToServer(photoBlob, 'profile-photo');
       setProfilePhotoPreview(uploadedUrl, (document.querySelector('input[name="name"]') as HTMLInputElement | null)?.value);
-      URL.revokeObjectURL(localPreviewUrl);
     } catch (error: any) {
       setProfilePhotoPreview(null, (document.querySelector('input[name="name"]') as HTMLInputElement | null)?.value);
-      URL.revokeObjectURL(localPreviewUrl);
       showAlert('error', 'Error', error?.message || 'No se pudo subir la foto');
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(localPreviewUrl), 2000);
     }
   };
 
