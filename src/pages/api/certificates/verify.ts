@@ -1,6 +1,17 @@
 import type { APIRoute } from 'astro';
 import { CertificateService } from '../../../lib/certificate-service.js';
 
+function asDateOnlyString(value: any): string | null {
+  if (!value) return null;
+  if (typeof value === 'string') {
+    const str = value.trim();
+    if (!str) return null;
+    return str.includes('T') ? str.split('T')[0] : str;
+  }
+  if (value instanceof Date) return value.toISOString().split('T')[0];
+  return null;
+}
+
 export const GET: APIRoute = async ({ url }) => {
   try {
     const code = new URL(url).searchParams.get('code');
@@ -29,7 +40,7 @@ export const GET: APIRoute = async ({ url }) => {
         document_number: record.document_number,
         company: record.company,
         occupation: record.occupation,
-        date_of_birth: record.date_of_birth,
+        date_of_birth: asDateOnlyString(record.date_of_birth),
         doctor_id: record.doctor_id,
         doctor_name: record.doctor_name,
         appointment_id: record.appointment_id,
@@ -37,8 +48,8 @@ export const GET: APIRoute = async ({ url }) => {
         aptitude_status: record.aptitude_status,
         restrictions: record.restrictions,
         recommendations: record.recommendations,
-        validity_start: record.validity_start,
-        validity_end: record.validity_end,
+        validity_start: asDateOnlyString(record.validity_start),
+        validity_end: asDateOnlyString(record.validity_end),
         certificate_date: record.certificate_date,
         created_at: record.created_at,
         verification_code: record.verification_code

@@ -208,6 +208,17 @@ import Layout from "../../layouts/Layout.astro";
       }
     }
 
+    function formatDateOnly(value) {
+      if (!value) return '';
+      const str = String(value).trim();
+      if (!str) return '';
+      const datePart = str.includes('T') ? str.split('T')[0] : str;
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(datePart);
+      if (match) return `${match[3]}/${match[2]}/${match[1]}`;
+      const d = new Date(str);
+      return isNaN(d.getTime()) ? str : d.toLocaleDateString('es-ES');
+    }
+
     function displayCertificate(cert, code) {
       // Mostrar resultado
       document.getElementById('result').classList.remove('hidden');
@@ -231,7 +242,7 @@ import Layout from "../../layouts/Layout.astro";
       patientInfo.innerHTML = `
         <div class="text-sm"><span class="font-medium text-gray-900">${cert.patient_name || 'N/A'}</span></div>
         <div class="text-sm text-gray-600">${cert.document_type || ''} ${cert.document_number || ''}</div>
-        ${cert.date_of_birth ? `<div class="text-sm text-gray-600">Nacimiento: ${new Date(cert.date_of_birth).toLocaleDateString('es-ES')}</div>` : ''}
+        ${cert.date_of_birth ? `<div class="text-sm text-gray-600">Nacimiento: ${formatDateOnly(cert.date_of_birth)}</div>` : ''}
         ${cert.company ? `<div class="text-sm text-gray-600">Empresa: ${cert.company}</div>` : ''}
         ${cert.occupation ? `<div class="text-sm text-gray-600">Ocupación: ${cert.occupation}</div>` : ''}
       `;
@@ -253,8 +264,8 @@ import Layout from "../../layouts/Layout.astro";
       const createdDate = emissionSource
         ? new Date(emissionSource).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })
         : 'N/A';
-      const validityStart = cert.validity_start ? new Date(cert.validity_start).toLocaleDateString('es-ES') : null;
-      const validityEnd = cert.validity_end ? new Date(cert.validity_end).toLocaleDateString('es-ES') : null;
+      const validityStart = cert.validity_start ? formatDateOnly(cert.validity_start) : null;
+      const validityEnd = cert.validity_end ? formatDateOnly(cert.validity_end) : null;
 
       // Mapeo de tipos de cita
       const appointmentTypeMap = {

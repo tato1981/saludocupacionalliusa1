@@ -58,7 +58,19 @@ export const GET: APIRoute = async ({ cookies, url }) => {
       params.push(doctorId);
     }
 
-    query += ' ORDER BY a.appointment_date DESC LIMIT 10';
+    query += ' ORDER BY a.appointment_date DESC';
+
+    const rawLimit = url.searchParams.get('limit');
+    const rawOffset = url.searchParams.get('offset');
+    const limit = rawLimit ? Number.parseInt(rawLimit, 10) : null;
+    const offset = rawOffset ? Number.parseInt(rawOffset, 10) : null;
+
+    if (limit !== null) {
+      const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(5000, limit)) : 100;
+      const safeOffset = offset !== null && Number.isFinite(offset) ? Math.max(0, offset) : 0;
+      query += ' LIMIT ? OFFSET ?';
+      params.push(safeLimit, safeOffset);
+    }
 
     const [rows] = await db.execute(query, params);
 
