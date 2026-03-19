@@ -2,7 +2,6 @@ import type { APIRoute } from 'astro';
 import { db } from '../../../../lib/database';
 import { requireAuth, hasRole, hashPassword } from '../../../../lib/auth';
 import { MigrationService } from '../../../../lib/migration-service';
-import { StorageService } from '@/lib/storage-service';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
@@ -28,7 +27,6 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     const professional_license = formData.get('professional_license') as string;
     const password = formData.get('password') as string;
     const is_active = formData.get('is_active') === '1';
-    const signatureFile = formData.get('signature') as File | null;
 
     // Validaciones
     if (!name || !email || !document_number || !password) {
@@ -80,8 +78,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     const [result] = await db.execute(
       `INSERT INTO users (
         name, email, password_hash, document_number, phone,
-        specialization, professional_license, role, is_active, signature_path
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'doctor', ?, NULL)`,
+        specialization, professional_license, role, is_active
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'doctor', ?)`,
       [
         name,
         email,
@@ -95,40 +93,6 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     );
 
     const doctorId = (result as any).insertId;
-    let signaturePath: string | null = null;
-
-    // Procesar firma si se subió
-    if (signatureFile && signatureFile.size > 0) {
-      // Validar tamaño (2 MB máximo)
-      if (signatureFile.size > 2 * 1024 * 1024) {
-        return new Response(JSON.stringify({
-          success: true,
-          message: 'Doctor creado, pero la firma superó el tamaño máximo (2MB)',
-          data: { id: doctorId }
-        }), {
-          status: 201,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-
-      // Generar nombre único
-      const timestamp = Date.now();
-      const fileExtension = signatureFile.name.split('.').pop() || 'png';
-      const key = `doctors/${doctorId}/signature_${timestamp}.${fileExtension}`;
-
-      // Subir a storage local
-      const arrayBuffer = await signatureFile.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      signaturePath = await StorageService.uploadFile(buffer, key, signatureFile.type);
-
-      // Actualizar path de firma
-      await db.execute(
-        'UPDATE users SET signature_path = ? WHERE id = ?',
-        [signaturePath, doctorId]
-      );
-
-      console.log(`✅ Firma de doctor subida: ${signaturePath}`);
-    }
 
     return new Response(JSON.stringify({
       success: true,

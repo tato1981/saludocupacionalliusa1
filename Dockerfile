@@ -1,58 +1,44 @@
-# Etapa 1: Construcción
-FROM node:20-alpine AS builder
-
-# Instalar dependencias necesarias para compilación
-RUN apk add --no-cache libc6-compat python3 make g++
-
+# Use Node.js 20 Alpine as the base image
+FROM node:20-alpine AS base
 WORKDIR /app
 
-# Copiar archivos de dependencias
-COPY package*.json ./
-
-# Instalar TODAS las dependencias (incluyendo devDependencies)
+# Install dependencies only when needed
+FROM base AS deps
+# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
+RUN apk add --no-cache libc6-compat
+COPY package.json package-lock.json ./
 RUN npm ci
 
-# Copiar el resto de archivos
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Construir la aplicación
+# Environment variables must be provided at build time if they are needed for static generation
+# For SSR (server output), they are mostly needed at runtime
 RUN npm run build
 
-# Etapa 2: Producción
-FROM node:20-alpine AS runner
-
+# Production image, copy all the files and run next
+FROM base AS runner
 WORKDIR /app
 
-# Instalar dependencias necesarias para runtime (especialmente para sharp/imágenes)
-# libc6-compat es necesario para binarios precompilados de sharp en Alpine
-RUN apk add --no-cache libc6-compat
+ENV NODE_ENV=production
 
-# Copiar archivos de dependencias
-COPY package*.json ./
+# Don't run as root
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 astro
 
-# Instalar SOLO dependencias de producción
-# Esto asegura que sharp se instale correctamente para la arquitectura actual (Alpine)
-# y reduce el tamaño de la imagen final
-RUN npm ci --omit=dev && npm cache clean --force
+# Copy the built application
+COPY --from=builder --chown=astro:nodejs /app/dist ./dist
+COPY --from=builder --chown=astro:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=astro:nodejs /app/package.json ./package.json
 
-# Copiar los archivos construidos desde la etapa anterior
-COPY --from=builder /app/dist ./dist
+USER astro
 
-# Crear directorio para uploads persistentes (se montará con bind mount)
-# Usamos /data/uploads como ubicación estándar para datos persistentes
-RUN mkdir -p /data/uploads/patients && \
-    chmod -R 755 /data
-
-# Configuración del servidor
 ENV HOST=0.0.0.0
 ENV PORT=4321
-ENV NODE_ENV=production
-ENV UPLOADS_DIR=/data/uploads
-
-# Volumen para datos persistentes (bind mount)
-VOLUME ["/data/uploads"]
 
 EXPOSE 4321
 
-# Iniciar la aplicación
 CMD ["node", "./dist/server/entry.mjs"]

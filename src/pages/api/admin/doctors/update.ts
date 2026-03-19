@@ -1,8 +1,7 @@
 import type { APIRoute } from 'astro';
 import { db } from '../../../../lib/database';
-import { hasRole, hashPassword, requireAuth } from '../../../../lib/auth';
+import { hashPassword, requireAuth } from '../../../../lib/auth';
 import { MigrationService } from '../../../../lib/migration-service';
-import { StorageService } from '../../../../lib/storage-service';
 
 export const POST: APIRoute = async ({ request, locals, cookies }) => {
   try {
@@ -66,9 +65,6 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
     const professional_license = formData.get('professional_license') as string;
     const password = formData.get('password') as string;
     const is_active = formData.get('is_active') === '1';
-    const signatureFile = formData.get('signature') as File | null;
-    const existingSignaturePath = formData.get('existing_signature_path') as string;
-    const removeSignature = formData.get('remove_signature') === '1';
 
     // Validaciones
     if (!id || !name || !email || !document_number) {
@@ -129,54 +125,6 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
       });
     }
 
-    // Procesar firma
-    let signaturePath: string | null = existingSignaturePath || null;
-
-    // Si se solicita eliminar la firma
-    if (removeSignature && existingSignaturePath) {
-      try {
-        await StorageService.deleteFile(existingSignaturePath);
-        signaturePath = null;
-        console.log(`✅ Firma de doctor eliminada: ${existingSignaturePath}`);
-      } catch (error) {
-        console.error(`Error al eliminar firma anterior: ${existingSignaturePath}`, error);
-      }
-    }
-
-    // Si se subió una nueva firma
-    if (signatureFile && signatureFile.size > 0) {
-      // Validar tamaño (2 MB máximo)
-      if (signatureFile.size > 2 * 1024 * 1024) {
-        return new Response(JSON.stringify({
-          success: false,
-          message: 'La imagen de firma no debe superar 2 MB'
-        }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-
-      // Eliminar firma anterior si existe y no se ha eliminado ya
-      if (existingSignaturePath && signaturePath !== null) {
-        try {
-          await StorageService.deleteFile(existingSignaturePath);
-        } catch (error) {
-          console.error(`Error al eliminar firma anterior antes de actualización: ${existingSignaturePath}`, error);
-        }
-      }
-
-      const timestamp = Date.now();
-      const fileExtension = signatureFile.name.split('.').pop() || 'png';
-      const key = `doctors/${id}/signature_${timestamp}.${fileExtension}`;
-
-      const arrayBuffer = await signatureFile.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      
-      signaturePath = await StorageService.uploadFile(buffer, key, signatureFile.type);
-      console.log(`✅ Nueva firma guardada en: ${signaturePath}`);
-    }
-
-    // Preparar la actualización
     let updateQuery = `
       UPDATE users SET
         name = ?,
@@ -185,8 +133,7 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
         phone = ?,
         specialization = ?,
         professional_license = ?,
-        is_active = ?,
-        signature_path = ?
+        is_active = ?
     `;
     let updateParams: any[] = [
       name,
@@ -195,10 +142,8 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
       phone || null,
       specialization || 'Medicina General',
       professional_license || null,
-      is_active ? 1 : 0,
-      signaturePath
+      is_active ? 1 : 0
     ];
-
     // Si se proporcionó una nueva contraseña, incluirla en la actualización
     if (password && password.trim() !== '') {
       const passwordHash = await hashPassword(password);

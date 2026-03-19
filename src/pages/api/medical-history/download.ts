@@ -30,7 +30,7 @@ export const GET: APIRoute = async ({ url }) => {
     }
 
     const filename = `historia_medica_${record.id || 'verificacion'}.pdf`;
-    return new Response(pdfBuffer, {
+    return new Response(pdfBuffer as any, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',

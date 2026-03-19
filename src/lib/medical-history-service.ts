@@ -1,13 +1,8 @@
 // Servicio para manejo de Historias Médicas Ocupacionales
 // Basado en estándares de la OMS para Salud Ocupacional
 import { db } from './database.js';
-import { StorageService } from './storage-service.js';
 import dayjs from 'dayjs';
 import PDFDocument from 'pdfkit';
-import QRCode from 'qrcode';
-import fs from 'fs';
-import path from 'path';
-import sharp from 'sharp';
 
 export interface VitalSigns {
   // Signos vitales básicos
@@ -128,83 +123,6 @@ function baseUrl(): string {
 }
 
 export class MedicalHistoryService {
-
-  private static async resolvePublicPath(relativePath: string): Promise<string> {
-    if (!relativePath) return '';
-
-    // Si ya es una URL completa, retornarla tal cual
-    if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
-      return relativePath;
-    }
-
-    // Intentar resolver como archivo local
-    const cleanPath = relativePath.startsWith('/') ? relativePath.slice(1) : relativePath;
-    const possiblePaths = [
-      path.join(process.cwd(), cleanPath),
-      path.join(process.cwd(), 'dist', 'client', cleanPath),
-      path.join(process.cwd(), 'public', cleanPath),
-    ];
-
-    for (const possiblePath of possiblePaths) {
-      if (fs.existsSync(possiblePath)) {
-        console.log('✅ Archivo encontrado localmente en:', possiblePath);
-        return possiblePath;
-      }
-    }
-
-    console.warn(`⚠️ Archivo no encontrado localmente: ${relativePath}`);
-    return relativePath;
-  }
-
-  private static async convertImageForPDF(imagePath: string): Promise<Buffer | null> {
-    try {
-      console.log('📁 Intentando cargar imagen desde:', imagePath);
-
-      // Manejar URLs remotas (Storage)
-      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-        console.log('🌐 Descargando imagen remota:', imagePath);
-        const response = await fetch(imagePath);
-        if (!response.ok) {
-          console.error('❌ Error descargando imagen remota:', response.statusText);
-          return null;
-        }
-        const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        
-        console.log('🔄 Procesando imagen remota con Sharp...');
-        // Asegurar formato compatible (JPEG/PNG) y optimizar
-        return await sharp(buffer)
-          .jpeg({ quality: 85 })
-          .toBuffer();
-      }
-
-      if (!fs.existsSync(imagePath)) {
-        console.error('❌ El archivo no existe:', imagePath);
-        console.error('   process.cwd():', process.cwd());
-        return null;
-      }
-
-      const ext = path.extname(imagePath).toLowerCase();
-      console.log('📝 Extensión del archivo:', ext);
-
-      if (ext === '.jpg' || ext === '.jpeg' || ext === '.png') {
-        console.log('✅ Leyendo imagen directamente (formato compatible)');
-        return fs.readFileSync(imagePath);
-      }
-
-      console.log('🔄 Convirtiendo imagen a formato compatible con PDF...');
-      const jpegBuffer = await sharp(imagePath)
-        .jpeg({ quality: 85 })
-        .toBuffer();
-
-      console.log('✅ Imagen convertida exitosamente');
-      return jpegBuffer;
-    } catch (error) {
-      console.error('❌ Error convirtiendo imagen:', error);
-      console.error('   Ruta intentada:', imagePath);
-      return null;
-    }
-  }
   
   // Calcular IMC y clasificación según OMS
   static calculateBMI(weight: number, height: number): { bmi: number; classification: string; risk: string; recommendations: string[] } {
@@ -553,7 +471,6 @@ export class MedicalHistoryService {
         SELECT 
           mh.*,
           u.name as doctor_name,
-          u.signature_path as doctor_signature_path,
           u.professional_license as doctor_professional_license,
           p.name as patient_name,
           a.appointment_date,
@@ -620,7 +537,6 @@ export class MedicalHistoryService {
           mh.*,
           u.name as doctor_name,
           u.specialization as doctor_specialization,
-          u.signature_path as doctor_signature_path,
           u.professional_license as doctor_professional_license,
           p.name as patient_name,
           p.date_of_birth as patient_birth_date,
@@ -1215,73 +1131,16 @@ export class MedicalHistoryService {
 
     // Firma Izquierda: Profesional (compacta)
     const leftSigX = 40;
-    let doctorSigUrl = null;
-
-    // Intentar obtener firma del doctor
-    if (doctor.signature_path) {
-      doctorSigUrl = await this.resolvePublicPath(doctor.signature_path);
-    }
-
-    // Si no tiene path o no se pudo resolver, intentar buscar por convención local
-    if (!doctorSigUrl || (doctorSigUrl && !doctorSigUrl.startsWith('http') && !fs.existsSync(doctorSigUrl))) {
-      // Intentar con signature.webp (formato estándar) en directorio local
-      const defaultPath = `/uploads/doctors/${doctor.id}/signature.webp`;
-      const verified = await StorageService.getImageUrl(defaultPath);
-      if (verified) {
-        doctorSigUrl = await this.resolvePublicPath(verified);
-      }
-    }
-
-    if (doctorSigUrl) {
-      try {
-        const signBuffer = await this.convertImageForPDF(doctorSigUrl);
-        if (signBuffer) {
-          doc.image(signBuffer, leftSigX, signatureY - 8, { width: 110, height: 28, align: 'left' });
-          doc.text(cleanText(doctor.name), leftSigX, signatureY + 24, { width: 110 });
-          doc.fontSize(7.5).text(cleanText(`Reg: ${doctor.professional_license || 'N/A'}`), leftSigX, signatureY + 32);
-        } else {
-          doc.text('_______________________', leftSigX, signatureY);
-          doc.text(cleanText(doctor.name), leftSigX, signatureY + 10, { width: 110 });
-          doc.fontSize(7.5).text(cleanText(`Reg: ${doctor.professional_license || 'N/A'}`), leftSigX, signatureY + 18);
-        }
-      } catch (error) {
-        doc.text('_______________________', leftSigX, signatureY);
-        doc.text(cleanText(doctor.name), leftSigX, signatureY + 10, { width: 110 });
-        doc.fontSize(7.5).text(cleanText(`Reg: ${doctor.professional_license || 'N/A'}`), leftSigX, signatureY + 18);
-      }
-    } else {
-      doc.text('_______________________', leftSigX, signatureY);
-      doc.text(cleanText(doctor.name), leftSigX, signatureY + 10, { width: 110 });
-      doc.fontSize(7.5).text(cleanText(`Reg: ${doctor.professional_license || 'N/A'}`), leftSigX, signatureY + 18);
-    }
+    doc.text('_______________________', leftSigX, signatureY);
+    doc.text(cleanText(doctor.name), leftSigX, signatureY + 10, { width: 110 });
+    doc.fontSize(7.5).text(cleanText(`Reg: ${doctor.professional_license || 'N/A'}`), leftSigX, signatureY + 18);
 
     // Firma Derecha: Paciente (compacta)
     const rightSigX = 350;
     doc.fontSize(8.5);
-
-    if (patient.signature_path) {
-      try {
-        const patientSignaturePath = await this.resolvePublicPath(patient.signature_path);
-        const patientSigBuffer = await this.convertImageForPDF(patientSignaturePath);
-        if (patientSigBuffer) {
-          doc.image(patientSigBuffer, rightSigX, signatureY - 8, { width: 110, height: 28, align: 'left' });
-          doc.text(cleanText(patient.name), rightSigX, signatureY + 24, { width: 110 });
-          doc.fontSize(7.5).text(cleanText('Paciente'), rightSigX, signatureY + 32);
-        } else {
-          doc.text('_______________________', rightSigX, signatureY);
-          doc.text(cleanText(patient.name), rightSigX, signatureY + 10, { width: 110 });
-          doc.fontSize(7.5).text(cleanText('Paciente'), rightSigX, signatureY + 18);
-        }
-      } catch (error) {
-        doc.text('_______________________', rightSigX, signatureY);
-        doc.text(cleanText(patient.name), rightSigX, signatureY + 10, { width: 110 });
-        doc.fontSize(7.5).text(cleanText('Paciente'), rightSigX, signatureY + 18);
-      }
-    } else {
-      doc.text('_______________________', rightSigX, signatureY);
-      doc.text(cleanText(patient.name), rightSigX, signatureY + 10, { width: 110 });
-      doc.fontSize(7.5).text(cleanText('Paciente'), rightSigX, signatureY + 18);
-    }
+    doc.text('_______________________', rightSigX, signatureY);
+    doc.text(cleanText(patient.name), rightSigX, signatureY + 10, { width: 110 });
+    doc.fontSize(7.5).text(cleanText('Paciente'), rightSigX, signatureY + 18);
 
     doc.fillColor('#000000');
   }

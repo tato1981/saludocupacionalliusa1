@@ -2,9 +2,6 @@ import { db } from './database.js';
 import dayjs from 'dayjs';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
-import fs from 'fs';
-import path from 'path';
-import sharp from 'sharp';
 
 export type AptitudeStatus = 'apto' | 'apto_con_restricciones' | 'apto_manipulacion_alimentos' | 'apto_trabajo_alturas' | 'apto_espacios_confinados' | 'apto_conduccion';
 
@@ -78,101 +75,6 @@ function cleanText(text: string): string {
 }
 
 export class CertificateService {
-  /**
-   * Resolver ruta de archivo estático tanto en desarrollo como en producción
-   */
-  private static resolvePublicPath(relativePath: string): string {
-    if (!relativePath) return '';
-
-    // Si ya es una URL completa (http/https), retornarla tal cual
-    if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
-      return relativePath;
-    }
-
-    // Remover el slash inicial si existe
-    const cleanPath = relativePath.startsWith('/') ? relativePath.slice(1) : relativePath;
-
-    // Buscar en múltiples ubicaciones:
-    // 1. uploads/ (carpeta persistente - RECOMENDADO para producción)
-    // 2. dist/client/ (archivos del build)
-    // 3. public/ (desarrollo)
-    const possiblePaths = [
-      path.join(process.cwd(), cleanPath),                    // uploads/ (persistente)
-      path.join(process.cwd(), 'dist', 'client', cleanPath),  // Producción (build)
-      path.join(process.cwd(), 'public', cleanPath),          // Desarrollo
-      path.join(process.cwd(), '..', cleanPath),              // Server en subdirectorio
-    ];
-
-    // Buscar el archivo en las rutas posibles
-    for (const possiblePath of possiblePaths) {
-      if (fs.existsSync(possiblePath)) {
-        console.log('✅ Archivo encontrado en:', possiblePath);
-        return possiblePath;
-      }
-    }
-
-    // Si no se encuentra, retornar la primera opción y dejar que falle
-    console.error('❌ Archivo no encontrado en ninguna ubicación:');
-    possiblePaths.forEach(p => console.error('   -', p));
-    return possiblePaths[0];
-  }
-
-  /**
-   * Convertir imagen a formato compatible con PDFKit
-   */
-  private static async convertImageForPDF(imagePath: string): Promise<Buffer | null> {
-    try {
-      console.log('📁 Intentando cargar imagen desde:', imagePath);
-
-      // Manejar URLs remotas (Storage)
-      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-        console.log('🌐 Descargando imagen remota:', imagePath);
-        const response = await fetch(imagePath);
-        if (!response.ok) {
-          console.error('❌ Error descargando imagen remota:', response.statusText);
-          return null;
-        }
-        const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        
-        console.log('🔄 Procesando imagen remota con Sharp...');
-        // Asegurar formato compatible (JPEG/PNG) y optimizar
-        return await sharp(buffer)
-          .jpeg({ quality: 85 })
-          .toBuffer();
-      }
-
-      // Verificar si el archivo existe
-      if (!fs.existsSync(imagePath)) {
-        console.error('❌ El archivo no existe:', imagePath);
-        console.error('   process.cwd():', process.cwd());
-        return null;
-      }
-
-      // Si la imagen ya es JPEG o PNG, leerla directamente
-      const ext = path.extname(imagePath).toLowerCase();
-      console.log('📝 Extensión del archivo:', ext);
-
-      if (ext === '.jpg' || ext === '.jpeg' || ext === '.png') {
-        console.log('✅ Leyendo imagen directamente (formato compatible)');
-        return fs.readFileSync(imagePath);
-      }
-
-      // Si es WebP u otro formato, convertir a JPEG
-      console.log('🔄 Convirtiendo imagen a formato compatible con PDF...');
-      const jpegBuffer = await sharp(imagePath)
-        .jpeg({ quality: 85 })
-        .toBuffer();
-
-      console.log('✅ Imagen convertida exitosamente');
-      return jpegBuffer;
-    } catch (error) {
-      console.error('❌ Error convirtiendo imagen:', error);
-      console.error('   Ruta intentada:', imagePath);
-      return null;
-    }
-  }
-
   private static addGeneralObservations(doc: PDFKit.PDFDocument, contentWidth: number) {
     const startX = 50;
 
@@ -258,7 +160,7 @@ export class CertificateService {
 
   static async getPatientSummary(patientId: number) {
     const [rows] = await db.execute(
-      `SELECT p.id, p.name, p.document_type, p.document_number, p.email, p.phone, p.occupation, COALESCE(c.name, p.company) as company, c.responsible_name as company_responsible, p.date_of_birth, p.photo_path, p.signature_path
+      `SELECT p.id, p.name, p.document_type, p.document_number, p.email, p.phone, p.occupation, COALESCE(c.name, p.company) as company, c.responsible_name as company_responsible, p.date_of_birth
        FROM patients p
        LEFT JOIN companies c ON p.company_id = c.id
        WHERE p.id = ?`,
@@ -270,7 +172,7 @@ export class CertificateService {
 
   static async getDoctorSummary(doctorId: number) {
     const [rows] = await db.execute(
-      `SELECT u.id, u.name, u.email, u.phone, u.role, u.specialization, u.professional_license, u.document_number, u.signature_path
+      `SELECT u.id, u.name, u.email, u.phone, u.role, u.specialization, u.professional_license, u.document_number
        FROM users u WHERE u.id = ?`,
       [doctorId]
     );
@@ -706,80 +608,18 @@ export class CertificateService {
       // Firma Izquierda: Profesional
       doc.font('Helvetica').fontSize(8);
 
-      // Si el doctor tiene firma digital, insertarla
-      if (doctor.signature_path) {
-        try {
-          console.log('✍️ Doctor tiene firma digital configurada:', doctor.signature_path);
-          const signaturePath = this.resolvePublicPath(doctor.signature_path);
-          console.log('🔍 Ruta completa construida:', signaturePath);
-
-          const signBuffer = await this.convertImageForPDF(signaturePath);
-          if (signBuffer) {
-            console.log('✅ Firma del médico cargada exitosamente, insertando en PDF');
-            doc.image(signBuffer, 60, signatureY - 10, { width: 150, height: 40, align: 'left' });
-            doc.text(cleanText(doctor.name), 60, signatureY + 35);
-            doc.text(cleanText(`C.C. ${doctor.document_number || 'N/A'}`), 60, signatureY + 48);
-            doc.text(cleanText(`Registro No: ${doctor.professional_license || 'N/A'}`), 60, signatureY + 61);
-          } else {
-            // Fallback si no se pudo cargar la imagen
-            console.warn('⚠️ No se pudo cargar la firma del médico, usando fallback de texto');
-            doc.text('____________________________', 60, signatureY);
-            doc.text(cleanText(doctor.name), 60, signatureY + 15);
-            doc.text(cleanText(`C.C. ${doctor.document_number || 'N/A'}`), 60, signatureY + 28);
-            doc.text(cleanText(`Registro No: ${doctor.professional_license || 'N/A'}`), 60, signatureY + 41);
-          }
-        } catch (error) {
-          console.error('❌ Error cargando firma del médico:', error);
-          // Fallback a texto si hay error
-          doc.text('____________________________', 60, signatureY);
-          doc.text(cleanText(doctor.name), 60, signatureY + 15);
-          doc.text(cleanText(`C.C. ${doctor.document_number || 'N/A'}`), 60, signatureY + 28);
-          doc.text(cleanText(`Registro No: ${doctor.professional_license || 'N/A'}`), 60, signatureY + 41);
-        }
-      } else {
-        // Sin firma digital, usar línea tradicional
-        console.log('ℹ️ Doctor sin firma digital configurada');
-        doc.text('____________________________', 60, signatureY);
-        doc.text(cleanText(doctor.name), 60, signatureY + 15);
-        doc.text(cleanText(`C.C. ${doctor.document_number || 'N/A'}`), 60, signatureY + 28);
-        doc.text(cleanText(`Registro No: ${doctor.professional_license || 'N/A'}`), 60, signatureY + 41);
-      }
+      doc.text('____________________________', 60, signatureY);
+      doc.text(cleanText(doctor.name), 60, signatureY + 15);
+      doc.text(cleanText(`C.C. ${doctor.document_number || 'N/A'}`), 60, signatureY + 28);
+      doc.text(cleanText(`Registro No: ${doctor.professional_license || 'N/A'}`), 60, signatureY + 41);
       
       // Firma Derecha: Firma del Paciente
       const rightSigX = fullPageWidth - 250;
 
-      // Si el paciente tiene firma digital, insertarla
-      if (patient.signature_path) {
-        try {
-          const patientSignaturePath = this.resolvePublicPath(patient.signature_path);
-          const patientSigBuffer = await this.convertImageForPDF(patientSignaturePath);
-          if (patientSigBuffer) {
-            doc.image(patientSigBuffer, rightSigX, signatureY - 10, { width: 150, height: 40, align: 'left' });
-            doc.text(cleanText(patient.name), rightSigX, signatureY + 35);
-            doc.text(cleanText(`${patient.document_type || 'C.C.'} ${patient.document_number || 'N/A'}`), rightSigX, signatureY + 48);
-            doc.text(cleanText('Paciente'), rightSigX, signatureY + 61);
-          } else {
-            // Fallback si no se pudo cargar la imagen
-            doc.text('____________________________', rightSigX, signatureY);
-            doc.text(cleanText(patient.name), rightSigX, signatureY + 15);
-            doc.text(cleanText(`${patient.document_type || 'C.C.'} ${patient.document_number || 'N/A'}`), rightSigX, signatureY + 28);
-            doc.text(cleanText('Paciente'), rightSigX, signatureY + 41);
-          }
-        } catch (error) {
-          console.error('Error cargando firma del paciente:', error);
-          // Fallback a texto si hay error
-          doc.text('____________________________', rightSigX, signatureY);
-          doc.text(cleanText(patient.name), rightSigX, signatureY + 15);
-          doc.text(cleanText(`${patient.document_type || 'C.C.'} ${patient.document_number || 'N/A'}`), rightSigX, signatureY + 28);
-          doc.text(cleanText('Paciente'), rightSigX, signatureY + 41);
-        }
-      } else {
-        // Sin firma digital, usar línea tradicional
-        doc.text('____________________________', rightSigX, signatureY);
-        doc.text(cleanText(patient.name), rightSigX, signatureY + 15);
-        doc.text(cleanText(`${patient.document_type || 'C.C.'} ${patient.document_number || 'N/A'}`), rightSigX, signatureY + 28);
-        doc.text(cleanText('Paciente'), rightSigX, signatureY + 41);
-      }
+      doc.text('____________________________', rightSigX, signatureY);
+      doc.text(cleanText(patient.name), rightSigX, signatureY + 15);
+      doc.text(cleanText(`${patient.document_type || 'C.C.'} ${patient.document_number || 'N/A'}`), rightSigX, signatureY + 28);
+      doc.text(cleanText('Paciente'), rightSigX, signatureY + 41);
 
       // CÓDIGO QR Y VERIFICACIÓN - Diseño moderno
       doc.y = signatureY + 110;
@@ -846,7 +686,6 @@ export class CertificateService {
               c.responsible_name as company_responsible,
               p.occupation,
               p.date_of_birth,
-              p.signature_path as patient_signature_path,
               u.name as doctor_name,
               a.appointment_type,
               a.appointment_date
@@ -1174,80 +1013,18 @@ export class CertificateService {
       // Firma Izquierda: Profesional
       doc.font('Helvetica').fontSize(8);
 
-      // Si el doctor tiene firma digital, insertarla
-      if (doctor?.signature_path) {
-        try {
-          console.log('✍️ [renderPDFFromRecord] Doctor tiene firma digital configurada:', doctor.signature_path);
-          const signaturePath = this.resolvePublicPath(doctor.signature_path);
-          console.log('🔍 [renderPDFFromRecord] Ruta completa construida:', signaturePath);
-
-          const signBuffer = await this.convertImageForPDF(signaturePath);
-          if (signBuffer) {
-            console.log('✅ [renderPDFFromRecord] Firma del médico cargada exitosamente, insertando en PDF');
-            doc.image(signBuffer, 60, signatureY - 10, { width: 150, height: 40, align: 'left' });
-            doc.text(cleanText(doctor.name || ''), 60, signatureY + 35);
-            doc.text(cleanText(`C.C. ${doctor.document_number || 'N/A'}`), 60, signatureY + 48);
-            doc.text(cleanText(`Registro No: ${doctor.professional_license || 'N/A'}`), 60, signatureY + 61);
-          } else {
-            // Fallback si no se pudo cargar la imagen
-            console.warn('⚠️ [renderPDFFromRecord] No se pudo cargar la firma del médico, usando fallback de texto');
-            doc.text('____________________________', 60, signatureY);
-            doc.text(cleanText(doctor.name || ''), 60, signatureY + 15);
-            doc.text(cleanText(`C.C. ${doctor.document_number || 'N/A'}`), 60, signatureY + 28);
-            doc.text(cleanText(`Registro No: ${doctor.professional_license || 'N/A'}`), 60, signatureY + 41);
-          }
-        } catch (error) {
-          console.error('❌ [renderPDFFromRecord] Error cargando firma del médico:', error);
-          // Fallback a texto si hay error
-          doc.text('____________________________', 60, signatureY);
-          doc.text(cleanText(doctor.name || ''), 60, signatureY + 15);
-          doc.text(cleanText(`C.C. ${doctor.document_number || 'N/A'}`), 60, signatureY + 28);
-          doc.text(cleanText(`Registro No: ${doctor.professional_license || 'N/A'}`), 60, signatureY + 41);
-        }
-      } else {
-        // Sin firma digital, usar línea tradicional
-        console.log('ℹ️ [renderPDFFromRecord] Doctor sin firma digital configurada');
-        doc.text('____________________________', 60, signatureY);
-        doc.text(cleanText(doctor?.name || ''), 60, signatureY + 15);
-        doc.text(cleanText(`C.C. ${doctor?.document_number || 'N/A'}`), 60, signatureY + 28);
-        doc.text(cleanText(`Registro No: ${doctor?.professional_license || 'N/A'}`), 60, signatureY + 41);
-      }
+      doc.text('____________________________', 60, signatureY);
+      doc.text(cleanText(doctor?.name || ''), 60, signatureY + 15);
+      doc.text(cleanText(`C.C. ${doctor?.document_number || 'N/A'}`), 60, signatureY + 28);
+      doc.text(cleanText(`Registro No: ${doctor?.professional_license || 'N/A'}`), 60, signatureY + 41);
 
       // Firma Derecha: Firma del Paciente
       const rightSigX = fullPageWidth - 250;
 
-      // Si el paciente tiene firma digital, insertarla
-      if (patient?.signature_path) {
-        try {
-          const patientSignaturePath = this.resolvePublicPath(patient.signature_path);
-          const patientSigBuffer = await this.convertImageForPDF(patientSignaturePath);
-          if (patientSigBuffer) {
-            doc.image(patientSigBuffer, rightSigX, signatureY - 10, { width: 150, height: 40, align: 'left' });
-            doc.text(cleanText(patient.name || ''), rightSigX, signatureY + 35);
-            doc.text(cleanText(`${patient.document_type || 'C.C.'} ${patient.document_number || 'N/A'}`), rightSigX, signatureY + 48);
-            doc.text(cleanText('Paciente'), rightSigX, signatureY + 61);
-          } else {
-            // Fallback si no se pudo cargar la imagen
-            doc.text('____________________________', rightSigX, signatureY);
-            doc.text(cleanText(patient.name || ''), rightSigX, signatureY + 15);
-            doc.text(cleanText(`${patient.document_type || 'C.C.'} ${patient.document_number || 'N/A'}`), rightSigX, signatureY + 28);
-            doc.text(cleanText('Paciente'), rightSigX, signatureY + 41);
-          }
-        } catch (error) {
-          console.error('Error cargando firma del paciente:', error);
-          // Fallback a texto si hay error
-          doc.text('____________________________', rightSigX, signatureY);
-          doc.text(cleanText(patient.name || ''), rightSigX, signatureY + 15);
-          doc.text(cleanText(`${patient.document_type || 'C.C.'} ${patient.document_number || 'N/A'}`), rightSigX, signatureY + 28);
-          doc.text(cleanText('Paciente'), rightSigX, signatureY + 41);
-        }
-      } else {
-        // Sin firma digital, usar línea tradicional
-        doc.text('____________________________', rightSigX, signatureY);
-        doc.text(cleanText(patient?.name || ''), rightSigX, signatureY + 15);
-        doc.text(cleanText(`${patient?.document_type || 'C.C.'} ${patient?.document_number || 'N/A'}`), rightSigX, signatureY + 28);
-        doc.text(cleanText('Paciente'), rightSigX, signatureY + 41);
-      }
+      doc.text('____________________________', rightSigX, signatureY);
+      doc.text(cleanText(patient?.name || ''), rightSigX, signatureY + 15);
+      doc.text(cleanText(`${patient?.document_type || 'C.C.'} ${patient?.document_number || 'N/A'}`), rightSigX, signatureY + 28);
+      doc.text(cleanText('Paciente'), rightSigX, signatureY + 41);
 
       // CÓDIGO QR Y VERIFICACIÓN - Diseño moderno
       doc.y = signatureY + 110;

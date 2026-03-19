@@ -27,13 +27,12 @@ export const GET: APIRoute = async ({ cookies }) => {
         u.specialization,
         u.professional_license,
         u.is_active,
-        u.signature_path,
         u.created_at,
         COUNT(DISTINCT a.patient_id) as patient_count
       FROM users u
       LEFT JOIN appointments a ON u.id = a.doctor_id
       WHERE u.role = 'doctor'
-      GROUP BY u.id, u.name, u.email, u.document_number, u.phone, u.specialization, u.professional_license, u.is_active, u.signature_path, u.created_at
+      GROUP BY u.id, u.name, u.email, u.document_number, u.phone, u.specialization, u.professional_license, u.is_active, u.created_at
       ORDER BY u.name ASC
     `;
 
@@ -49,7 +48,6 @@ export const GET: APIRoute = async ({ cookies }) => {
       specialization: doctor.specialization || 'Medicina General',
       professional_license: doctor.professional_license,
       is_active: doctor.is_active !== 0,
-      signature_path: doctor.signature_path,
       patient_count: doctor.patient_count,
       created_at: doctor.created_at
     }));

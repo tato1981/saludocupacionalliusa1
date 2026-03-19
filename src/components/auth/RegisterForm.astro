@@ -158,7 +158,7 @@
 // Toggle de mostrar/ocultar contraseña (para múltiples campos)
 const toggleButtons = document.querySelectorAll('.toggle-password');
 toggleButtons.forEach(button => {
-  button.addEventListener('click', function() {
+  button.addEventListener('click', function(this: HTMLElement) {
     const targetId = this.getAttribute('data-target');
     const input = document.getElementById(targetId) as HTMLInputElement;
     const eyeIcon = this.querySelector('.eye-icon');

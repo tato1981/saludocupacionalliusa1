@@ -6,14 +6,11 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro",
-    "optimize-images": "node scripts/optimize-images.js",
-    "cleanup-images": "node scripts/cleanup-images.js",
-    "image-stats": "node -e \"import('./src/lib/image-processing-service.js').then(m => m.ImageProcessingService.getDirectoryStats('./public/uploads/patients').then(console.log))\"",
-    "image-report": "node scripts/image-report.js"
+    "astro": "astro"
   },
   "dependencies": {
     "@astrojs/node": "^9.5.4",
+    "@aws-sdk/client-s3": "^3.883.0",
     "astro": "^5.18.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",

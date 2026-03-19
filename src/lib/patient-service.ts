@@ -1,9 +1,6 @@
 // Servicio para manejar pacientes
 import { db } from './database.js';
 import type { Patient, Appointment, MedicalRecord } from '../types/index.js';
-import { StorageService } from './storage-service.js';
-import fs from 'fs';
-import path from 'path';
 
 export class PatientService {
   
@@ -12,6 +9,7 @@ export class PatientService {
     name: string;
     email?: string;
     phone?: string;
+    profilePhotoUrl?: string;
     documentType: string;
     documentNumber: string;
     dateOfBirth: string;
@@ -19,8 +17,6 @@ export class PatientService {
     address?: string;
     emergencyContactName?: string;
     emergencyContactPhone?: string;
-    photoPath?: string;
-    signaturePath?: string;
     occupation?: string;
     company?: string;
     companyId?: number | null; // ✅ nuevo: relación opcional a companies
@@ -60,6 +56,11 @@ export class PatientService {
       const hasIdentificationNumber = (tableStructure as any[]).some(
         col => col.Field === 'identification_number'
       );
+
+      const [photoColumn] = await db.execute(
+        'SHOW COLUMNS FROM patients WHERE Field = "profile_photo_url"'
+      );
+      const hasProfilePhotoUrl = Array.isArray(photoColumn) && photoColumn.length > 0;
       
       console.log(`📋 Campo identification_number existe: ${hasIdentificationNumber ? '✅ SÍ' : '❌ NO'}`);
 
@@ -70,17 +71,18 @@ export class PatientService {
         console.log('📝 Insertando en ambos campos (document_number e identification_number)');
         query = `
           INSERT INTO patients (
-            name, email, phone, document_type, document_number, identification_number,
+            name, email, phone${hasProfilePhotoUrl ? ', profile_photo_url' : ''}, document_type, document_number, identification_number,
             date_of_birth, gender, address, emergency_contact_name, emergency_contact_phone,
-            photo_path, signature_path, occupation, company, company_id, blood_type, allergies, medications,
+            occupation, company, company_id, blood_type, allergies, medications,
             medical_conditions, created_by_user_id
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?${hasProfilePhotoUrl ? ', ?' : ''}, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         values = [
           patientData.name,
           patientData.email || null,
           patientData.phone || null,
+          ...(hasProfilePhotoUrl ? [patientData.profilePhotoUrl || null] : []),
           patientData.documentType,
           patientData.documentNumber,
           patientData.documentNumber, // Mismo valor para identification_number
@@ -89,8 +91,6 @@ export class PatientService {
           patientData.address || null,
           patientData.emergencyContactName || null,
           patientData.emergencyContactPhone || null,
-          patientData.photoPath || null,
-          patientData.signaturePath || null,
           patientData.occupation || null,
           patientData.company || null,
           patientData.companyId, // Quitamos || null para permitir 0 si fuera válido, aunque null es el default
@@ -104,17 +104,18 @@ export class PatientService {
         console.log('📝 Insertando solo en document_number');
         query = `
           INSERT INTO patients (
-            name, email, phone, document_type, document_number, date_of_birth,
+            name, email, phone${hasProfilePhotoUrl ? ', profile_photo_url' : ''}, document_type, document_number, date_of_birth,
             gender, address, emergency_contact_name, emergency_contact_phone,
-            photo_path, signature_path, occupation, company, company_id, blood_type, allergies, medications,
+            occupation, company, company_id, blood_type, allergies, medications,
             medical_conditions, created_by_user_id
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?${hasProfilePhotoUrl ? ', ?' : ''}, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         values = [
           patientData.name,
           patientData.email || null,
           patientData.phone || null,
+          ...(hasProfilePhotoUrl ? [patientData.profilePhotoUrl || null] : []),
           patientData.documentType,
           patientData.documentNumber,
           patientData.dateOfBirth,
@@ -122,8 +123,6 @@ export class PatientService {
           patientData.address || null,
           patientData.emergencyContactName || null,
           patientData.emergencyContactPhone || null,
-          patientData.photoPath || null,
-          patientData.signaturePath || null,
           patientData.occupation || null,
           patientData.company || null,
           patientData.companyId, // Quitamos || null
@@ -354,53 +353,12 @@ export class PatientService {
     }
   }
 
-  // Mover archivo temporal a ubicación permanente
-  static async moveTempFileToPermanent(tempUrl: string, patientId: number, type: 'photo' | 'signature'): Promise<string | null> {
-    if (!tempUrl || !tempUrl.includes('temp_')) return tempUrl;
-
-    try {
-      console.log(`🔄 Moviendo archivo temp ${type}: ${tempUrl} para paciente ${patientId}`);
-
-      const extension = tempUrl.split('.').pop() || (type === 'photo' ? 'webp' : 'png');
-      const timestamp = Date.now();
-      const destinationKey = `patients/${patientId}/${type}_${timestamp}.${extension}`;
-      
-      // Copiar archivo a ubicación final
-      const newUrl = await StorageService.copyFile(tempUrl, destinationKey);
-
-      // Eliminar archivo temporal
-      try {
-        await StorageService.deleteFile(tempUrl);
-      } catch (e) {
-        console.warn(`⚠️ No se pudo eliminar archivo temp ${tempUrl}:`, e);
-      }
-
-      // Si es foto, mover también versión certificado
-      if (type === 'photo' && tempUrl.endsWith('.webp')) {
-        const tempCertUrl = tempUrl.replace('.webp', '_cert.webp');
-        const destCertKey = destinationKey.replace('.webp', '_cert.webp');
-
-        try {
-          await StorageService.copyFile(tempCertUrl, destCertKey);
-          await StorageService.deleteFile(tempCertUrl);
-          console.log('✅ Versión certificado movida exitosamente');
-        } catch (e) {
-          console.log('ℹ️ No se encontró versión certificado o falló al mover');
-        }
-      }
-
-      return newUrl;
-    } catch (error) {
-      console.error(`❌ Error moviendo archivo temp ${tempUrl}:`, error);
-      return tempUrl;
-    }
-  }
-
   // Métodos específicos para el API Admin
   static async updatePatientAdmin(id: number, patientData: {
     name: string;
     email?: string;
     phone?: string;
+    profilePhotoUrl?: string;
     documentType: string;
     documentNumber: string;
     dateOfBirth: string;
@@ -408,8 +366,6 @@ export class PatientService {
     address?: string;
     emergencyContactName?: string;
     emergencyContactPhone?: string;
-    photoPath?: string;
-    signaturePath?: string;
     occupation?: string;
     company?: string;
     companyId?: number | null;
@@ -444,31 +400,11 @@ export class PatientService {
       }
 
       // Verificar si la tabla tiene el campo identification_number
-      const [tableStructure] = await db.execute('SHOW COLUMNS FROM patients WHERE Field IN ("identification_number", "document_number")');
+      const [tableStructure] = await db.execute('SHOW COLUMNS FROM patients WHERE Field IN ("identification_number", "document_number", "profile_photo_url")');
       const columns = (tableStructure as any[]).map(row => row.Field);
       const hasIdentificationNumber = columns.includes('identification_number');
       const hasDocumentNumber = columns.includes('document_number');
-
-      // Eliminar archivos antiguos si hay cambios
-      if (patientData.photoPath && patientData.photoPath !== existingPatient.photo_path) {
-        if (existingPatient.photo_path) {
-          await StorageService.deleteFile(existingPatient.photo_path);
-
-          // Eliminar también versión certificado
-          if (existingPatient.photo_path.endsWith('.webp')) {
-            const certPath = existingPatient.photo_path.replace('.webp', '_cert.webp');
-            await StorageService.deleteFile(certPath);
-          }
-          console.log(`✅ Foto antigua eliminada`);
-        }
-      }
-
-      if (patientData.signaturePath && patientData.signaturePath !== existingPatient.signature_path) {
-        if (existingPatient.signature_path) {
-          await StorageService.deleteFile(existingPatient.signature_path);
-          console.log(`✅ Firma antigua eliminada`);
-        }
-      }
+      const hasProfilePhotoUrl = columns.includes('profile_photo_url');
 
       console.log('🏗️ Estructura de tabla para UPDATE:', { hasIdentificationNumber, hasDocumentNumber });
       console.log('🏢 Company Info para UPDATE - ID:', patientData.companyId, 'Text:', patientData.company);
@@ -477,7 +413,7 @@ export class PatientService {
         UPDATE patients SET
           name = ?, email = ?, phone = ?, document_type = ?, date_of_birth = ?,
           gender = ?, address = ?, emergency_contact_name = ?,
-          emergency_contact_phone = ?, photo_path = ?, signature_path = ?, occupation = ?, company = ?, blood_type = ?,
+          emergency_contact_phone = ?, occupation = ?, company = ?, blood_type = ?,
           allergies = ?, medications = ?, medical_conditions = ?, assigned_doctor_id = ?`;
 
       const params: any[] = [
@@ -490,8 +426,6 @@ export class PatientService {
         patientData.address || null,
         patientData.emergencyContactName || null,
         patientData.emergencyContactPhone || null,
-        patientData.photoPath !== undefined ? patientData.photoPath : existingPatient.photo_path, // Mantener foto si no se envía nueva
-        patientData.signaturePath !== undefined ? patientData.signaturePath : existingPatient.signature_path, // Mantener firma si no se envía nueva
         patientData.occupation || null,
         patientData.company || null,
         patientData.bloodType || null,
@@ -505,6 +439,11 @@ export class PatientService {
       if (typeof patientData.companyId !== 'undefined') {
         query += `, company_id = ?`;
         params.push(patientData.companyId);
+      }
+
+      if (hasProfilePhotoUrl && typeof patientData.profilePhotoUrl !== 'undefined') {
+        query += `, profile_photo_url = ?`;
+        params.push(patientData.profilePhotoUrl || null);
       }
 
       // Agregar campos de documento según la estructura de la tabla
@@ -586,23 +525,6 @@ export class PatientService {
 
       // 3. Eliminar citas (todas, ya que verificamos que no hay activas)
       await db.execute('DELETE FROM appointments WHERE patient_id = ?', [id]);
-
-      // Eliminar archivos de Storage si existen
-      if (existingPatient.photo_path) {
-        await StorageService.deleteFile(existingPatient.photo_path);
-
-        // Eliminar también versión certificado
-        if (existingPatient.photo_path.endsWith('.webp')) {
-          const certPath = existingPatient.photo_path.replace('.webp', '_cert.webp');
-          await StorageService.deleteFile(certPath);
-        }
-        console.log(`✅ Foto del paciente eliminada de Storage`);
-      }
-
-      if (existingPatient.signature_path) {
-        await StorageService.deleteFile(existingPatient.signature_path);
-        console.log(`✅ Firma del paciente eliminada de Storage`);
-      }
 
       // 4. Eliminar el paciente
       await db.execute('DELETE FROM patients WHERE id = ?', [id]);

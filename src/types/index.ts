@@ -3,6 +3,8 @@ export interface User {
   email: string;
   name: string;
   role: 'superadmin' | 'admin' | 'doctor' | 'staff' | 'user' | 'moderator' | 'company';
+  password_hash?: string;
+  is_active?: boolean | number;
   company_id?: number | null;
   created_at: Date;
 }
@@ -12,6 +14,7 @@ export interface Patient {
   name: string;
   email?: string;
   phone?: string;
+  profile_photo_url?: string;
   document_type: 'cedula' | 'pasaporte' | 'tarjeta_identidad';
   document_number: string;
   date_of_birth: Date;
@@ -19,7 +22,6 @@ export interface Patient {
   address?: string;
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
-  photo_path?: string;
   occupation?: string;
   company?: string;
   insurance_provider?: string;

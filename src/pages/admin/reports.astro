@@ -329,11 +329,11 @@ async function loadAppointments() {
 
 // Aplicar filtros
 function applyFilters() {
-  const startDate = (document.getElementById('startDate')).value;
-  const endDate = (document.getElementById('endDate')).value;
-  const status = (document.getElementById('statusFilter')).value;
-  const doctorId = (document.getElementById('doctorFilter')).value;
-  const company = (document.getElementById('companyFilter')).value;
+  const startDate = ((document.getElementById('startDate') as HTMLInputElement | null)?.value) || '';
+  const endDate = ((document.getElementById('endDate') as HTMLInputElement | null)?.value) || '';
+  const status = ((document.getElementById('statusFilter') as HTMLSelectElement | null)?.value) || '';
+  const doctorId = ((document.getElementById('doctorFilter') as HTMLSelectElement | null)?.value) || '';
+  const company = ((document.getElementById('companyFilter') as HTMLSelectElement | null)?.value) || '';
 
   filteredAppointments = allAppointments.filter((a) => {
     const dateStr = a.appointment_date ? new Date(a.appointment_date).toISOString().slice(0,10) : '';
@@ -357,8 +357,8 @@ function applyFilters() {
 function renderTable() {
   const tbody = document.getElementById('appointmentsTableBody');
   const resultsCount = document.getElementById('resultsCount');
-  const prevBtn = document.getElementById('prevBtn');
-  const nextBtn = document.getElementById('nextBtn');
+  const prevBtn = document.getElementById('prevBtn') as HTMLButtonElement | null;
+  const nextBtn = document.getElementById('nextBtn') as HTMLButtonElement | null;
   
   if (!tbody) return;
 
@@ -382,8 +382,8 @@ function renderTable() {
 
   if (prevBtn) {
     prevBtn.disabled = currentPage === 1;
-    const newPrevBtn = prevBtn.cloneNode(true);
-    prevBtn.parentNode.replaceChild(newPrevBtn, prevBtn);
+    const newPrevBtn = prevBtn.cloneNode(true) as HTMLButtonElement;
+    prevBtn.parentNode?.replaceChild(newPrevBtn, prevBtn);
     newPrevBtn.addEventListener('click', () => {
       if (currentPage > 1) {
         currentPage--;
@@ -394,8 +394,8 @@ function renderTable() {
 
   if (nextBtn) {
     nextBtn.disabled = currentPage >= totalPages;
-    const newNextBtn = nextBtn.cloneNode(true);
-    nextBtn.parentNode.replaceChild(newNextBtn, nextBtn);
+    const newNextBtn = nextBtn.cloneNode(true) as HTMLButtonElement;
+    nextBtn.parentNode?.replaceChild(newNextBtn, nextBtn);
     newNextBtn.addEventListener('click', () => {
       if (currentPage < totalPages) {
         currentPage++;
@@ -446,7 +446,8 @@ function renderTable() {
 
 // Actualizar gráficos
 function updateCharts() {
-  if (typeof Chart === 'undefined') return;
+  const ChartRef = (window as any).Chart;
+  if (!ChartRef) return;
 
   // 1. Citas por estado
   const statusCounts = {};
@@ -458,7 +459,7 @@ function updateCharts() {
   if (statusChart) statusChart.destroy();
   
   if (ctxStatus) {
-    statusChart = new Chart(ctxStatus, {
+    statusChart = new ChartRef(ctxStatus, {
       type: 'doughnut',
       data: {
         labels: Object.keys(statusCounts),
@@ -500,7 +501,7 @@ function updateCharts() {
   if (timeChart) timeChart.destroy();
 
   if (ctxTime) {
-    timeChart = new Chart(ctxTime, {
+    timeChart = new ChartRef(ctxTime, {
       type: 'line',
       data: {
         labels: sortedDates,
@@ -540,7 +541,7 @@ function updateCharts() {
   const sortedKeys = Object.keys(counts).sort((a,b) => counts[b] - counts[a]).slice(0, 10);
   
   if (ctxEntity) {
-    entityChart = new Chart(ctxEntity, {
+    entityChart = new ChartRef(ctxEntity, {
       type: 'bar',
       data: {
         labels: sortedKeys,
@@ -587,8 +588,10 @@ document.addEventListener('DOMContentLoaded', () => {
        start.setDate(1);
     }
     
-    document.getElementById('endDate').value = formatLocalYMD(end);
-    document.getElementById('startDate').value = formatLocalYMD(start);
+    const endDateInput = document.getElementById('endDate') as HTMLInputElement | null;
+    const startDateInput = document.getElementById('startDate') as HTMLInputElement | null;
+    if (endDateInput) endDateInput.value = formatLocalYMD(end);
+    if (startDateInput) startDateInput.value = formatLocalYMD(start);
     applyFilters();
   };
 
@@ -598,11 +601,16 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('rangeMonth')?.addEventListener('click', () => setRange(-1));
   
   document.getElementById('rangeClear')?.addEventListener('click', () => {
-    document.getElementById('startDate').value = '';
-    document.getElementById('endDate').value = '';
-    document.getElementById('statusFilter').value = '';
-    document.getElementById('doctorFilter').value = '';
-    document.getElementById('companyFilter').value = '';
+    const startDateInput = document.getElementById('startDate') as HTMLInputElement | null;
+    const endDateInput = document.getElementById('endDate') as HTMLInputElement | null;
+    const statusFilter = document.getElementById('statusFilter') as HTMLSelectElement | null;
+    const doctorFilter = document.getElementById('doctorFilter') as HTMLSelectElement | null;
+    const companyFilter = document.getElementById('companyFilter') as HTMLSelectElement | null;
+    if (startDateInput) startDateInput.value = '';
+    if (endDateInput) endDateInput.value = '';
+    if (statusFilter) statusFilter.value = '';
+    if (doctorFilter) doctorFilter.value = '';
+    if (companyFilter) companyFilter.value = '';
     applyFilters();
   });
 
@@ -691,8 +699,8 @@ document.addEventListener('DOMContentLoaded', () => {
       // --- Añadir Gráficos como Imágenes ---
       let currentY = 40;
       
-      const statusCanvas = document.getElementById('statusChart');
-      const timeCanvas = document.getElementById('timeChart');
+      const statusCanvas = document.getElementById('statusChart') as HTMLCanvasElement | null;
+      const timeCanvas = document.getElementById('timeChart') as HTMLCanvasElement | null;
 
       if (statusCanvas && timeCanvas) {
         try {

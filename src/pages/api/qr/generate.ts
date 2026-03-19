@@ -29,7 +29,7 @@ export const GET: APIRoute = async ({ url }) => {
 
     const qrBuffer = await QRCode.toBuffer(text, options);
 
-    return new Response(qrBuffer, {
+    return new Response(qrBuffer as any, {
       status: 200,
       headers: {
         'Content-Type': 'image/png',

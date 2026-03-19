@@ -17,6 +17,12 @@ export const GET: APIRoute = async ({ request, cookies }) => {
       });
     }
 
+    try {
+      await MigrationService.runMigrations();
+    } catch (migrationError) {
+      console.warn('⚠️ Error en migraciones (continuando):', migrationError);
+    }
+
     // Obtener todos los pacientes
     const patients = await PatientService.getAllPatients();
 
@@ -115,6 +121,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       name: body.name,
       email: body.email || undefined,
       phone: body.phone || undefined,
+      profilePhotoUrl: body.profilePhotoUrl || undefined,
       documentType: body.documentType,
       documentNumber: body.documentNumber, // Ya está correcto
       dateOfBirth: formattedBirthDate, // Usar la fecha formateada
@@ -126,8 +133,6 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       companyId: body.companyId === '' ? null : (body.companyId ? parseInt(body.companyId) : undefined),
       emergencyContactName: body.emergencyContactName || undefined,
       emergencyContactPhone: body.emergencyContactPhone || undefined,
-      photoPath: body.photoPath || undefined,
-      signaturePath: body.signaturePath || undefined,
       allergies: body.allergies || undefined,
       medications: body.medications || undefined,
       medicalConditions: body.medicalConditions || undefined,
@@ -137,35 +142,6 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     const result = await PatientService.createPatient(patientData);
     
     if (result.success && result.patient) {
-      // Post-creation: Check for temp files and move them
-      const patientId = result.patient.id;
-      let updatesNeeded = false;
-      let newPhotoPath = result.patient.photoPath;
-      let newSignaturePath = result.patient.signaturePath;
-
-      if (body.photoPath && body.photoPath.includes('temp_')) {
-        newPhotoPath = await PatientService.moveTempFileToPermanent(body.photoPath, patientId, 'photo');
-        if (newPhotoPath !== body.photoPath) updatesNeeded = true;
-      }
-
-      if (body.signaturePath && body.signaturePath.includes('temp_')) {
-        newSignaturePath = await PatientService.moveTempFileToPermanent(body.signaturePath, patientId, 'signature');
-        if (newSignaturePath !== body.signaturePath) updatesNeeded = true;
-      }
-
-      // If we moved files, update the patient record with new paths
-      if (updatesNeeded) {
-        await PatientService.updatePatientAdmin(patientId, {
-          photoPath: newPhotoPath,
-          signaturePath: newSignaturePath,
-          updatedBy: user.id
-        });
-        
-        // Update the returned object
-        result.patient.photoPath = newPhotoPath;
-        result.patient.signaturePath = newSignaturePath;
-      }
-
       return new Response(JSON.stringify({
         success: true,
         data: result.patient,

@@ -1,7 +1,5 @@
 import { defineMiddleware } from 'astro:middleware';
 import { verifyToken } from './lib/auth';
-import fs from 'fs';
-import path from 'path';
 // dotenv no es necesario aquí - Astro ya carga las variables de entorno automáticamente
 
 export const onRequest = defineMiddleware(async (context, next) => {
@@ -43,74 +41,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
   }
 
-  // 2. Servir archivos estáticos de uploads/ (carpeta persistente fuera de dist/)
-  // Esto debe ir ANTES de la autenticación si son públicos, o DESPUÉS si son protegidos.
-  // Asumimos públicos por ahora, pero si requieren auth, mover abajo.
-  if (url.pathname.startsWith('/uploads/')) {
-    // ... (lógica existente de uploads) ...
-    // Decodificar la URL para manejar espacios y caracteres especiales
-    const decodedPath = decodeURIComponent(url.pathname);
-
-    // Intentar múltiples ubicaciones en orden de prioridad
-    const possiblePaths = [];
-
-    // Prioridad 1: Si existe UPLOADS_DIR (producción/Docker), usar esa ruta
-    if (process.env.UPLOADS_DIR) {
-      const relativePath = decodedPath.replace('/uploads/', '');
-      possiblePaths.push(path.join(process.env.UPLOADS_DIR, relativePath));
-    }
-
-    // Otras ubicaciones de fallback
-    possiblePaths.push(
-      path.join(process.cwd(), decodedPath),                           // Opción 2: uploads/ en raíz (CWD correcto)
-      path.join(process.cwd(), 'public', decodedPath),                 // Opción 3: public/uploads/ (Desarrollo)
-      path.join(process.cwd(), 'dist', 'client', decodedPath),         // Opción 4: dist/client/uploads/ (Build estático)
-      path.resolve(process.cwd(), '..', decodedPath.replace(/^\//, '')), // Opción 5: Un nivel arriba (si CWD está en dist/)
-      path.join(process.cwd(), '..', 'public', decodedPath)            // Opción 6: Un nivel arriba en public (raro pero posible)
-    );
-
-    let filePath: string | null = null;
-
-    // Buscar el archivo en las ubicaciones posibles
-    for (const possiblePath of possiblePaths) {
-      if (fs.existsSync(possiblePath)) {
-        const stat = fs.statSync(possiblePath);
-        if (stat.isFile()) {
-          filePath = possiblePath;
-          break;
-        }
-      }
-    }
-
-    if (filePath) {
-      try {
-        const file = fs.readFileSync(filePath);
-        const ext = path.extname(filePath).toLowerCase();
-        const contentTypes: Record<string, string> = {
-          '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
-          '.webp': 'image/webp', '.avif': 'image/avif', '.gif': 'image/gif',
-          '.svg': 'image/svg+xml', '.pdf': 'application/pdf'
-        };
-        const contentType = contentTypes[ext] || 'application/octet-stream';
-
-        return new Response(file, {
-          status: 200,
-          headers: {
-            'Content-Type': contentType,
-            'Cache-Control': 'public, max-age=31536000, immutable',
-            'X-Served-By': 'Astro-Middleware'
-          }
-        });
-      } catch (err) {
-        console.error(`❌ Error al leer archivo ${filePath}:`, err);
-        return new Response('Error reading file', { status: 500 });
-      }
-    } else {
-      return new Response('File not found', { status: 404 });
-    }
-  }
-
-  // 3. Autenticación (Mover lógica aquí para que se ejecute ANTES de next())
+  // 2. Autenticación (Mover lógica aquí para que se ejecute ANTES de next())
   const publicPaths = [
     '/auth/login', '/auth/register', '/api/auth/login', '/api/auth/register',
     '/api/certificates/verify', '/api/certificates/download',

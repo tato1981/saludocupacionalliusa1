@@ -394,11 +394,11 @@ if (!user) {
         // Abrir modal con la historia médica completa
         openMedicalHistoryModal(data.data);
       } else {
-        showSweetAlert('warning', 'Historia Médica No Encontrada', 'No se encontró historia médica para esta cita');
+        (window as any).showSweetAlert?.('warning', 'Historia Médica No Encontrada', 'No se encontró historia médica para esta cita');
       }
     } catch (error) {
       // Silently fail
-      showSweetAlert('error', 'Error de Conexión', 'Error al cargar la historia médica');
+      (window as any).showSweetAlert?.('error', 'Error de Conexión', 'Error al cargar la historia médica');
     }
   };
 
@@ -597,11 +597,11 @@ if (!user) {
         // Usar la función de generar PDF (simplificada para pacientes)
         await generateSimplePDF(data.data, currentPatient);
       } else {
-        showSweetAlert('error', 'Error de Datos', 'Error al obtener los datos para el PDF');
+        (window as any).showSweetAlert?.('error', 'Error de Datos', 'Error al obtener los datos para el PDF');
       }
     } catch (error) {
       // Silently fail
-      showSweetAlert('error', 'Error de Descarga', 'Error al descargar el PDF');
+      (window as any).showSweetAlert?.('error', 'Error de Descarga', 'Error al descargar el PDF');
     }
   };
 
@@ -655,67 +655,6 @@ if (!user) {
         yPosition += 5;
       }
       
-      // Función para agregar foto del paciente
-      async function addPatientPhoto() {
-        if (patient.photo_path) {
-          try {
-            // Crear imagen para obtener dimensiones
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            
-            return new Promise((resolve) => {
-              img.onload = function() {
-                try {
-                  const canvas = document.createElement('canvas');
-                  const ctx = canvas.getContext('2d');
-                  
-                  if (!ctx) {
-                    // Silently fail
-                    resolve(null);
-                    return;
-                  }
-                  
-                  // Configurar canvas con tamaño fijo para el PDF
-                  const photoWidth = 40;
-                  const photoHeight = 50;
-                  canvas.width = photoWidth * 3; // Alta resolución
-                  canvas.height = photoHeight * 3;
-                  
-                  // Dibujar imagen escalada
-                  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                  
-                  // Convertir a base64
-                  const imageData = canvas.toDataURL('image/jpeg', 0.8);
-                  
-                  // Agregar al PDF
-                  doc.addImage(imageData, 'JPEG', pageWidth - margin - photoWidth, yPosition, photoWidth, photoHeight);
-                  
-                  resolve(null);
-                } catch (error) {
-                  console.log('Error procesando la imagen:', error);
-                  resolve(null);
-                }
-              };
-              
-              img.onerror = function() {
-                console.log('No se pudo cargar la foto del paciente');
-                resolve(null);
-              };
-              
-              // Construir la URL completa de la foto
-              const photoUrl = patient.photo_path.startsWith('http') 
-                ? patient.photo_path 
-                : `${window.location.origin}${patient.photo_path}`;
-              
-              console.log('Intentando cargar foto desde:', photoUrl);
-              img.src = photoUrl;
-            });
-          } catch (error) {
-            console.log('Error procesando foto del paciente:', error);
-          }
-        }
-      }
-      
       // Header del documento
       doc.setFillColor(240, 248, 255);
       doc.rect(0, 0, pageWidth, 35, 'F');
@@ -731,11 +670,7 @@ if (!user) {
       doc.text('Sistema de Salud Ocupacional', margin, 30);
       
       yPosition = 45;
-      
-      // Agregar foto del paciente
-      const photoYPosition = yPosition;
-      await addPatientPhoto();
-      
+
       // Información del paciente (al lado de la foto)
       addText('INFORMACIÓN DEL PACIENTE', 12, 'bold', [0, 100, 200]);
       addText(`Nombre: ${patient.name || 'N/A'}`);
@@ -754,9 +689,6 @@ if (!user) {
       addText(`Ocupación: ${patient.occupation || 'No especificada'}`);
       addText(`Tipo de sangre: ${patient.blood_type || 'No especificado'}`);
       addText(`Alergias: ${patient.allergies || 'Ninguna registrada'}`);
-      
-      // Asegurar que estemos debajo de la foto
-      yPosition = Math.max(yPosition, photoYPosition + 60);
       
       // Información de la consulta
       yPosition += 10;
@@ -892,11 +824,11 @@ if (!user) {
       const fileName = `Historia_Medica_${(patient.name || 'Paciente').replace(/\s+/g, '_')}_${new Date(history.created_at).toISOString().split('T')[0]}.pdf`;
       doc.save(fileName);
       
-      showSweetAlert('success', '¡PDF Generado!', 'Historia médica descargada exitosamente', 2000);
+      (window as any).showSweetAlert?.('success', '¡PDF Generado!', 'Historia médica descargada exitosamente', 2000);
       
     } catch (error) {
       // Silently fail
-      showSweetAlert('error', 'Error al Generar PDF', (error instanceof Error ? error.message : 'Error desconocido'));
+      (window as any).showSweetAlert?.('error', 'Error al Generar PDF', (error instanceof Error ? error.message : 'Error desconocido'));
     }
   }
 
@@ -937,7 +869,7 @@ if (!user) {
       completeHistoryBtn.addEventListener('click', async () => {
         // Silently fail
         if (!currentPatient) {
-          showSweetAlert('warning', 'Información No Disponible', 'No se ha cargado la información del paciente');
+          (window as any).showSweetAlert?.('warning', 'Información No Disponible', 'No se ha cargado la información del paciente');
           return;
         }
         
@@ -956,15 +888,15 @@ if (!user) {
               openCompleteHistoryModal(data.data);
             } else {
               // Silently fail
-              showSweetAlert('info', 'Sin Historias Médicas', 'No se encontraron historias médicas para este paciente');
+              (window as any).showSweetAlert?.('info', 'Sin Historias Médicas', 'No se encontraron historias médicas para este paciente');
             }
           } else {
             // Silently fail
-            showSweetAlert('error', 'Error del Servidor', data.message || 'Error al obtener el historial');
+            (window as any).showSweetAlert?.('error', 'Error del Servidor', data.message || 'Error al obtener el historial');
           }
         } catch (error) {
           // Silently fail
-          showSweetAlert('error', 'Error de Conexión', (error instanceof Error ? error.message : 'Error desconocido'));
+          (window as any).showSweetAlert?.('error', 'Error de Conexión', (error instanceof Error ? error.message : 'Error desconocido'));
         }
       });
       // Silently fail

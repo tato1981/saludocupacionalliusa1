@@ -82,31 +82,18 @@ if (!patientId) {
           </div>
           <div class="p-6">
             <div class="flex flex-col lg:flex-row gap-6">
-              
-              <!-- Foto del Paciente -->
-              <div class="flex-shrink-0 text-center lg:text-left">
-                <div class="w-32 h-32 mx-auto lg:mx-0 mb-4">
-                  <div id="patientPhotoContainer" class="w-32 h-32 rounded-lg border-2 border-gray-200 overflow-hidden bg-gray-100 flex items-center justify-center">
-                    <img 
-                      id="patientPhoto" 
-                      src="" 
-                      alt="Foto del paciente"
-                      class="w-full h-full object-cover hidden"
-                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'"
-                    />
-                    <div id="patientPhotoPlaceholder" class="flex flex-col items-center justify-center text-gray-400">
-                      <svg class="w-12 h-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                      </svg>
-                      <span class="text-xs">Sin foto</span>
-                    </div>
-                  </div>
-                </div>
-                <p class="text-sm text-gray-600 text-center lg:text-left">Foto del paciente</p>
-              </div>
 
               <!-- Información Personal -->
               <div class="flex-1">
+                <div class="flex items-center gap-4 mb-6">
+                  <div class="h-16 w-16 rounded-full bg-gray-200 border border-gray-300 overflow-hidden flex items-center justify-center flex-shrink-0">
+                    <img id="patientProfilePhoto" class="h-full w-full object-cover hidden" alt="Foto de perfil" />
+                    <span id="patientProfileInitial" class="text-xl font-semibold text-gray-600">?</span>
+                  </div>
+                  <div class="min-w-0">
+                    <h3 id="patientHeaderName" class="text-lg font-semibold text-gray-900 truncate">-</h3>
+                  </div>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
@@ -427,7 +414,7 @@ if (!patientId) {
   const editReasonInput = document.getElementById('editReason') as HTMLTextAreaElement;
   const saveAppointmentEditBtn = document.getElementById('saveAppointmentEditBtn') as HTMLButtonElement;
   const saveAppointmentEditText = document.getElementById('saveAppointmentEditText')!;
-  const saveAppointmentEditLoader = document.getElementById('saveAppointmentEditLoader') as SVGSVGElement;
+  const saveAppointmentEditLoader = document.getElementById('saveAppointmentEditLoader') as HTMLElement;
   const closeAppointmentModalBtn = document.getElementById('closeAppointmentModal') as HTMLButtonElement;
   const cancelAppointmentEditBtn = document.getElementById('cancelAppointmentEdit') as HTMLButtonElement;
 
@@ -681,6 +668,7 @@ if (!patientId) {
   function populatePatientData(patient: any) {
     // Información básica
     document.getElementById('patientName')!.textContent = patient.name || '-';
+    document.getElementById('patientHeaderName')!.textContent = patient.name || '-';
     document.getElementById('patientEmail')!.textContent = patient.email || '-';
     document.getElementById('patientPhone')!.textContent = patient.phone || '-';
     document.getElementById('patientDocument')!.textContent = 
@@ -711,17 +699,30 @@ if (!patientId) {
       assignedDoctorElement.textContent = patient.doctor_name || 'No asignado';
     }
 
-    // Mostrar foto del paciente
-    const patientPhoto = document.getElementById('patientPhoto') as HTMLImageElement;
-    const patientPhotoPlaceholder = document.getElementById('patientPhotoPlaceholder')!;
-    
-    if (patient.photo_path) {
-      patientPhoto.src = patient.photo_path;
-      patientPhoto.style.display = 'block';
-      patientPhotoPlaceholder.style.display = 'none';
-    } else {
-      patientPhoto.style.display = 'none';
-      patientPhotoPlaceholder.style.display = 'flex';
+    const photoEl = document.getElementById('patientProfilePhoto') as HTMLImageElement | null;
+    const initialEl = document.getElementById('patientProfileInitial') as HTMLSpanElement | null;
+    if (photoEl && initialEl) {
+      const initial = (patient.name || '').trim().charAt(0)?.toUpperCase() || '?';
+      const url = patient.profile_photo_url ? String(patient.profile_photo_url) : '';
+
+      initialEl.textContent = initial;
+
+      if (!url) {
+        photoEl.src = '';
+        photoEl.classList.add('hidden');
+        initialEl.classList.remove('hidden');
+      } else {
+        photoEl.onload = () => {
+          photoEl.classList.remove('hidden');
+          initialEl.classList.add('hidden');
+        };
+        photoEl.onerror = () => {
+          photoEl.src = '';
+          photoEl.classList.add('hidden');
+          initialEl.classList.remove('hidden');
+        };
+        photoEl.src = url;
+      }
     }
   }
 

@@ -373,25 +373,6 @@ if (!user || user.role !== 'doctor') {
       mobileNextBtn.disabled = currentPage === totalPages;
     }
 
-    // Utilidad: normalizar URL de la foto del paciente
-    function getPhotoUrl(path) {
-      if (!path) return null;
-      let photoUrl = path;
-      // Si ya es una URL completa (Storage), usarla tal cual
-      if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) {
-        return photoUrl;
-      }
-      // Si es una ruta relativa (sistema antiguo), agregarle /uploads/
-      if (!photoUrl.startsWith('/')) {
-        photoUrl = `/${photoUrl}`;
-      }
-      if (!photoUrl.startsWith('/uploads/')) {
-        photoUrl = `/uploads${photoUrl}`;
-      }
-      const separator = photoUrl.includes('?') ? '&' : '?';
-      return `${photoUrl}${separator}t=${Date.now()}`;
-    }
-    
     // Crear tarjeta de paciente
     function createPatientCard(patient) {
       const userId = parseInt('${user.id}');
@@ -406,24 +387,11 @@ if (!user || user.role !== 'doctor') {
             <div class="flex items-start justify-between">
               <div class="flex-1">
                 <div class="flex items-center space-x-3 mb-2">
-                  ${patient.photo_path ? `
-                    <img src="${getPhotoUrl(patient.photo_path)}" 
-                         alt="${patient.name}" 
-                         class="w-12 h-12 rounded-full object-cover border-2 border-gray-200 shadow-sm patient-photo"
-                         loading="lazy"
-                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                    <div class="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center shadow-sm default-avatar" style="display: none;">
-                      <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
-                      </svg>
-                    </div>
-                  ` : `
-                    <div class="w-12 h-12 rounded-full flex items-center justify-center shadow-sm default-avatar">
-                      <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
-                      </svg>
-                    </div>
-                  `}
+                  <div class="w-12 h-12 rounded-full flex items-center justify-center shadow-sm default-avatar">
+                    <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+                    </svg>
+                  </div>
                   <div>
                     <h3 class="text-lg font-semibold text-gray-900">${patient.name}</h3>
                     <p class="text-sm text-gray-500">${patient.document_type} ${patient.document_number}</p>

@@ -118,15 +118,15 @@ const { title = 'Sistema de Salud Ocupacional' } = Astro.props;
 
       function initializeSweetAlert() {
         // Evitar múltiples inicializaciones
-        if (window.sweetAlertInitialized) {
+        if ((window as any).sweetAlertInitialized) {
           return;
         }
-        window.sweetAlertInitialized = true;
+        (window as any).sweetAlertInitialized = true;
 
         // Función para mostrar alertas
-        window.showSweetAlert = function(type, title, message, timer) {
+        (window as any).showSweetAlert = function(type, title, message, timer) {
           if (typeof (window as any).Swal !== 'undefined') {
-            const config = {
+            const config: any = {
               icon: type,
               title: title,
               text: message || '',
@@ -149,7 +149,7 @@ const { title = 'Sistema de Salud Ocupacional' } = Astro.props;
         };
 
         // Función para confirmaciones
-        window.showSweetConfirm = function(title, text, confirmText, cancelText) {
+        (window as any).showSweetConfirm = function(title, text, confirmText, cancelText) {
           confirmText = confirmText || 'Sí, continuar';
           cancelText = cancelText || 'Cancelar';
           

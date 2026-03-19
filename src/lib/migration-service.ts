@@ -20,29 +20,6 @@ export class MigrationService {
     }
   }
 
-  // Agregar columna photo_path a la tabla patients si no existe
-  static async addPhotoPathColumn(): Promise<boolean> {
-    try {
-      const exists = await this.columnExists('patients', 'photo_path');
-      
-      if (exists) {
-        return true;
-      }
-
-      await db.execute(`
-        ALTER TABLE patients 
-        ADD COLUMN photo_path VARCHAR(255) NULL 
-        AFTER emergency_contact_phone
-      `);
-      
-      return true;
-      
-    } catch (error) {
-      console.error('❌ Error agregando columna photo_path:', error);
-      return false;
-    }
-  }
-
   // Crear tabla de certificados de aptitud si no existe
   static async createWorkCertificatesTable(): Promise<boolean> {
     try {
@@ -221,21 +198,38 @@ export class MigrationService {
     }
   }
 
+  static async addPatientProfilePhotoUrlColumn(): Promise<boolean> {
+    try {
+      const exists = await this.columnExists('patients', 'profile_photo_url');
+      if (exists) return true;
+
+      await db.execute(`
+        ALTER TABLE patients
+        ADD COLUMN profile_photo_url VARCHAR(500) NULL AFTER phone
+      `);
+
+      return true;
+    } catch (error) {
+      console.error('❌ Error agregando columna profile_photo_url:', error);
+      return false;
+    }
+  }
+
   // Ejecutar todas las migraciones necesarias
   static async runMigrations(): Promise<void> {
     try {
-      // Migración 1: Agregar columna photo_path
-      await this.addPhotoPathColumn();
-      // Migración 2: Crear tabla de certificados de aptitud
+      // Migración 1: Crear tabla de certificados de aptitud
       await this.createWorkCertificatesTable();
-      // Migración 2.1: Asegurar que exista certificate_date (para tablas existentes)
+      // Migración 1.1: Asegurar que exista certificate_date (para tablas existentes)
       await this.addCertificateDateColumn();
-      // Migración 3: Crear tablas de empresas y contactos + patients.company_id
+      // Migración 2: Crear tablas de empresas y contactos + patients.company_id
       await this.createCompaniesTables();
-      // Migración 4: Actualizar tabla companies con campos adicionales
+      // Migración 3: Actualizar tabla companies con campos adicionales
       await this.updateCompaniesTable();
-      // Migración 5: Agregar columna professional_license a users
+      // Migración 4: Agregar columna professional_license a users
       await this.addProfessionalLicenseColumn();
+      // Migración 5: Agregar foto de perfil a patients
+      await this.addPatientProfilePhotoUrlColumn();
       
     } catch (error) {
       console.error('❌ Error ejecutando migraciones:', error);

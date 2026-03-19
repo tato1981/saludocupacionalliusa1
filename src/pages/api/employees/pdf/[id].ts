@@ -42,7 +42,7 @@ export const GET: APIRoute = async ({ params, cookies }) => {
     // Generar PDF usando el servicio existente
     const pdfBuffer = await CertificateService.renderPDFFromRecord(record);
 
-    return new Response(pdfBuffer, {
+    return new Response(pdfBuffer as any, {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `inline; filename="concepto_medico_${id}.pdf"`

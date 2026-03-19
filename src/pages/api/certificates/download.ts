@@ -23,7 +23,7 @@ export const GET: APIRoute = async ({ url }) => {
 
     // Forzar descarga en móviles y mejorar compatibilidad con visores
     const filename = `certificado_${record.id || 'verificacion'}.pdf`;
-    return new Response(pdfBuffer, {
+    return new Response(pdfBuffer as any, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',

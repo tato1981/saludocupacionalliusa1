@@ -1,7 +1,6 @@
 import type { APIRoute } from 'astro';
 import { requireAuth, hasRole } from '../../../../lib/auth';
 import { db } from '../../../../lib/database';
-import { StorageService } from '@/lib/storage-service';
 
 export const DELETE: APIRoute = async ({ params, cookies }) => {
   try {
@@ -30,7 +29,7 @@ export const DELETE: APIRoute = async ({ params, cookies }) => {
 
     // Verificar que el doctor existe y es doctor
     const [doctorRows] = await db.execute(
-      'SELECT id, name, email, signature_path FROM users WHERE id = ? AND role = "doctor"',
+      'SELECT id, name, email FROM users WHERE id = ? AND role = "doctor"',
       [doctorId]
     );
 
@@ -80,12 +79,6 @@ export const DELETE: APIRoute = async ({ params, cookies }) => {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
-    }
-
-    // Eliminar firma de storage si existe
-    if (doctor.signature_path) {
-      await StorageService.deleteFile(doctor.signature_path);
-      console.log(`✅ Firma de doctor eliminada de storage`);
     }
 
     // Eliminar el doctor

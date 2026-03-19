@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { PatientService } from '@/lib/patient-service';
 import { requireAuth, hasRole } from '@/lib/auth';
+import { MigrationService } from '@/lib/migration-service';
 
 
 export const GET: APIRoute = async ({ params, cookies }) => {
@@ -14,6 +15,12 @@ export const GET: APIRoute = async ({ params, cookies }) => {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       });
+    }
+
+    try {
+      await MigrationService.runMigrations();
+    } catch (migrationError) {
+      console.warn('⚠️ Error en migraciones (continuando):', migrationError);
     }
 
     const patientId = params.id;
@@ -72,6 +79,12 @@ export const PUT: APIRoute = async ({ params, request, cookies }) => {
       });
     }
 
+    try {
+      await MigrationService.runMigrations();
+    } catch (migrationError) {
+      console.warn('⚠️ Error en migraciones (continuando):', migrationError);
+    }
+
     const patientId = params.id;
     if (!patientId) {
       return new Response(JSON.stringify({
@@ -123,23 +136,12 @@ export const PUT: APIRoute = async ({ params, request, cookies }) => {
 
     // Preparar datos para actualización
     const parsedPatientId = parseInt(patientId);
-    
-    // Handle temp files before update
-    let photoPath = body.photoPath;
-    let signaturePath = body.signaturePath;
-
-    if (photoPath && photoPath.includes('temp_')) {
-      photoPath = await PatientService.moveTempFileToPermanent(photoPath, parsedPatientId, 'photo');
-    }
-
-    if (signaturePath && signaturePath.includes('temp_')) {
-      signaturePath = await PatientService.moveTempFileToPermanent(signaturePath, parsedPatientId, 'signature');
-    }
 
     const patientData = {
       name: body.name,
       email: body.email || undefined,
       phone: body.phone || undefined,
+      profilePhotoUrl: body.profilePhotoUrl || undefined,
       documentType: body.documentType,
       documentNumber: body.documentNumber,
       dateOfBirth: formattedBirthDate,
@@ -151,8 +153,6 @@ export const PUT: APIRoute = async ({ params, request, cookies }) => {
       companyId: body.companyId === '' ? null : (body.companyId ? parseInt(body.companyId) : undefined),
       emergencyContactName: body.emergencyContactName || undefined,
       emergencyContactPhone: body.emergencyContactPhone || undefined,
-      photoPath: photoPath || undefined,
-      signaturePath: signaturePath || undefined,
       allergies: body.allergies || undefined,
       medications: body.medications || undefined,
       medicalConditions: body.medicalConditions || undefined,

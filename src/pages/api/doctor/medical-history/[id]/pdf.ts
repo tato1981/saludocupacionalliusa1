@@ -57,7 +57,7 @@ export const GET: APIRoute = async ({ params, cookies }) => {
     console.log('✅ PDF generado exitosamente');
 
     // Retornar el PDF
-    return new Response(pdfBuffer, {
+    return new Response(pdfBuffer as any, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',

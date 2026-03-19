@@ -42,7 +42,6 @@ export const GET: APIRoute = async ({ cookies, url }) => {
              p.document_number as patient_document,
              p.phone as patient_phone,
              COALESCE(c.name, p.company) as patient_company,
-             p.photo_path as patient_photo_path,
              u.name as doctor_name,
              (SELECT id FROM work_certificates WHERE appointment_id = a.id ORDER BY id DESC LIMIT 1) as certificate_id,
              (SELECT verification_code FROM work_certificates WHERE appointment_id = a.id ORDER BY id DESC LIMIT 1) as verification_code
