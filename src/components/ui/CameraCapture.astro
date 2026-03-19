@@ -114,7 +114,7 @@ const { onPhotoCapture, className = "" } = Astro.props;
         <div class="mt-4 text-center space-y-2">
           <div class="text-sm text-gray-600">
             <span id="photoSize" class="font-medium"></span> | 
-            <span class="text-green-600 font-medium">Formato AVIF</span>
+            <span class="text-green-600 font-medium">Formato WebP/JPEG</span>
           </div>
           
           <div class="flex justify-center space-x-4">
@@ -270,34 +270,20 @@ class CameraCapture {
     // Capturar frame actual del video
     context.drawImage(this.video, 0, 0);
 
-    // Convertir a AVIF (con fallback a WebP si no es compatible)
+    // Convertir a WebP (con fallback a JPEG si no es compatible)
     try {
-      // Intentar AVIF primero
-      const avifBlob = await this.canvasToAvif(this.canvas);
-      this.capturedPhotoBlob = avifBlob;
-    } catch (error) {
-      // Silently fail
-      // Fallback a WebP
       const webpBlob = await this.canvasToWebP(this.canvas);
       this.capturedPhotoBlob = webpBlob;
+    } catch (error) {
+      // Silently fail
+      const jpegBlob = await this.canvasToJpeg(this.canvas);
+      this.capturedPhotoBlob = jpegBlob;
     }
 
     if (this.capturedPhotoBlob) {
       this.capturedPhotoUrl = URL.createObjectURL(this.capturedPhotoBlob);
       this.showPhotoPreview();
     }
-  }
-
-  private async canvasToAvif(canvas: HTMLCanvasElement): Promise<Blob> {
-    return new Promise((resolve, reject) => {
-      canvas.toBlob((blob) => {
-        if (blob) {
-          resolve(blob);
-        } else {
-          reject(new Error('No se pudo convertir a AVIF'));
-        }
-      }, 'image/avif', 0.8);
-    });
   }
 
   private async canvasToWebP(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -309,6 +295,18 @@ class CameraCapture {
           reject(new Error('No se pudo convertir la imagen'));
         }
       }, 'image/webp', 0.8);
+    });
+  }
+
+  private async canvasToJpeg(canvas: HTMLCanvasElement): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(blob);
+        } else {
+          reject(new Error('No se pudo convertir la imagen'));
+        }
+      }, 'image/jpeg', 0.85);
     });
   }
 

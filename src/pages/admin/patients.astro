@@ -621,9 +621,27 @@ if (!hasRole(user, 'staff')) {
     profilePhotoFallback.classList.add('hidden');
   }
 
+  function fileExtensionFromMime(mime: string): string {
+    const m = (mime || '').toLowerCase();
+    if (m.includes('webp')) return 'webp';
+    if (m.includes('png')) return 'png';
+    if (m.includes('jpeg') || m.includes('jpg')) return 'jpg';
+    if (m.includes('avif')) return 'avif';
+    return 'jpg';
+  }
+
+  function normalizeToFile(blob: Blob, filenameBase: string): File {
+    if (blob instanceof File) return blob;
+    const type = blob.type || 'image/jpeg';
+    const ext = fileExtensionFromMime(type);
+    const name = filenameBase.includes('.') ? filenameBase : `${filenameBase}.${ext}`;
+    return new File([blob], name, { type });
+  }
+
   async function uploadProfilePhotoToServer(blob: Blob, filename: string) {
+    const file = normalizeToFile(blob, filename);
     const formData = new FormData();
-    formData.append('photo', blob, filename);
+    formData.append('photo', file);
     formData.append('patientId', patientForm.dataset.patientId || `temp_${Date.now()}`);
 
     const response = await fetch('/api/admin/patients/upload-photo', {
