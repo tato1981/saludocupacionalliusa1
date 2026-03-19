@@ -325,6 +325,21 @@ if (!hasRole(user, 'staff')) {
   let currentPage = 1;
   const itemsPerPage = 10;
 
+  function r2ProxyUrlForStoredValue(value: string): string {
+    if (!value) return '';
+    if (value.startsWith('blob:') || value.startsWith('data:')) return value;
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      try {
+        const u = new URL(value);
+        if (u.hostname.endsWith('r2.dev') && u.pathname && u.pathname !== '/') {
+          return `/api/files/r2?key=${encodeURIComponent(u.pathname.replace(/^\/+/, ''))}`;
+        }
+      } catch {}
+      return value;
+    }
+    return `/api/files/r2?key=${encodeURIComponent(value)}`;
+  }
+
   // Cargar estadísticas
   async function loadStatistics() {
     const safeFetchJson = async (url: string) => {
@@ -460,7 +475,7 @@ if (!hasRole(user, 'staff')) {
           <div class="flex items-center">
             <div class="flex-shrink-0 h-10 w-10">
               ${patient.profile_photo_url ? `
-                <img src="${(String(patient.profile_photo_url).startsWith('http://') || String(patient.profile_photo_url).startsWith('https://')) ? String(patient.profile_photo_url) : `/api/files/r2?key=${encodeURIComponent(String(patient.profile_photo_url))}`}" alt="" class="h-10 w-10 rounded-full object-cover border border-gray-200 bg-gray-100" />
+                <img src="${r2ProxyUrlForStoredValue(String(patient.profile_photo_url))}" alt="" class="h-10 w-10 rounded-full object-cover border border-gray-200 bg-gray-100" />
               ` : `
                 <div class="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center border border-gray-200">
                   <span class="text-sm font-medium text-gray-700">${patient.name.charAt(0).toUpperCase()}</span>
@@ -571,10 +586,7 @@ if (!hasRole(user, 'staff')) {
   }
 
   function resolveProfilePhotoSrc(value: string): string {
-    if (!value) return '';
-    if (value.startsWith('http://') || value.startsWith('https://')) return value;
-    if (value.startsWith('blob:') || value.startsWith('data:')) return value;
-    return `/api/files/r2?key=${encodeURIComponent(value)}`;
+    return r2ProxyUrlForStoredValue(value);
   }
 
   function setProfilePhotoPreview(storedValue: string | null, nameForFallback?: string) {

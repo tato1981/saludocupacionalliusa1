@@ -21,9 +21,17 @@ export const GET: APIRoute = async ({ url, cookies }) => {
       });
     }
 
-    const key = url.searchParams.get('key');
-    if (!key) {
+    const rawKey = url.searchParams.get('key');
+    if (!rawKey) {
       return new Response(JSON.stringify({ success: false, message: 'Parámetro key requerido' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const key = rawKey.trim().replace(/^\/+/, '');
+    if (key.startsWith('blob:') || key.startsWith('data:') || key.startsWith('http://') || key.startsWith('https://')) {
+      return new Response(JSON.stringify({ success: false, message: 'Key inválido' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });

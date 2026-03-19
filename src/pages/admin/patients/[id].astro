@@ -703,10 +703,26 @@ if (!patientId) {
     const initialEl = document.getElementById('patientProfileInitial') as HTMLSpanElement | null;
     if (photoEl && initialEl) {
       const initial = (patient.name || '').trim().charAt(0)?.toUpperCase() || '?';
-      const url = patient.profile_photo_url ? String(patient.profile_photo_url) : '';
-      const src = url
-        ? (url.startsWith('http://') || url.startsWith('https://') ? url : `/api/files/r2?key=${encodeURIComponent(url)}`)
-        : '';
+      const url = patient.profile_photo_url ? String(patient.profile_photo_url).trim() : '';
+      let src = '';
+      if (url) {
+        if (url.startsWith('blob:') || url.startsWith('data:')) {
+          src = '';
+        } else if (url.startsWith('http://') || url.startsWith('https://')) {
+          try {
+            const u = new URL(url);
+            if (u.hostname.endsWith('r2.dev') && u.pathname && u.pathname !== '/') {
+              src = `/api/files/r2?key=${encodeURIComponent(u.pathname.replace(/^\/+/, ''))}`;
+            } else {
+              src = url;
+            }
+          } catch {
+            src = url;
+          }
+        } else {
+          src = `/api/files/r2?key=${encodeURIComponent(url)}`;
+        }
+      }
 
       initialEl.textContent = initial;
 
