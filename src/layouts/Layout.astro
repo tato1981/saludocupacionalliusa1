@@ -12,20 +12,37 @@ const { title = 'Sistema de Salud Ocupacional' } = Astro.props;
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/png" href="/icon.png" />
-    <title>{title}</title>
-    
-    <!-- Estilos globales para tarjetas -->
-    <style is:global>
-      .card { 
-        @apply bg-white rounded-lg shadow-lg text-gray-900 transition-colors duration-200; 
-      }
-    </style>
-    
-    <!-- Responsive meta tags -->
+
+    <!-- Favicon e iconos para todos los navegadores -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/icono-rapido.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icono-rapido.png" />
+    <link rel="shortcut icon" href="/icono-rapido.png" />
+
+    <!-- Apple iOS: icono de pantalla de inicio -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/icono-rapido.png" />
+    <link rel="apple-touch-icon" href="/icono-rapido.png" />
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Colores y PWA meta tags -->
+    <meta name="theme-color" content="#2563EB" />
+    <meta name="msapplication-TileColor" content="#2563EB" />
+    <meta name="msapplication-TileImage" content="/icono-rapido.png" />
+    <meta name="application-name" content="Salud Ocupacional" />
+    <meta name="apple-mobile-web-app-title" content="Salud Ocupacional" />
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+    <title>{title}</title>
+
+    <!-- Estilos globales para tarjetas -->
+    <style is:global>
+      .card {
+        @apply bg-white rounded-lg shadow-lg text-gray-900 transition-colors duration-200;
+      }
+    </style>
     
     <style>
       /* Custom scrollbar */
@@ -116,6 +133,18 @@ const { title = 'Sistema de Salud Ocupacional' } = Astro.props;
         }, 5000);
       });
 
+      // ─── PWA: capturar evento de instalación lo antes posible ───────────────
+      var _pwaInstallEvent: any = null;
+
+      window.addEventListener('beforeinstallprompt', function(e: any) {
+        e.preventDefault();
+        _pwaInstallEvent = e;
+        // Si SweetAlert ya está listo, mostrar ahora; si no, se mostrará en initializeSweetAlert
+        if ((window as any).sweetAlertInitialized) {
+          (window as any).showPWAInstallPrompt();
+        }
+      });
+
       function initializeSweetAlert() {
         // Evitar múltiples inicializaciones
         if ((window as any).sweetAlertInitialized) {
@@ -152,7 +181,7 @@ const { title = 'Sistema de Salud Ocupacional' } = Astro.props;
         (window as any).showSweetConfirm = function(title, text, confirmText, cancelText) {
           confirmText = confirmText || 'Sí, continuar';
           cancelText = cancelText || 'Cancelar';
-          
+
           if (typeof (window as any).Swal !== 'undefined') {
             return (window as any).Swal.fire({
               title: title,
@@ -166,15 +195,120 @@ const { title = 'Sistema de Salud Ocupacional' } = Astro.props;
             });
           } else {
             // Fallback a confirm nativo
-            return Promise.resolve({ 
-              isConfirmed: confirm(`${title}\n\n${text}`) 
+            return Promise.resolve({
+              isConfirmed: confirm(`${title}\n\n${text}`)
             });
           }
         };
 
+        // ─── PWA Install Prompt ──────────────────────────────────────────────
+        function _pwaIsStandalone() {
+          return window.matchMedia('(display-mode: standalone)').matches ||
+                 (window.navigator as any).standalone === true;
+        }
+
+        function _pwaIsIOS() {
+          return /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window as any).MSStream;
+        }
+
+        function _pwaIsSafariOnIOS() {
+          return _pwaIsIOS() &&
+                 /safari/i.test(navigator.userAgent) &&
+                 !/chrome|crios|fxios|opios/i.test(navigator.userAgent);
+        }
+
+        function _pwaWasDismissed() {
+          try {
+            const ts = localStorage.getItem('pwa_dismissed_at');
+            if (!ts) return false;
+            const daysSince = (Date.now() - parseInt(ts)) / (1000 * 60 * 60 * 24);
+            return daysSince < 7;
+          } catch { return false; }
+        }
+
+        function _pwaDismiss() {
+          try { localStorage.setItem('pwa_dismissed_at', String(Date.now())); } catch {}
+        }
+
+        (window as any).showPWAInstallPrompt = function() {
+          if (_pwaIsStandalone() || _pwaWasDismissed()) return;
+          if (typeof (window as any).Swal === 'undefined') return;
+
+          const iosMode = _pwaIsSafariOnIOS();
+          if (!iosMode && !_pwaInstallEvent) return;
+
+          setTimeout(function() {
+            if (iosMode) {
+              (window as any).Swal.fire({
+                title: 'Acceso rápido',
+                html: `<div style="text-align:left;font-size:14px;color:#374151;line-height:1.7">
+                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                    <img src="/icono-rapido.png" alt="" style="width:52px;height:52px;border-radius:12px;object-fit:cover;flex-shrink:0"/>
+                    <p style="margin:0">Instala <strong>Salud Ocupacional</strong> en tu iPhone/iPad para acceder con un toque.</p>
+                  </div>
+                  <ol style="padding-left:18px;margin:0">
+                    <li style="margin-bottom:6px">Toca el botón <strong>Compartir</strong> &#x238A;</li>
+                    <li style="margin-bottom:6px">Selecciona <strong>"Añadir a pantalla de inicio"</strong></li>
+                    <li>Toca <strong>"Añadir"</strong></li>
+                  </ol>
+                </div>`,
+                showCancelButton: true,
+                confirmButtonText: 'Entendido',
+                cancelButtonText: 'No, gracias',
+                confirmButtonColor: '#2563EB',
+                cancelButtonColor: '#6B7280'
+              }).then(function() { _pwaDismiss(); });
+            } else {
+              (window as any).Swal.fire({
+                title: 'Instalar acceso rápido',
+                html: `<div style="text-align:center">
+                  <img src="/icono-rapido.png" alt="Salud Ocupacional"
+                    style="width:72px;height:72px;border-radius:16px;margin:0 auto 12px;display:block;object-fit:cover"/>
+                  <p style="color:#4B5563;font-size:14px;margin:0">
+                    ¿Deseas instalar <strong>Salud Ocupacional</strong> en tu dispositivo
+                    para acceder desde la pantalla de inicio sin abrir el navegador?
+                  </p>
+                </div>`,
+                showCancelButton: true,
+                confirmButtonText: 'Sí, instalar',
+                cancelButtonText: 'No, gracias',
+                confirmButtonColor: '#2563EB',
+                cancelButtonColor: '#6B7280'
+              }).then(async function(result: any) {
+                if (result.isConfirmed && _pwaInstallEvent) {
+                  _pwaInstallEvent.prompt();
+                  const choice = await _pwaInstallEvent.userChoice;
+                  _pwaInstallEvent = null;
+                  if (choice.outcome !== 'accepted') _pwaDismiss();
+                } else {
+                  _pwaDismiss();
+                }
+              });
+            }
+          }, 1500);
+        };
+
+        // Mostrar el prompt si ya se capturó el evento o si es iOS Safari
+        if (_pwaInstallEvent) {
+          (window as any).showPWAInstallPrompt();
+        } else if (_pwaIsSafariOnIOS() && !_pwaIsStandalone() && !_pwaWasDismissed()) {
+          (window as any).showPWAInstallPrompt();
+        }
+        // ────────────────────────────────────────────────────────────────────
+
       }
     </script>
-    
+
+    <!-- Registro del Service Worker para soporte PWA -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .catch(function() {});
+        });
+      }
+    </script>
+
     <slot />
   </body>
 </html>
