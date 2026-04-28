@@ -1,5 +1,5 @@
-# Use Node.js 20 Alpine as the base image
-FROM node:20-alpine AS base
+# Astro 6+ requires Node >= 22.12.0
+FROM node:22-alpine AS base
 WORKDIR /app
 
 # Install dependencies only when needed
