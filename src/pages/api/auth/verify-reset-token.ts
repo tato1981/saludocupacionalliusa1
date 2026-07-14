@@ -7,6 +7,7 @@ export const POST: APIRoute = async ({ request }) => {
 
     if (!token) {
       return new Response(JSON.stringify({
+        success: false,
         valid: false,
         message: 'Token no proporcionado.'
       }), {
@@ -17,7 +18,11 @@ export const POST: APIRoute = async ({ request }) => {
 
     const result = await PasswordResetService.verifyResetToken(token);
 
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify({
+      success: result.valid,
+      valid: result.valid,
+      message: result.message
+    }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
