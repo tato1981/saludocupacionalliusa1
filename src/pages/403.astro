@@ -1,0 +1,37 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="403 - Acceso denegado | Sistema de Salud Ocupacional">
+  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 px-4 py-12 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full text-center bg-white p-8 rounded-2xl shadow-xl border border-slate-100 transition-all duration-300 hover:shadow-2xl">
+      <!-- Icono animado o estilizado -->
+      <div class="mx-auto flex items-center justify-center h-24 w-24 rounded-full bg-red-50 text-red-600 mb-6 animate-pulse">
+        <svg class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+      </div>
+      
+      <!-- Código de error -->
+      <h1 class="text-7xl font-extrabold text-red-600 tracking-tight mb-2">403</h1>
+      
+      <!-- Mensaje principal -->
+      <h2 class="text-2xl font-bold text-slate-800 mb-4">Acceso Denegado</h2>
+      
+      <!-- Descripción -->
+      <p class="text-slate-600 mb-8 leading-relaxed">
+        No tienes permisos suficientes para acceder a este recurso. Si crees que esto es un error, por favor contacta al administrador.
+      </p>
+      
+      <!-- Acciones -->
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <a href="/dashboard" class="inline-flex justify-center items-center px-6 py-3 border border-transparent text-sm font-semibold rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-md transition-all duration-200">
+          Ir al Panel
+        </a>
+        <a href="/auth/login" class="inline-flex justify-center items-center px-6 py-3 border border-slate-300 text-sm font-semibold rounded-xl text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm transition-all duration-200">
+          Iniciar Sesión
+        </a>
+      </div>
+    </div>
+  </div>
+</Layout>

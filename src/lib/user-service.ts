@@ -74,7 +74,7 @@ export class UserService {
       const userArray = users as User[];
       if (userArray.length === 0) {
         console.log(`Login failed: User not found for email ${credentials.email}`);
-        throw new Error('Credenciales inválidas');
+        throw new Error('El correo electrónico ingresado no está registrado');
       }
 
       const user = userArray[0];

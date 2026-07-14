@@ -10,7 +10,7 @@ export const POST: APIRoute = async ({ request }) => {
         valid: false,
         message: 'Token no proporcionado.'
       }), {
-        status: 400,
+        status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
     }

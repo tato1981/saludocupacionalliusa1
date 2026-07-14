@@ -226,10 +226,11 @@ Sistema de Salud Ocupacional
     expiresAt?: Date | null;
     assignedRole?: string;
     description?: string;
+    baseUrl?: string;
   }) {
-    const { to, invitationCode, expiresAt, assignedRole, description } = opts;
+    const { to, invitationCode, expiresAt, assignedRole, description, baseUrl: providedBaseUrl } = opts;
 
-    const baseUrl = process.env.APP_BASE_URL || 'http://localhost:4321';
+    const baseUrl = providedBaseUrl || process.env.APP_BASE_URL || 'http://localhost:4321';
     const registerUrl = `${baseUrl}/auth/register?code=${encodeURIComponent(invitationCode)}`;
 
     const roleNames: Record<string, string> = {

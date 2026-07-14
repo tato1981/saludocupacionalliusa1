@@ -2,9 +2,23 @@ import type { APIRoute } from 'astro';
 import { UserService } from '@/lib/user-service';
 import { MailService } from '@/lib/mail-service';
 import { apiResponse } from '@/lib/utils';
+import { rateLimiter } from '@/lib/rate-limiter';
 
 export const POST: APIRoute = async ({ request }) => {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 
+             request.headers.get('x-real-ip') || 
+             '127.0.0.1';
   try {
+
+    // Verificar Rate Limiting (5 intentos cada 15 minutos)
+    const limitCheck = rateLimiter.isBlocked(ip);
+    if (limitCheck.blocked) {
+      return new Response(
+        JSON.stringify(apiResponse(false, `Demasiados intentos de inicio de sesión. Inténtalo de nuevo en ${limitCheck.remainingMinutes} minutos.`)),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const data = await request.json();
     const { email, password } = data;
 
@@ -12,7 +26,7 @@ export const POST: APIRoute = async ({ request }) => {
     if (!email || !password) {
       return new Response(
         JSON.stringify(apiResponse(false, 'Email y contraseña son requeridos')),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -53,6 +67,9 @@ export const POST: APIRoute = async ({ request }) => {
       }
     }
 
+    // Resetear Rate Limiting para esta IP tras login exitoso
+    rateLimiter.reset(ip);
+
     return new Response(
       JSON.stringify(apiResponse(true, 'Login exitoso', { user, token })),
       { 
@@ -69,12 +86,16 @@ export const POST: APIRoute = async ({ request }) => {
     const message = error?.message || '';
     const isAuthError =
       message.includes('Credenciales inválidas') ||
-      message.includes('Usuario inactivo');
+      message.includes('Usuario inactivo') ||
+      message.includes('El correo electrónico ingresado no está registrado');
 
     if (isAuthError) {
+      // Registrar intento fallido en Rate Limiting
+      rateLimiter.recordFailure(ip);
+
       return new Response(
         JSON.stringify(apiResponse(false, message || 'Credenciales inválidas')),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
 

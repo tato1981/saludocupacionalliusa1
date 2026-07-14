@@ -10,7 +10,7 @@ export const POST: APIRoute = async ({ request }) => {
         success: false,
         message: 'Token y nueva contraseña son requeridos.'
       }), {
-        status: 400,
+        status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
     }
@@ -21,7 +21,7 @@ export const POST: APIRoute = async ({ request }) => {
         success: false,
         message: 'La contraseña debe tener al menos 6 caracteres.'
       }), {
-        status: 400,
+        status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
     }
@@ -29,7 +29,7 @@ export const POST: APIRoute = async ({ request }) => {
     const result = await PasswordResetService.confirmPasswordReset(token, newPassword);
 
     return new Response(JSON.stringify(result), {
-      status: result.success ? 200 : 400,
+      status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
 

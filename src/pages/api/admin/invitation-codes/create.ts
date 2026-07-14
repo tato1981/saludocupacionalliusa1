@@ -66,12 +66,19 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     if (email) {
       console.log('📧 Enviando email de invitación a:', email);
       try {
+        // Obtener la URL base de forma dinámica a partir de la petición
+        const url = new URL(request.url);
+        const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || url.host;
+        const proto = request.headers.get('x-forwarded-proto') || (url.protocol.replace(':', ''));
+        const origin = `${proto}://${host}`;
+
         await MailService.sendInvitationEmail({
           to: email,
           invitationCode: code,
           expiresAt: expires_at ? new Date(expires_at) : null,
           assignedRole: assigned_role || 'staff',
-          description: description || undefined
+          description: description || undefined,
+          baseUrl: origin
         });
         console.log('✅ Email de invitación enviado correctamente');
       } catch (emailError) {

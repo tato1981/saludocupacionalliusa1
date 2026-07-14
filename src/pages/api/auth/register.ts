@@ -2,15 +2,25 @@ import type { APIRoute } from 'astro';
 import { UserService } from '@/lib/user-service';
 import { InvitationService } from '@/lib/invitation-service';
 import { isValidEmail, isValidPassword, apiResponse } from '@/lib/utils';
+import { rateLimiter } from '@/lib/rate-limiter';
 
 export const POST: APIRoute = async ({ request, clientAddress }) => {
+  const ipAddress = clientAddress || request.headers.get('x-forwarded-for')?.split(',')[0] || request.headers.get('x-real-ip') || 'unknown';
+  const userAgent = request.headers.get('user-agent') || 'unknown';
   try {
     const data = await request.json();
     const { email, password, name, role, phone, invitationCode } = data;
-    
-    // Obtener información de la request
-    const ipAddress = clientAddress || request.headers.get('x-forwarded-for') || 'unknown';
-    const userAgent = request.headers.get('user-agent') || 'unknown';
+
+    // Verificar Rate Limiting (5 intentos cada 15 minutos)
+    if (ipAddress !== 'unknown') {
+      const limitCheck = rateLimiter.isBlocked(ipAddress);
+      if (limitCheck.blocked) {
+        return new Response(
+          JSON.stringify(apiResponse(false, `Demasiados intentos de registro. Inténtalo de nuevo en ${limitCheck.remainingMinutes} minutos.`)),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
     // Verificar si el registro está habilitado
     const registrationStatus = await InvitationService.isRegistrationEnabled();
@@ -27,7 +37,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
       
       return new Response(
         JSON.stringify(apiResponse(false, registrationStatus.message)),
-        { status: 403, headers: { 'Content-Type': 'application/json' } }
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -44,7 +54,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
       
       return new Response(
         JSON.stringify(apiResponse(false, 'Todos los campos son requeridos')),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -60,7 +70,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
       
       return new Response(
         JSON.stringify(apiResponse(false, 'Email inválido')),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -76,7 +86,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
       
       return new Response(
         JSON.stringify(apiResponse(false, 'La contraseña debe tener al menos 6 caracteres')),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -97,7 +107,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
 
         return new Response(
           JSON.stringify(apiResponse(false, 'Código de invitación requerido')),
-          { status: 400, headers: { 'Content-Type': 'application/json' } }
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
         );
       }
 
@@ -115,7 +125,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
 
         return new Response(
           JSON.stringify(apiResponse(false, validation.message)),
-          { status: 400, headers: { 'Content-Type': 'application/json' } }
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
         );
       }
 
@@ -189,6 +199,11 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
       success: true
     });
 
+    // Resetear Rate Limiting para esta IP tras registro exitoso
+    if (ipAddress !== 'unknown') {
+      rateLimiter.reset(ipAddress);
+    }
+
     return new Response(
       JSON.stringify(apiResponse(true, 'Usuario registrado exitosamente', { user, token })),
       { 
@@ -217,15 +232,20 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
       console.error('Error logging failure:', e);
     }
 
+    // Registrar intento fallido en Rate Limiting
+    if (ipAddress !== 'unknown') {
+      rateLimiter.recordFailure(ipAddress);
+    }
+
     // Determinar código de estado basado en el mensaje de error
     let status = 500;
     let message = error.message || 'Error interno del servidor';
 
     if (message.includes('El usuario ya existe') || message.includes('Duplicate entry')) {
-      status = 409;
+      status = 200;
       message = 'El correo electrónico ya está registrado';
     } else if (message.includes('inválid') || message.includes('requerido')) {
-      status = 400;
+      status = 200;
     }
     
     return new Response(

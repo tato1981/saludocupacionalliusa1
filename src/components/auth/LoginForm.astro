@@ -137,7 +137,7 @@ if (form) {
       
       const result = await response.json();
 
-      if (response.ok && result.success) {
+      if (result.success) {
         showAlert('success', '¡Bienvenido!', 'Has iniciado sesión correctamente', 1500);
         setTimeout(() => {
           window.location.href = '/dashboard';
@@ -145,25 +145,24 @@ if (form) {
         return;
       }
 
-      if (response.status === 401) {
-        if (result.message === 'Usuario inactivo') {
-          showAlert(
-            'warning',
-            'Usuario inactivo',
-            'Tu cuenta está inactiva. Contacta al administrador del sistema.'
-          );
-        } else {
-          showAlert(
-            'error',
-            'Credenciales incorrectas',
-            'Verifica tu correo y contraseña e inténtalo nuevamente.'
-          );
-        }
-      } else if (response.status === 400) {
+      // Si no fue exitoso
+      if (result.message === 'Usuario inactivo') {
         showAlert(
           'warning',
-          'Datos incompletos o inválidos',
-          result.message || 'Revisa la información ingresada en el formulario.'
+          'Usuario inactivo',
+          'Tu cuenta está inactiva. Contacta al administrador del sistema.'
+        );
+      } else if (result.message === 'El correo electrónico ingresado no está registrado') {
+        showAlert(
+          'error',
+          'Usuario no registrado',
+          'El correo electrónico ingresado no coincide con ninguna cuenta registrada en el sistema.'
+        );
+      } else if (result.message === 'Email y contraseña son requeridos') {
+        showAlert(
+          'warning',
+          'Datos incompletos',
+          'Por favor ingresa tu correo electrónico y tu contraseña.'
         );
       } else if (response.status >= 500) {
         showAlert(
@@ -174,8 +173,8 @@ if (form) {
       } else {
         showAlert(
           'error',
-          'Error de acceso',
-          result.message || 'No se pudo iniciar sesión. Intenta nuevamente.'
+          'Credenciales incorrectas',
+          result.message || 'Verifica tu correo y contraseña e inténtalo nuevamente.'
         );
       }
     } catch (error) {
@@ -189,4 +188,19 @@ if (form) {
     }
   });
 }
+
+// Al cargar la página, verificar si redirigió por inactividad
+document.addEventListener('DOMContentLoaded', () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('reason') === 'inactive') {
+    // Esperar un instante para garantizar que SweetAlert2 esté completamente inicializado
+    setTimeout(() => {
+      showAlert(
+        'warning',
+        'Sesión Expirada',
+        'Tu sesión ha sido cerrada automáticamente debido a 20 minutos de inactividad.'
+      );
+    }, 400);
+  }
+});
 </script>

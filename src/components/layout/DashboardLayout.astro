@@ -31,4 +31,33 @@ const currentPath = Astro.url.pathname;
       </main>
     </div>
   </div>
+
+  <script>
+    // Temporizador de inactividad: 20 minutos (1200 segundos)
+    const INACTIVITY_LIMIT = 20 * 60 * 1000;
+    let inactivityTimeout: any;
+
+    function resetInactivityTimer() {
+      clearTimeout(inactivityTimeout);
+      inactivityTimeout = setTimeout(logoutDueToInactivity, INACTIVITY_LIMIT);
+    }
+
+    function logoutDueToInactivity() {
+      console.log("Sesión expirada por inactividad");
+      // Borrar la cookie auth-token del navegador
+      document.cookie = "auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Strict";
+      // Redirigir a login con el parámetro de inactividad
+      window.location.href = "/auth/login?reason=inactive";
+    }
+
+    // Escuchar eventos comunes de interacción del usuario
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    
+    activityEvents.forEach(event => {
+      document.addEventListener(event, resetInactivityTimer, { passive: true });
+    });
+
+    // Inicializar temporizador al cargar
+    resetInactivityTimer();
+  </script>
 </Layout>

@@ -18,8 +18,29 @@ export class PasswordResetService {
     return crypto.randomBytes(32).toString('hex');
   }
 
+  // Resolver la URL base del sistema
+  private static resolveBaseUrl(providedBaseUrl?: string): string {
+    if (providedBaseUrl) return providedBaseUrl;
+    if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL;
+    if (process.env.APP_URL) return process.env.APP_URL;
+    if (process.env.PUBLIC_URL) return process.env.PUBLIC_URL;
+    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+    if (process.env.URL) return process.env.URL;
+    
+    if (process.env.NODE_ENV === 'production') {
+      const host = process.env.HOST || 'localhost';
+      const port = process.env.PORT || '4321';
+      if (host !== 'localhost' && host !== '127.0.0.1') {
+        return `https://${host}`;
+      }
+      return `http://${host}:${port}`;
+    }
+    
+    return 'http://localhost:4321';
+  }
+
   // Solicitar reset de contraseña
-  static async requestPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
+  static async requestPasswordReset(email: string, baseUrl?: string): Promise<{ success: boolean; message: string }> {
     try {
       // Verificar si el usuario existe
       const [users] = await db.execute(
@@ -29,10 +50,9 @@ export class PasswordResetService {
 
       const userArray = users as any[];
       if (userArray.length === 0) {
-        // Por seguridad, no revelamos si el email existe o no
         return {
-          success: true,
-          message: 'Si el email está registrado, recibirás un enlace de recuperación.'
+          success: false,
+          message: 'El correo electrónico ingresado no está registrado en el sistema.'
         };
       }
 
@@ -60,7 +80,8 @@ export class PasswordResetService {
       await this.sendPasswordResetEmail({
         to: email,
         userName: user.name,
-        resetToken: token
+        resetToken: token,
+        baseUrl
       });
 
       return {
@@ -197,11 +218,12 @@ export class PasswordResetService {
     to: string;
     userName: string;
     resetToken: string;
+    baseUrl?: string;
   }) {
-    const { to, userName, resetToken } = opts;
+    const { to, userName, resetToken, baseUrl: providedBaseUrl } = opts;
 
-    // URL base desde variables de entorno o localhost
-    const baseUrl = process.env.PUBLIC_URL || 'http://localhost:4321';
+    // URL base dinámica
+    const baseUrl = this.resolveBaseUrl(providedBaseUrl);
     const resetUrl = `${baseUrl}/auth/reset-password?token=${resetToken}`;
 
     const subject = `Recuperación de Contraseña - Sistema de Salud Ocupacional`;
