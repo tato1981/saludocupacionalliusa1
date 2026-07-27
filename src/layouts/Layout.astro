@@ -5,6 +5,8 @@ export interface Props {
 
 
 const { title = 'Sistema de Salud Ocupacional' } = Astro.props;
+const pathname = Astro.url.pathname;
+const isPublicCertificatePage = pathname.startsWith('/certificates/') || pathname.startsWith('/certificate/');
 ---
 
 <!DOCTYPE html>
@@ -23,7 +25,7 @@ const { title = 'Sistema de Salud Ocupacional' } = Astro.props;
     <link rel="apple-touch-icon" href="/icono-rapido.png" />
 
     <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.webmanifest" />
+    {!isPublicCertificatePage && <link rel="manifest" href="/manifest.webmanifest" />}
 
     <!-- Colores y PWA meta tags -->
     <meta name="theme-color" content="#2563EB" />
@@ -31,9 +33,9 @@ const { title = 'Sistema de Salud Ocupacional' } = Astro.props;
     <meta name="msapplication-TileImage" content="/icono-rapido.png" />
     <meta name="application-name" content="Salud Ocupacional" />
     <meta name="apple-mobile-web-app-title" content="Salud Ocupacional" />
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    {!isPublicCertificatePage && <meta name="mobile-web-app-capable" content="yes" />}
+    {!isPublicCertificatePage && <meta name="apple-mobile-web-app-capable" content="yes" />}
+    {!isPublicCertificatePage && <meta name="apple-mobile-web-app-status-bar-style" content="default" />}
 
     <title>{title}</title>
 
@@ -137,6 +139,11 @@ const { title = 'Sistema de Salud Ocupacional' } = Astro.props;
       var _pwaInstallEvent: any = null;
 
       window.addEventListener('beforeinstallprompt', function(e: any) {
+        // No permitir instalación desde URLs públicas de certificados
+        const path = window.location.pathname;
+        if (path.startsWith('/certificates/') || path.startsWith('/certificate/')) {
+          return;
+        }
         e.preventDefault();
         _pwaInstallEvent = e;
         // Si SweetAlert ya está listo, mostrar ahora; si no, se mostrará en initializeSweetAlert
@@ -231,6 +238,11 @@ const { title = 'Sistema de Salud Ocupacional' } = Astro.props;
         }
 
         (window as any).showPWAInstallPrompt = function() {
+          // No permitir instalación desde URLs públicas de certificados
+          const path = window.location.pathname;
+          if (path.startsWith('/certificates/') || path.startsWith('/certificate/')) {
+            return;
+          }
           if (_pwaIsStandalone() || _pwaWasDismissed()) return;
           if (typeof (window as any).Swal === 'undefined') return;
 
@@ -288,11 +300,15 @@ const { title = 'Sistema de Salud Ocupacional' } = Astro.props;
           }, 1500);
         };
 
-        // Mostrar el prompt si ya se capturó el evento o si es iOS Safari
-        if (_pwaInstallEvent) {
-          (window as any).showPWAInstallPrompt();
-        } else if (_pwaIsSafariOnIOS() && !_pwaIsStandalone() && !_pwaWasDismissed()) {
-          (window as any).showPWAInstallPrompt();
+        // Mostrar el prompt si ya se capturó el evento o si es iOS Safari (y no es url de certificado)
+        const path = window.location.pathname;
+        const isPublicCert = path.startsWith('/certificates/') || path.startsWith('/certificate/');
+        if (!isPublicCert) {
+          if (_pwaInstallEvent) {
+            (window as any).showPWAInstallPrompt();
+          } else if (_pwaIsSafariOnIOS() && !_pwaIsStandalone() && !_pwaWasDismissed()) {
+            (window as any).showPWAInstallPrompt();
+          }
         }
         // ────────────────────────────────────────────────────────────────────
 
@@ -301,7 +317,9 @@ const { title = 'Sistema de Salud Ocupacional' } = Astro.props;
 
     <!-- Registro del Service Worker para soporte PWA -->
     <script>
-      if ('serviceWorker' in navigator) {
+      const path = window.location.pathname;
+      const isPublicCert = path.startsWith('/certificates/') || path.startsWith('/certificate/');
+      if (!isPublicCert && 'serviceWorker' in navigator) {
         window.addEventListener('load', function() {
           navigator.serviceWorker.register('/sw.js', { scope: '/' })
             .catch(function() {});
