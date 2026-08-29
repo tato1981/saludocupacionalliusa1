@@ -223,6 +223,14 @@ if (!user || user.role !== 'doctor') {
               </div>
 
               <div>
+                <label class="block text-sm font-medium text-gray-700">Tipo de Certificado *</label>
+                <select id="modalCertificateType" name="certificateType" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                  <option value="aptitud">Certificado de Aptitud Laboral</option>
+                  <option value="general">Certificado Médico General</option>
+                </select>
+              </div>
+
+              <div>
                 <label class="block text-sm font-medium text-gray-700">Concepto de Aptitud *</label>
                 <select id="modalAptitude" name="aptitudeStatus" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                   <option value="">Seleccione...</option>
@@ -812,6 +820,35 @@ if (!user || user.role !== 'doctor') {
     }
   });
 
+  const aptitudOptions = `
+    <option value="">Seleccione...</option>
+    <option value="apto">APTO PARA EL TRABAJO</option>
+    <option value="apto_con_restricciones">APTO CON RESTRICCIONES</option>
+    <option value="apto_manipulacion_alimentos">APTO PARA MANIPULACIÓN DE ALIMENTOS</option>
+    <option value="apto_trabajo_alturas">APTO PARA TRABAJO EN ALTURAS</option>
+    <option value="apto_espacios_confinados">APTO PARA ESPACIOS CONFINADOS</option>
+    <option value="apto_conduccion">APTO PARA CONDUCCIÓN</option>
+  `;
+
+  const generalOptions = `
+    <option value="">Seleccione...</option>
+    <option value="apto">APTO</option>
+    <option value="apto_comunidad">APTO PARA ESTAR EN COMUNIDAD</option>
+  `;
+
+  function updateAptitudeOptions() {
+    const certType = (document.getElementById('modalCertificateType') as HTMLSelectElement).value;
+    const aptitudeSelect = document.getElementById('modalAptitude') as HTMLSelectElement;
+    
+    if (certType === 'general') {
+      aptitudeSelect.innerHTML = generalOptions;
+    } else {
+      aptitudeSelect.innerHTML = aptitudOptions;
+    }
+  }
+
+  document.getElementById('modalCertificateType')?.addEventListener('change', updateAptitudeOptions);
+
   // Modal Functions
   (window as any).openIssueModal = function(appointmentId: number) {
       // Usar comparación laxa por si el ID viene como string
@@ -842,6 +879,15 @@ if (!user || user.role !== 'doctor') {
       (document.getElementById('modalAppointmentId') as HTMLInputElement).value = app.id.toString();
       (document.getElementById('modalPatientName') as HTMLInputElement).value = app.patient_name;
       
+      // Auto-seleccionar tipo de certificado por defecto
+      const certTypeSelect = document.getElementById('modalCertificateType') as HTMLSelectElement;
+      if (app.appointment_type === 'consulta_general' || app.appointment_type === 'consulta_especializada') {
+          certTypeSelect.value = 'general';
+      } else {
+          certTypeSelect.value = 'aptitud';
+      }
+      updateAptitudeOptions();
+
       // Default dates
       const today = new Date().toISOString().split('T')[0];
       (document.getElementById('modalStart') as HTMLInputElement).value = today;
@@ -882,6 +928,7 @@ if (!user || user.role !== 'doctor') {
       const formData = {
           patient_id: (document.getElementById('modalPatientId') as HTMLInputElement).value,
           appointment_id: (document.getElementById('modalAppointmentId') as HTMLInputElement).value,
+          certificate_type: (document.getElementById('modalCertificateType') as HTMLSelectElement).value,
           aptitude_status: (document.getElementById('modalAptitude') as HTMLSelectElement).value,
           restrictions: (document.getElementById('modalRestrictions') as HTMLTextAreaElement).value,
           recommendations: (document.getElementById('modalRecommendations') as HTMLTextAreaElement).value,

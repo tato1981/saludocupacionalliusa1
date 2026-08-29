@@ -249,6 +249,69 @@ export class MigrationService {
     }
   }
 
+  static async getColumnType(tableName: string, columnName: string): Promise<string | null> {
+    try {
+      const [rows] = await db.execute(`
+        SELECT DATA_TYPE 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = DATABASE() 
+          AND TABLE_NAME = ? 
+          AND COLUMN_NAME = ?
+      `, [tableName, columnName]);
+      const result = (rows as any[])[0];
+      return result ? result.DATA_TYPE : null;
+    } catch {
+      return null;
+    }
+  }
+
+  static async relaxAptitudeStatusValidation(): Promise<boolean> {
+    try {
+      const certType = await this.getColumnType('work_certificates', 'aptitude_status');
+      if (certType === 'enum') {
+        console.log('🔄 Modificando work_certificates.aptitude_status de ENUM a VARCHAR...');
+        await db.execute(`
+          ALTER TABLE work_certificates 
+          MODIFY COLUMN aptitude_status VARCHAR(100) NOT NULL
+        `);
+        console.log('✅ work_certificates.aptitude_status modificada exitosamente');
+      }
+
+      const histType = await this.getColumnType('medical_histories', 'aptitude_status');
+      if (histType === 'enum') {
+        console.log('🔄 Modificando medical_histories.aptitude_status de ENUM a VARCHAR...');
+        await db.execute(`
+          ALTER TABLE medical_histories 
+          MODIFY COLUMN aptitude_status VARCHAR(100) DEFAULT NULL
+        `);
+        console.log('✅ medical_histories.aptitude_status modificada exitosamente');
+      }
+      return true;
+    } catch (error) {
+      console.error('❌ Error modificando columnas aptitude_status:', error);
+      return false;
+    }
+  }
+
+  static async addCertificateTypeColumn(): Promise<boolean> {
+    try {
+      const exists = await this.columnExists('work_certificates', 'certificate_type');
+      if (exists) return true;
+
+      console.log('🔄 Agregando columna certificate_type a work_certificates...');
+      await db.execute(`
+        ALTER TABLE work_certificates 
+        ADD COLUMN certificate_type VARCHAR(50) NOT NULL DEFAULT 'aptitud' 
+        AFTER appointment_id
+      `);
+      console.log('✅ Columna certificate_type agregada exitosamente');
+      return true;
+    } catch (error) {
+      console.error('❌ Error agregando columna certificate_type:', error);
+      return false;
+    }
+  }
+
   // Ejecutar todas las migraciones necesarias
   static async runMigrations(): Promise<void> {
     try {
@@ -268,6 +331,9 @@ export class MigrationService {
       await this.addPatientSignatureUrlColumn();
       // Migración 7: Agregar firma a users (doctores)
       await this.addUserSignatureUrlColumn();
+      // Nuevas migraciones para soporte de Certificado Médico General
+      await this.relaxAptitudeStatusValidation();
+      await this.addCertificateTypeColumn();
       
     } catch (error) {
       console.error('❌ Error ejecutando migraciones:', error);

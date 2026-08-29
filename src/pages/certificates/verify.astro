@@ -83,7 +83,7 @@ import Layout from "../../layouts/Layout.astro";
         <div class="bg-white rounded-xl shadow-lg overflow-hidden">
           <!-- Header de la tarjeta -->
           <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6">
-            <h3 class="text-white text-xl font-bold">Certificado de Aptitud Laboral</h3>
+            <h3 id="certificateCardTitle" class="text-white text-xl font-bold">Certificado de Aptitud Laboral</h3>
             <p class="text-blue-100 text-sm mt-1">Documento oficial verificado</p>
           </div>
 
@@ -296,14 +296,22 @@ import Layout from "../../layouts/Layout.astro";
         </div>` : ''}
       `;
 
+      // Actualizar título de tarjeta según tipo de certificado
+      const isGeneral = cert.certificate_type === 'general';
+      const cardTitleEl = document.getElementById('certificateCardTitle');
+      if (cardTitleEl) {
+        cardTitleEl.textContent = isGeneral ? 'Certificado Médico General' : 'Certificado de Aptitud Laboral';
+      }
+
       // Mostrar estado y vigencia
       const statusMap = {
-        'apto': { text: 'APTO PARA EL TRABAJO', color: 'text-green-700 bg-green-100' },
+        'apto': { text: isGeneral ? 'APTO' : 'APTO PARA EL TRABAJO', color: 'text-green-700 bg-green-100' },
         'apto_con_restricciones': { text: 'APTO CON RESTRICCIONES', color: 'text-yellow-700 bg-yellow-100' },
         'apto_manipulacion_alimentos': { text: 'APTO PARA MANIPULACIÓN DE ALIMENTOS', color: 'text-blue-700 bg-blue-100' },
         'apto_trabajo_alturas': { text: 'APTO PARA TRABAJO EN ALTURAS', color: 'text-purple-700 bg-purple-100' },
         'apto_espacios_confinados': { text: 'APTO PARA ESPACIOS CONFINADOS', color: 'text-indigo-700 bg-indigo-100' },
-        'apto_conduccion': { text: 'APTO PARA CONDUCCIÓN', color: 'text-teal-700 bg-teal-100' }
+        'apto_conduccion': { text: 'APTO PARA CONDUCCIÓN', color: 'text-teal-700 bg-teal-100' },
+        'apto_comunidad': { text: 'APTO PARA ESTAR EN COMUNIDAD', color: 'text-green-700 bg-green-100' }
       };
       
       const status = statusMap[cert.aptitude_status] || { text: cert.aptitude_status, color: 'text-gray-700 bg-gray-100' };

@@ -7,7 +7,7 @@ import { MailService } from '../../../../lib/mail-service.js';
 import { db } from '../../../../lib/database.js';
 import { isValidEmail } from '../../../../lib/utils.js';
 
-const ALLOWED_STATUS = ['apto', 'apto_con_restricciones', 'apto_manipulacion_alimentos', 'apto_trabajo_alturas', 'apto_espacios_confinados', 'apto_conduccion'];
+const ALLOWED_STATUS = ['apto', 'apto_con_restricciones', 'apto_manipulacion_alimentos', 'apto_trabajo_alturas', 'apto_espacios_confinados', 'apto_conduccion', 'apto_comunidad'];
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
@@ -35,7 +35,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       restrictions,
       recommendations,
       validity_start,
-      validity_end
+      validity_end,
+      certificate_type
     } = body || {};
 
     // Validaciones mínimas
@@ -135,7 +136,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       recommendations: recommendations || undefined,
       validityStart: validity_start || undefined,
       validityEnd: validity_end || undefined,
-      baseUrl: origin
+      baseUrl: origin,
+      certificateType: certificate_type || undefined
     });
     console.log('✅ Certificado emitido exitosamente');
 
@@ -197,24 +199,28 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         emailStatus.attempted = true;
         emailStatus.recipients = emails;
         if (emails.length > 0 && result.pdfBuffer) {
-          const subject = `Certificado médico ocupacional - ${patient.name}`;
+          const isGeneral = certificate_type === 'general';
+          const subject = isGeneral ? `Certificado médico general - ${patient.name}` : `Certificado de aptitud laboral - ${patient.name}`;
           const statusMap: Record<string, string> = {
-            'apto': 'APTO PARA EL TRABAJO',
+            'apto': isGeneral ? 'APTO' : 'APTO PARA EL TRABAJO',
             'apto_con_restricciones': 'APTO CON RESTRICCIONES',
             'apto_manipulacion_alimentos': 'APTO PARA MANIPULACIÓN DE ALIMENTOS',
             'apto_trabajo_alturas': 'APTO PARA TRABAJO EN ALTURAS',
             'apto_espacios_confinados': 'APTO PARA ESPACIOS CONFINADOS',
-            'apto_conduccion': 'APTO PARA CONDUCCIÓN'
+            'apto_conduccion': 'APTO PARA CONDUCCIÓN',
+            'apto_comunidad': 'APTO PARA ESTAR EN COMUNIDAD'
           };
           const displayStatus = statusMap[aptitude_status] || aptitude_status;
+          const certTitle = isGeneral ? 'Certificado Médico General' : 'Certificado de Aptitud Laboral';
+          const certBodyText = isGeneral ? 'certificado médico general' : 'certificado médico ocupacional';
           const html = `
             <div style="font-family: Arial, sans-serif; color:#1f2937; line-height:1.5;">
               <div style="max-width:640px;margin:0 auto;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
                 <div style="background:#0e7490;color:#fff;padding:16px 20px;">
-                  <h1 style="margin:0;font-size:18px;">Certificado de Aptitud Laboral</h1>
+                  <h1 style="margin:0;font-size:18px;">${certTitle}</h1>
                 </div>
                 <div style="padding:20px;background:#fff;">
-                  <p style="margin:0 0 12px 0;">Se ha emitido un certificado médico ocupacional para el trabajador <strong>${patient.name}</strong>.</p>
+                  <p style="margin:0 0 12px 0;">Se ha emitido un ${certBodyText} para el trabajador <strong>${patient.name}</strong>.</p>
                   <p style="margin:0 0 12px 0;">Estado de aptitud: <strong>${displayStatus}</strong>.</p>
                   <p style="margin:0 0 12px 0;">Puede verificar la autenticidad en el siguiente enlace:</p>
                   <p style="margin:0 0 16px 0;"><a href="${result.verificationUrl}" style="color:#0ea5e9;text-decoration:underline;" target="_blank">${result.verificationUrl}</a></p>

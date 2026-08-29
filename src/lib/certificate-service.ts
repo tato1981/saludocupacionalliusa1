@@ -5,7 +5,7 @@ import QRCode from 'qrcode';
 import sharp from 'sharp';
 import { getObjectFromR2 } from './r2-storage.js';
 
-export type AptitudeStatus = 'apto' | 'apto_con_restricciones' | 'apto_manipulacion_alimentos' | 'apto_trabajo_alturas' | 'apto_espacios_confinados' | 'apto_conduccion';
+export type AptitudeStatus = 'apto' | 'apto_con_restricciones' | 'apto_manipulacion_alimentos' | 'apto_trabajo_alturas' | 'apto_espacios_confinados' | 'apto_conduccion' | 'apto_comunidad';
 
 export interface IssueCertificateParams {
   patientId: number;
@@ -17,6 +17,7 @@ export interface IssueCertificateParams {
   validityStart?: string; // YYYY-MM-DD
   validityEnd?: string;   // YYYY-MM-DD
   baseUrl?: string;
+  certificateType?: string;
 }
 
 function generateCode(length = 32): string {
@@ -253,8 +254,8 @@ export class CertificateService {
       const [result] = await db.execute(
         `INSERT INTO work_certificates (
           patient_id, doctor_id, appointment_id, aptitude_status, restrictions, recommendations,
-          validity_start, validity_end, verification_code, certificate_date
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          validity_start, validity_end, verification_code, certificate_date, certificate_type
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           params.patientId,
           params.doctorId,
@@ -265,7 +266,8 @@ export class CertificateService {
           params.validityStart || null,
           params.validityEnd || null,
           verificationCode,
-          certificateDate
+          certificateDate,
+          params.certificateType || 'aptitud'
         ]
       );
 
@@ -365,17 +367,14 @@ export class CertificateService {
       const headerHeight = 70;
       doc.rect(50, headerY, pageWidth, headerHeight).fill('#1e3a8a').stroke('#1e40af');
 
+      const isGeneral = (params.certificateType === 'general');
+      const certificateTitle = isGeneral ? 'CERTIFICADO MÉDICO GENERAL' : 'CERTIFICADO DE APTITUD LABORAL';
+
       // Título principal en el banner
       doc.fillColor('#FFFFFF');
       doc.font('Helvetica-Bold').fontSize(14).text(
-        cleanText('CERTIFICADO DE APTITUD LABORAL'),
+        cleanText(certificateTitle),
         50, headerY + 20,
-        { align: 'center', width: pageWidth }
-      );
-
-      doc.font('Helvetica').fontSize(8).text(
-        cleanText('Sistema de Salud Ocupacional'),
-        50, headerY + 42,
         { align: 'center', width: pageWidth }
       );
 
@@ -518,12 +517,13 @@ export class CertificateService {
       const aptitudeSectionY = doc.y;
 
       const statusMap: Record<AptitudeStatus, string> = {
-        'apto': 'APTO PARA EL TRABAJO',
+        'apto': isGeneral ? 'APTO' : 'APTO PARA EL TRABAJO',
         'apto_con_restricciones': 'APTO CON RESTRICCIONES',
         'apto_manipulacion_alimentos': 'APTO PARA MANIPULACIÓN DE ALIMENTOS',
         'apto_trabajo_alturas': 'APTO PARA TRABAJO EN ALTURAS',
         'apto_espacios_confinados': 'APTO PARA ESPACIOS CONFINADOS',
-        'apto_conduccion': 'APTO PARA CONDUCCIÓN'
+        'apto_conduccion': 'APTO PARA CONDUCCIÓN',
+        'apto_comunidad': 'APTO PARA ESTAR EN COMUNIDAD'
       };
 
       // Colores según estado
@@ -620,8 +620,10 @@ export class CertificateService {
         doc.moveDown(0.5);
       }
 
-      // Observaciones generales (nuevo)
-      this.addGeneralObservations(doc, contentWidth);
+      // Observaciones generales (solo para certificado ocupacional)
+      if (!isGeneral) {
+        this.addGeneralObservations(doc, contentWidth);
+      }
 
       doc.moveDown(0.5);
 
@@ -781,17 +783,14 @@ export class CertificateService {
       const headerHeight = 70;
       doc.rect(50, headerY, pageWidth, headerHeight).fill('#1e3a8a').stroke('#1e40af');
 
+      const isGeneral = (record.certificate_type === 'general');
+      const certificateTitle = isGeneral ? 'CERTIFICADO MÉDICO GENERAL' : 'CERTIFICADO DE APTITUD LABORAL';
+
       // Título principal en el banner
       doc.fillColor('#FFFFFF');
       doc.font('Helvetica-Bold').fontSize(14).text(
-        cleanText('CERTIFICADO DE APTITUD LABORAL'),
+        cleanText(certificateTitle),
         50, headerY + 20,
-        { align: 'center', width: pageWidth }
-      );
-
-      doc.font('Helvetica').fontSize(8).text(
-        cleanText('Sistema de Salud Ocupacional'),
-        50, headerY + 42,
         { align: 'center', width: pageWidth }
       );
 
@@ -935,12 +934,13 @@ export class CertificateService {
       const aptitudeSectionY = doc.y;
 
       const statusMap: Record<AptitudeStatus, string> = {
-        'apto': 'APTO PARA EL TRABAJO',
+        'apto': isGeneral ? 'APTO' : 'APTO PARA EL TRABAJO',
         'apto_con_restricciones': 'APTO CON RESTRICCIONES',
         'apto_manipulacion_alimentos': 'APTO PARA MANIPULACIÓN DE ALIMENTOS',
         'apto_trabajo_alturas': 'APTO PARA TRABAJO EN ALTURAS',
         'apto_espacios_confinados': 'APTO PARA ESPACIOS CONFINADOS',
-        'apto_conduccion': 'APTO PARA CONDUCCIÓN'
+        'apto_conduccion': 'APTO PARA CONDUCCIÓN',
+        'apto_comunidad': 'APTO PARA ESTAR EN COMUNIDAD'
       };
 
       // Colores según estado
@@ -1037,8 +1037,10 @@ export class CertificateService {
         doc.moveDown(0.5);
       }
 
-      // Observaciones generales (nuevo)
-      this.addGeneralObservations(doc, contentWidth);
+      // Observaciones generales (solo para certificado ocupacional)
+      if (!isGeneral) {
+        this.addGeneralObservations(doc, contentWidth);
+      }
 
       doc.moveDown(0.5);
 
