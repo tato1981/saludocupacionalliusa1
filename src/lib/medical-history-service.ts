@@ -802,12 +802,6 @@ export class MedicalHistoryService {
           { align: 'center', width: pageWidth }
         );
 
-        doc.font('Helvetica').fontSize(8).text(
-          cleanText('Sistema de Salud Ocupacional'),
-          30, headerY + 30,
-          { align: 'center', width: pageWidth }
-        );
-
         // Línea decorativa
         doc.strokeColor('#fbbf24').lineWidth(1);
         doc.moveTo(130, headerY + 40).lineTo(pageWidth - 50, headerY + 40).stroke();
@@ -1170,24 +1164,28 @@ export class MedicalHistoryService {
 
     doc.font('Helvetica').fontSize(8.5);
 
-    // Firma Izquierda: Profesional (compacta)
+    // Firma Izquierda: Profesional (compacta y ordenada)
     const leftSigX = 40;
     if (doctorSignaturePng) {
       doc.image(doctorSignaturePng, leftSigX, signatureImageY, { fit: [130, 40] });
     }
     doc.text('_______________________', leftSigX, signatureLineY);
-    doc.text(cleanText(doctor.name), leftSigX, signatureLineY + 10, { width: 110 });
-    doc.fontSize(7.5).text(cleanText(`Reg: ${doctor.professional_license || 'N/A'}`), leftSigX, signatureLineY + 18);
+    doc.text(cleanText(doctor.name), leftSigX, signatureLineY + 10);
+    doc.fontSize(7.5);
+    doc.text(cleanText(`C.C. ${doctor.document_number || 'N/A'}`), leftSigX, signatureLineY + 20);
+    doc.text(cleanText(`Registro No: ${doctor.professional_license || 'N/A'}`), leftSigX, signatureLineY + 29);
 
-    // Firma Derecha: Paciente (compacta)
+    // Firma Derecha: Paciente (compacta y ordenada)
     const rightSigX = 350;
     doc.fontSize(8.5);
     if (patientSignaturePng) {
       doc.image(patientSignaturePng, rightSigX, signatureImageY, { fit: [130, 40] });
     }
     doc.text('_______________________', rightSigX, signatureLineY);
-    doc.text(cleanText(patient.name), rightSigX, signatureLineY + 10, { width: 110 });
-    doc.fontSize(7.5).text(cleanText('Paciente'), rightSigX, signatureLineY + 18);
+    doc.text(cleanText(patient.name), rightSigX, signatureLineY + 10);
+    doc.fontSize(7.5);
+    doc.text(cleanText(`${patient.document_type || 'C.C.'} ${patient.document_number || 'N/A'}`), rightSigX, signatureLineY + 20);
+    doc.text(cleanText('Paciente'), rightSigX, signatureLineY + 29);
 
     doc.fillColor('#000000');
   }
