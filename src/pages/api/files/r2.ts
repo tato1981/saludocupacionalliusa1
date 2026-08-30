@@ -14,7 +14,7 @@ function contentTypeFromKey(key: string): string {
 export const GET: APIRoute = async ({ url, cookies }) => {
   try {
     const user = requireAuth(cookies);
-    if (!hasRole(user, 'staff')) {
+    if (!hasRole(user, 'staff') && user?.role !== 'doctor') {
       return new Response(JSON.stringify({ success: false, message: 'No autorizado' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' },
