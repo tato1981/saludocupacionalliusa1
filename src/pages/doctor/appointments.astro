@@ -879,11 +879,13 @@ if (!user || user.role !== 'doctor') {
       (document.getElementById('modalAppointmentId') as HTMLInputElement).value = app.id.toString();
       (document.getElementById('modalPatientName') as HTMLInputElement).value = app.patient_name;
       
-      // Auto-seleccionar tipo de certificado por defecto
+      // Auto-seleccionar tipo de certificado por defecto y limitar opciones
       const certTypeSelect = document.getElementById('modalCertificateType') as HTMLSelectElement;
       if (app.appointment_type === 'consulta_general' || app.appointment_type === 'consulta_especializada') {
+          certTypeSelect.innerHTML = '<option value="general">Certificado Médico General</option>';
           certTypeSelect.value = 'general';
       } else {
+          certTypeSelect.innerHTML = '<option value="aptitud">Certificado de Aptitud Laboral</option>';
           certTypeSelect.value = 'aptitud';
       }
       updateAptitudeOptions();

@@ -272,9 +272,12 @@ if (!hasRole(user, 'admin')) {
 
     const aptitudOptions = `
       <option value="">Seleccione...</option>
-      <option value="apto">APTO</option>
+      <option value="apto">APTO PARA EL TRABAJO</option>
       <option value="apto_con_restricciones">APTO CON RESTRICCIONES</option>
-      <option value="no_apto">NO APTO</option>
+      <option value="apto_manipulacion_alimentos">APTO PARA MANIPULACIÓN DE ALIMENTOS</option>
+      <option value="apto_trabajo_alturas">APTO PARA TRABAJO EN ALTURAS</option>
+      <option value="apto_espacios_confinados">APTO PARA ESPACIOS CONFINADOS</option>
+      <option value="apto_conduccion">APTO PARA CONDUCCIÓN</option>
     `;
 
     const generalOptions = `
@@ -309,11 +312,13 @@ if (!hasRole(user, 'admin')) {
         document.getElementById('modalAppointmentId').value = app.id;
         document.getElementById('modalPatientName').value = app.patient_name;
         
-        // Auto-seleccionar tipo de certificado por defecto
+        // Auto-seleccionar tipo de certificado por defecto y limitar opciones
         const certTypeSelect = document.getElementById('modalCertificateType');
         if (app.appointment_type === 'consulta_general' || app.appointment_type === 'consulta_especializada') {
+            certTypeSelect.innerHTML = '<option value="general">Certificado Médico General</option>';
             certTypeSelect.value = 'general';
         } else {
+            certTypeSelect.innerHTML = '<option value="aptitud">Certificado de Aptitud Laboral</option>';
             certTypeSelect.value = 'aptitud';
         }
         updateAptitudeOptions();
