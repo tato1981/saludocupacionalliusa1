@@ -285,6 +285,21 @@ if (!user || user.role !== 'doctor') {
   let currentPage = 1;
   const itemsPerPage = 10;
 
+  function r2ProxyUrlForStoredValue(value: string): string {
+    if (!value) return '';
+    if (value.startsWith('blob:') || value.startsWith('data:')) return '';
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      try {
+        const u = new URL(value);
+        if (u.hostname.endsWith('r2.dev') && u.pathname && u.pathname !== '/') {
+          return `/api/files/r2?key=${encodeURIComponent(u.pathname.replace(/^\/+/, ''))}`;
+        }
+      } catch {}
+      return value;
+    }
+    return `/api/files/r2?key=${encodeURIComponent(value)}`;
+  }
+
   // Función helper para mostrar alertas usando SweetAlert2 global
   function showAlert(type: 'success' | 'error' | 'warning' | 'info', title: string, message?: string) {
     // Usar las funciones globales de SweetAlert2
@@ -524,11 +539,15 @@ if (!user || user.role !== 'doctor') {
         </td>
         <td class="px-6 py-4 whitespace-nowrap">
           <div class="flex items-center">
-            <div class="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center mr-3 shadow-sm border border-gray-200">
-              <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-              </svg>
-            </div>
+            ${appointment.patient_photo ? `
+              <img src="${r2ProxyUrlForStoredValue(String(appointment.patient_photo))}" alt="" class="w-12 h-12 rounded-full object-cover mr-3 shadow-sm border border-gray-200" />
+            ` : `
+              <div class="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center mr-3 shadow-sm border border-gray-200">
+                <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+              </div>
+            `}
             <div>
               <div class="text-sm font-medium text-gray-900">${appointment.patient_name}</div>
               <div class="text-sm text-gray-500">${appointment.patient_document}</div>
