@@ -493,13 +493,15 @@ if (!user || user.role !== 'doctor') {
   (window as any).handleIssueSubmit = async function(e: Event) {
     e.preventDefault();
 
+    const cleanMultiline = (str: string) => str ? str.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0).join('\n') : '';
+
     const formData = {
       patient_id: (document.getElementById('modalPatientId') as HTMLInputElement).value,
       appointment_id: (document.getElementById('modalAppointmentId') as HTMLInputElement).value,
       certificate_type: (document.getElementById('modalCertificateType') as HTMLSelectElement).value,
       aptitude_status: (document.getElementById('modalAptitude') as HTMLSelectElement).value,
-      restrictions: (document.getElementById('modalRestrictions') as HTMLTextAreaElement).value,
-      recommendations: (document.getElementById('modalRecommendations') as HTMLTextAreaElement).value,
+      restrictions: cleanMultiline((document.getElementById('modalRestrictions') as HTMLTextAreaElement).value),
+      recommendations: cleanMultiline((document.getElementById('modalRecommendations') as HTMLTextAreaElement).value),
       validity_start: (document.getElementById('modalStart') as HTMLInputElement).value,
       validity_end: (document.getElementById('modalEnd') as HTMLInputElement).value
     };

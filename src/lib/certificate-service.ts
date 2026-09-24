@@ -78,6 +78,17 @@ function cleanText(text: string): string {
     .replace(/\u00A0/g, ' ');        // Espacio de no separación
 }
 
+function cleanMultilineText(text: string): string {
+  if (!text) return '';
+  const cleaned = cleanText(text);
+  // Dividir por líneas, recortar espacios de cada una, y descartar renglones vacíos
+  return cleaned
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+    .join('\n');
+}
+
 export class CertificateService {
   private static r2KeyFromStoredValue(storedValue: any): string | null {
     const raw = typeof storedValue === 'string' ? storedValue.trim() : '';
@@ -250,6 +261,10 @@ export class CertificateService {
       // Si params.validityStart viene en formato YYYY-MM-DD, MySQL lo aceptará correctamente en columna DATETIME
       const certificateDate = params.validityStart ? params.validityStart : dayjs().format('YYYY-MM-DD HH:mm:ss');
 
+      // Limpiar textos multilínea eliminando renglones en blanco o espacios sobrantes
+      const cleanedRestrictions = params.restrictions ? cleanMultilineText(params.restrictions) : null;
+      const cleanedRecommendations = params.recommendations ? cleanMultilineText(params.recommendations) : null;
+
       // Insertar registro de certificado
       const [result] = await db.execute(
         `INSERT INTO work_certificates (
@@ -261,8 +276,8 @@ export class CertificateService {
           params.doctorId,
           params.appointmentId || null,
           params.aptitudeStatus,
-          params.restrictions || null,
-          params.recommendations || null,
+          cleanedRestrictions,
+          cleanedRecommendations,
           params.validityStart || null,
           params.validityEnd || null,
           verificationCode,
@@ -569,9 +584,6 @@ export class CertificateService {
         doc.moveDown(0.3);
         const restrictionsSectionY = doc.y;
 
-        // Barra lateral naranja
-        doc.rect(50, restrictionsSectionY, 4, 30).fill('#f97316');
-
         // Título
         doc.font('Helvetica-Bold').fontSize(8).fillColor('#ea580c').text(
           cleanText('RESTRICCIONES / LIMITACIONES'),
@@ -579,26 +591,33 @@ export class CertificateService {
         );
 
         const restrictionsBoxY = restrictionsSectionY + 15;
+        const textToRender = cleanMultilineText(params.restrictions || 'Ninguna registrada');
+        const textWidth = contentWidth - 20;
 
-        // Fondo de restricciones
-        doc.rect(50, restrictionsBoxY, contentWidth, 40).fillAndStroke('#fff7ed', '#fed7aa');
+        doc.font('Helvetica').fontSize(7);
+        const textHeight = doc.heightOfString(textToRender, { width: textWidth, align: 'justify', lineGap: 1.5 });
+        const boxPadding = 6;
+        const boxHeight = Math.max(25, textHeight + (boxPadding * 2));
+
+        // Barra lateral naranja proporcional a la altura
+        doc.rect(50, restrictionsSectionY, 4, boxHeight + 15).fill('#f97316');
+
+        // Fondo de restricciones dinámico
+        doc.rect(50, restrictionsBoxY, contentWidth, boxHeight).fillAndStroke('#fff7ed', '#fed7aa');
 
         doc.font('Helvetica').fontSize(7).fillColor('#000000').text(
-          cleanText(params.restrictions || 'Ninguna registrada'),
-          60, restrictionsBoxY + 10,
-          { align: 'justify', width: contentWidth - 20 }
+          textToRender,
+          60, restrictionsBoxY + boxPadding,
+          { align: 'justify', width: textWidth, lineGap: 1.5 }
         );
 
-        doc.moveDown(0.5);
+        doc.y = restrictionsBoxY + boxHeight + 6;
       }
 
       // RECOMENDACIONES (si aplica)
       if (params.recommendations) {
         doc.moveDown(0.3);
         const recommendationsSectionY = doc.y;
-
-        // Barra lateral azul claro
-        doc.rect(50, recommendationsSectionY, 4, 30).fill('#06b6d4');
 
         // Título
         doc.font('Helvetica-Bold').fontSize(8).fillColor('#0891b2').text(
@@ -607,17 +626,27 @@ export class CertificateService {
         );
 
         const recommendationsBoxY = recommendationsSectionY + 15;
+        const textToRender = cleanMultilineText(params.recommendations);
+        const textWidth = contentWidth - 20;
 
-        // Fondo de recomendaciones
-        doc.rect(50, recommendationsBoxY, contentWidth, 40).fillAndStroke('#ecfeff', '#a5f3fc');
+        doc.font('Helvetica').fontSize(7);
+        const textHeight = doc.heightOfString(textToRender, { width: textWidth, align: 'justify', lineGap: 1.5 });
+        const boxPadding = 6;
+        const boxHeight = Math.max(25, textHeight + (boxPadding * 2));
+
+        // Barra lateral azul claro proporcional a la altura
+        doc.rect(50, recommendationsSectionY, 4, boxHeight + 15).fill('#06b6d4');
+
+        // Fondo de recomendaciones dinámico
+        doc.rect(50, recommendationsBoxY, contentWidth, boxHeight).fillAndStroke('#ecfeff', '#a5f3fc');
 
         doc.font('Helvetica').fontSize(7).fillColor('#000000').text(
-          cleanText(params.recommendations),
-          60, recommendationsBoxY + 10,
-          { align: 'justify', width: contentWidth - 20 }
+          textToRender,
+          60, recommendationsBoxY + boxPadding,
+          { align: 'justify', width: textWidth, lineGap: 1.5 }
         );
 
-        doc.moveDown(0.5);
+        doc.y = recommendationsBoxY + boxHeight + 6;
       }
 
       // Observaciones generales (solo para certificado ocupacional)
@@ -986,9 +1015,6 @@ export class CertificateService {
         doc.moveDown(0.3);
         const restrictionsSectionY = doc.y;
 
-        // Barra lateral naranja
-        doc.rect(50, restrictionsSectionY, 4, 30).fill('#f97316');
-
         // Título
         doc.font('Helvetica-Bold').fontSize(8).fillColor('#ea580c').text(
           cleanText('RESTRICCIONES / LIMITACIONES'),
@@ -996,26 +1022,33 @@ export class CertificateService {
         );
 
         const restrictionsBoxY = restrictionsSectionY + 15;
+        const textToRender = cleanMultilineText(record.restrictions || 'Ninguna registrada');
+        const textWidth = contentWidth - 20;
 
-        // Fondo de restricciones
-        doc.rect(50, restrictionsBoxY, contentWidth, 40).fillAndStroke('#fff7ed', '#fed7aa');
+        doc.font('Helvetica').fontSize(7);
+        const textHeight = doc.heightOfString(textToRender, { width: textWidth, align: 'justify', lineGap: 1.5 });
+        const boxPadding = 6;
+        const boxHeight = Math.max(25, textHeight + (boxPadding * 2));
+
+        // Barra lateral naranja proporcional a la altura
+        doc.rect(50, restrictionsSectionY, 4, boxHeight + 15).fill('#f97316');
+
+        // Fondo de restricciones dinámico
+        doc.rect(50, restrictionsBoxY, contentWidth, boxHeight).fillAndStroke('#fff7ed', '#fed7aa');
 
         doc.font('Helvetica').fontSize(7).fillColor('#000000').text(
-          cleanText(record.restrictions || 'Ninguna registrada'),
-          60, restrictionsBoxY + 10,
-          { align: 'justify', width: contentWidth - 20 }
+          textToRender,
+          60, restrictionsBoxY + boxPadding,
+          { align: 'justify', width: textWidth, lineGap: 1.5 }
         );
 
-        doc.moveDown(0.5);
+        doc.y = restrictionsBoxY + boxHeight + 6;
       }
 
       // RECOMENDACIONES (si aplica)
       if (record.recommendations) {
         doc.moveDown(0.3);
         const recommendationsSectionY = doc.y;
-
-        // Barra lateral azul claro
-        doc.rect(50, recommendationsSectionY, 4, 30).fill('#06b6d4');
 
         // Título
         doc.font('Helvetica-Bold').fontSize(8).fillColor('#0891b2').text(
@@ -1024,17 +1057,27 @@ export class CertificateService {
         );
 
         const recommendationsBoxY = recommendationsSectionY + 15;
+        const textToRender = cleanMultilineText(record.recommendations);
+        const textWidth = contentWidth - 20;
 
-        // Fondo de recomendaciones
-        doc.rect(50, recommendationsBoxY, contentWidth, 40).fillAndStroke('#ecfeff', '#a5f3fc');
+        doc.font('Helvetica').fontSize(7);
+        const textHeight = doc.heightOfString(textToRender, { width: textWidth, align: 'justify', lineGap: 1.5 });
+        const boxPadding = 6;
+        const boxHeight = Math.max(25, textHeight + (boxPadding * 2));
+
+        // Barra lateral azul claro proporcional a la altura
+        doc.rect(50, recommendationsSectionY, 4, boxHeight + 15).fill('#06b6d4');
+
+        // Fondo de recomendaciones dinámico
+        doc.rect(50, recommendationsBoxY, contentWidth, boxHeight).fillAndStroke('#ecfeff', '#a5f3fc');
 
         doc.font('Helvetica').fontSize(7).fillColor('#000000').text(
-          cleanText(record.recommendations),
-          60, recommendationsBoxY + 10,
-          { align: 'justify', width: contentWidth - 20 }
+          textToRender,
+          60, recommendationsBoxY + boxPadding,
+          { align: 'justify', width: textWidth, lineGap: 1.5 }
         );
 
-        doc.moveDown(0.5);
+        doc.y = recommendationsBoxY + boxHeight + 6;
       }
 
       // Observaciones generales (solo para certificado ocupacional)

@@ -360,13 +360,15 @@ if (!hasRole(user, 'admin')) {
     window.handleIssueSubmit = async function(e) {
         e.preventDefault();
         
+        const cleanMultiline = (str) => str ? str.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0).join('\n') : '';
+
         const formData = {
             patient_id: document.getElementById('modalPatientId').value,
             appointment_id: document.getElementById('modalAppointmentId').value,
             certificate_type: document.getElementById('modalCertificateType').value,
             aptitude_status: document.getElementById('modalAptitude').value,
-            restrictions: document.getElementById('modalRestrictions').value,
-            recommendations: document.getElementById('modalRecommendations').value,
+            restrictions: cleanMultiline(document.getElementById('modalRestrictions').value),
+            recommendations: cleanMultiline(document.getElementById('modalRecommendations').value),
             validity_start: document.getElementById('modalStart').value,
             validity_end: document.getElementById('modalEnd').value
         };
