@@ -83,6 +83,29 @@ export async function uploadImageToR2(opts: {
   return { key, url: publicUrlBase ? `${publicUrlBase}/${key}` : '', contentType: outputContentType };
 }
 
+// Subida genérica de archivos a R2 (sin conversión de imagen)
+export async function uploadFileToR2(opts: {
+  key: string;
+  body: Buffer | string;
+  contentType?: string;
+}): Promise<{ key: string; url: string }> {
+  const bucket = requireEnv('R2_BUCKET_NAME');
+  const publicUrlBase = (process.env.R2_PUBLIC_URL || '').replace(/\/+$/, '');
+  const key = safeKeyPrefix(opts.key);
+
+  const client = getR2Client();
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: opts.body,
+      ContentType: opts.contentType || 'application/octet-stream',
+    }),
+  );
+
+  return { key, url: publicUrlBase ? `${publicUrlBase}/${key}` : '' };
+}
+
 async function streamToBuffer(stream: any): Promise<Buffer> {
   const chunks: Buffer[] = [];
   for await (const chunk of stream) {
